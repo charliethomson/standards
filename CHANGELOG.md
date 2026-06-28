@@ -22,8 +22,9 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   web-architecture, rust-conventions, lib-ecosystem.
 - **Glossary** — `docs/glossary.md`: conventions, concepts, infrastructure, and the `lib*`
   toolchain defined in one place.
-- **Prompts** — `prompts/`: copy-paste prompts for agents (the submodule install prompt).
-  `install` now reminds which files to commit (including the `.claude/skills/` symlinks).
+- **Prompts** — `prompts/`: copy-paste prompts for agents — `install.md` (wire up the
+  submodule) and `validate-install.md` (check an install is correct + committed). `install` now
+  reminds which files to commit (including the `.claude/skills/` symlinks).
 - **Copyable templates** (`templates/`) — `VERSIONING.md`; `rust/` (`build.rs`,
   `tarpaulin.toml`, `id.rs`, `error.rs`, `config.rs`, `observability.rs`,
   `Cargo-workspace-lints.toml`); `github-workflows/` (`ci.yml`, `server.build.yml`,
