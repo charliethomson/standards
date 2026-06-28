@@ -49,7 +49,7 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   base-dir override + no-create (`251628a`). Removed the interim `figment` framing; the
   `config.rs` template now uses `Loader::path(..).env_prefix(..).shared_env(..)`.
 - `docs/identifiers.md`: reframed the segment after `<product>` as a **`<component>`** (a
-  service like `server`/`courier`/`cli` or an app surface like `ios`/`macos`/`winui`/`web`),
+  service like `server`/`worker`/`cli` or an app surface like `ios`/`macos`/`winui`/`web`),
   with grants documented as a parallel axis and an explicit grammar — replacing the looser
   `<platform|grant>` shorthand.
 - **Anonymized examples** across docs + templates: product/library names → `dev.thmsn.someproduct`

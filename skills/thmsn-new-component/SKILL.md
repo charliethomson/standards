@@ -9,7 +9,7 @@ Grow an existing product without drifting from the standards. Confirm the **comp
 kind** first, then scaffold from `standards/templates/` and wire it in.
 
 Read `.standards.conf` for `PRODUCT` / `PRODUCT_UPPER`. A component is named
-`dev.thmsn.$PRODUCT.<component>` — a service (`server`, `courier`, `cli`, `<name>`) or an app
+`dev.thmsn.$PRODUCT.<component>` — a service (`server`, `worker`, `cli`, `<name>`) or an app
 surface (`ios`, `macos`, `winui`, `web`). See [identifiers](standards/docs/identifiers.md).
 
 ## Service / binary component

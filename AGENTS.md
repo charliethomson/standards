@@ -26,7 +26,7 @@ unless the repo's own docs explicitly override a specific point.
 - **Versioning** — version is *derived*, never stored: `MAJOR.MINOR.<commit count>`. The
   git tag (`vMAJOR.MINOR`) is the only manual knob. See [`docs/versioning.md`](docs/versioning.md).
 - **Identifiers** — reverse-domain `dev.thmsn.<product>[.<component>]`, everywhere
-  (`<component>` = a service like `server`/`courier`/`cli` or an app surface like
+  (`<component>` = a service like `server`/`worker`/`cli` or an app surface like
   `ios`/`macos`/`winui`/`web`; grants are a parallel axis).
 - **Build info** — embed detailed build metadata via `libbuildinfo` when feasible.
 - **Workflow** — single developer, single user. Commit straight to `main`. No PR gates.

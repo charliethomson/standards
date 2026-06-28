@@ -4,7 +4,7 @@ A standalone binary distributed to machines (not a hosted service with clients).
 its own repo or a `bin/` member inside a product monorepo. The distinguishing feature is
 **distribution through the registry with an install manifest**.
 
-Reference: a `someproduct` CLI and a `courier` background-uploader binary.
+Reference: a `someproduct` CLI and a `worker` (a background companion service).
 
 ## Repo shape
 
@@ -24,7 +24,7 @@ Reference: a `someproduct` CLI and a `courier` background-uploader binary.
 |---|---|
 | [Versioning](../versioning.md) | Derived `MAJOR.MINOR.<count>` via `build.rs`; wired into clap `#[command(version = env!("APP_VERSION"))]`. |
 | [Build info](../build-info.md) | `libbuildinfo` recommended — a `--version`/`version` subcommand that prints commit hash + dirty flag is invaluable for a distributed binary. |
-| [Identifiers](../identifiers.md) | `dev.thmsn.<product>.cli` (or `.courier`, etc.) via `libproduct`. |
+| [Identifiers](../identifiers.md) | `dev.thmsn.<product>.cli` (or `.worker`, etc.) via `libproduct`. |
 | [Registry publishing](../registry-publishing.md) | **The defining standard** — published as registry `kind = cli`; see below. |
 | [CI/CD](../ci-cd.md) | `cli.release.yml` builds per-target artifacts on self-hosted runners and publishes. |
 | [Testing](../testing.md) | Test command/arg logic and parsing; completions generation. |

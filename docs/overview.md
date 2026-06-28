@@ -28,7 +28,7 @@ optional. Full rules in [`archetypes/`](archetypes/).
 | **[Full-stack product](archetypes/full-stack-product.md)** | Rust/Poem server emitting an OpenAPI contract, native clients per platform, deployed to the homelab | `someproduct` | all of them |
 | **[Library](archetypes/library.md)** | A shared `lib*` crate consumed by other repos over git | `libsomeproduct` + the `lib*` family | versioning (light), identifiers, testing |
 | **[Orchestration](archetypes/orchestration.md)** | Deployment/infra-as-code for the homelab itself | homelab | deployment, identifiers, secrets split |
-| **[CLI / service tool](archetypes/cli-tool.md)** | Standalone binary published to the registry with an install manifest | someproduct (CLI), courier | versioning, registry publishing, build info |
+| **[CLI / service tool](archetypes/cli-tool.md)** | Standalone binary published to the registry with an install manifest | someproduct (CLI), worker | versioning, registry publishing, build info |
 
 When a repo blends types (e.g. a product that also ships a CLI), apply each archetype to
 the relevant subtree.

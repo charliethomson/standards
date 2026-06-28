@@ -21,12 +21,12 @@ A component is one deployable or installable unit of the product. Two families:
 
 | Family | Component names | Used for |
 |---|---|---|
-| **Services / binaries** | `server`, `courier`, `cli`, or a specific `<service_name>` | Rust `product_name!`, OTel `service.name`, log/notification namespaces |
+| **Services / binaries** | `server`, `worker`, `cli`, or a specific `<service_name>` | Rust `product_name!`, OTel `service.name`, log/notification namespaces |
 | **App surfaces** | `ios`, `macos`, `winui`, `web` | bundle identifiers, per-client namespacing |
 
 Pick the name that describes *what the unit is*, not incidentally what OS it runs on — a
-background uploader is `courier`, the desktop app surface is `macos`, the Windows app surface
-is `winui`, the browser app is `web`.
+background job-runner that hangs off the main service is `worker`, the desktop app surface is
+`macos`, the Windows app surface is `winui`, the browser app is `web`.
 
 > **Component (`winui`) ≠ workflow surface (`windows`).** An identifier component names *what
 > the app is* — the UI tech (`winui`, `web`). A workflow surface ([ci-cd.md](ci-cd.md) naming)
@@ -39,7 +39,7 @@ is `winui`, the browser app is `web`.
 | Identifier | What it names |
 |---|---|
 | `dev.thmsn.someproduct.server` | the someproduct server binary (service component) |
-| `dev.thmsn.someproduct.courier` | the someproduct courier binary (service component) |
+| `dev.thmsn.someproduct.worker` | the someproduct worker binary (service component) |
 | `dev.thmsn.someproduct.cli` | the someproduct CLI binary (service component) |
 | `dev.thmsn.someproduct.ios` / `.macos` / `.winui` / `.web` | app-surface components (Apple bundle ids, etc.) |
 | `dev.thmsn.someproduct` | the product as a whole (its auth app id) |
@@ -81,7 +81,7 @@ A product typically has both: identifier `dev.thmsn.someproduct`, hostname `some
 
 | Context | Mechanism |
 |---|---|
-| **Rust binary** (service component) | `libproduct`'s `product_name!("dev.thmsn.<product>.<component>")` in `main.rs` — e.g. `.server`, `.courier`, `.cli`. The canonical injection point; also becomes the OTel `service.name`. |
+| **Rust binary** (service component) | `libproduct`'s `product_name!("dev.thmsn.<product>.<component>")` in `main.rs` — e.g. `.server`, `.worker`, `.cli`. The canonical injection point; also becomes the OTel `service.name`. |
 | **Apple** (`ios`/`macos`) | `project.yml` (XcodeGen): `options.bundleIdPrefix: dev.thmsn.<product>` and per-target `PRODUCT_BUNDLE_IDENTIFIER: dev.thmsn.<product>.{ios,macos}`. |
 | **Windows / Web** (`winui`/`web`) | The WinUI app identity / web app config uses `dev.thmsn.<product>.{winui,web}`. |
 | **Auth grants** | `#[derive(App)]` with `id = "dev.thmsn.<product>"` and a `Grants` enum (`Use`/`Read`/`Write`/`Admin` → `dev.thmsn.<product>.{use,read,write,admin}`), registered idempotently on startup. |
@@ -99,7 +99,7 @@ is a substring search. The strict segment rules keep IDs URL- and filename-safe.
 
 - [ ] Product has one root identifier `dev.thmsn.<product>`.
 - [ ] Each component is named `dev.thmsn.<product>.<component>` — a service (`server`,
-      `courier`, `cli`, `<service_name>`) or an app surface (`ios`, `macos`, `winui`, `web`).
+      `worker`, `cli`, `<service_name>`) or an app surface (`ios`, `macos`, `winui`, `web`).
 - [ ] Rust binaries set their component id via `libproduct`'s `product_name!()`.
 - [ ] Apple targets derive bundle ids from `bundleIdPrefix: dev.thmsn.<product>` (`.ios`/`.macos`).
 - [ ] Auth grants use `dev.thmsn.<product>.{use,read,write,admin}` (parallel to components).
