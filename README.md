@@ -27,17 +27,35 @@ into a repo.
 ## Adding to a repo
 
 ```sh
-git submodule add https://github.com/charliethomson/standards standards
-cp standards/templates/consuming-repo-AGENTS.md AGENTS.md   # then fill in the placeholders
-./standards/templates/link-standards.sh                     # link skills, scaffold .mcp.json
+git submodule add git@github.com:charliethomson/standards standards
+standards/bin/standards install --product <slug> [--upper ENV] [--lib name] [--archetype <type>]
 ```
 
-The root `AGENTS.md` stub points agents into `standards/` so the conventions are
-discovered automatically. To update the standards in a consuming repo:
+`install` writes a root `AGENTS.md` (pointing agents into `standards/`), records the product's
+identity in `.standards.conf`, links shared skills into `.claude/skills/`, and scaffolds `.mcp.json`.
+
+## Keeping in sync
 
 ```sh
-git submodule update --remote standards
+standards/bin/standards sync
 ```
+
+Pulls upstream, prints the changelog of what changed, re-links any new skills, and stages the
+submodule pointer bump for you to commit.
+
+## Contributing a change upstream
+
+Edit files under `standards/`, then:
+
+```sh
+standards/bin/standards contribute -m "describe the change"
+```
+
+It **genericizes this repo's identifiers** (`<slug>` → `someproduct`, your env prefix →
+`SOMEPRODUCT_`, your lib → `libsomeproduct`), verifies none of your product's names remain,
+pushes to the standards repo, and stages the pointer bump here. `standards lint` runs that
+verification on its own — it reads your `.standards.conf` (which lives in *your* repo), so **no
+product names are ever stored in this repo**. See [`bin/standards`](bin/standards).
 
 ## Status
 

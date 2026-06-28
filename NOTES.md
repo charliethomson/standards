@@ -27,7 +27,7 @@ Shipped API:
   (reverse-domain identifiers, env-var prefixes, GHCR image tags `<product>-{api,web}:main`,
   deployment hostnames `<service>.dev.thmsn.dev`, workflow names, branch = `main`) that
   currently lives spread across topic docs. Cross-links to the detail docs.
-- **Commit the repo** — still entirely uncommitted (clean slate; no commits yet).
+- **Seed the first shared skill/MCP** — `skills/` and `mcp/` hold only README placeholders.
 - **Reference-repo `VERSIONING.md` drift** — one reference repo has diverged from the fleet
   canonical; re-sync when convenient (external code, not touched).
 

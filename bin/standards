@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# standards — integrate / sync / contribute-to the shared standards submodule.
+#
+# Run from a consuming repo (any directory inside it):
+#   standards/bin/standards install   --product <slug> [--upper <ENV>] [--lib <name>] [--archetype <a>]
+#   standards/bin/standards sync
+#   standards/bin/standards contribute [-m "message"]
+#   standards/bin/standards lint       [--changed | --all]
+#
+# The submodule lives at <repo>/standards; this script is <repo>/standards/bin/standards.
+set -euo pipefail
+
+# --- locate the submodule dir (grandparent of this script) and the consuming repo root ---
+self="$(cd "$(dirname "$0")" && pwd)"
+STD_DIR="$(dirname "$self")"                       # <repo>/standards
+# The consuming repo root. Falls back to STD_DIR when run inside the standards repo
+# itself (e.g. its own CI), where there is no parent repo.
+REPO_ROOT="$(git -C "$STD_DIR/.." rev-parse --show-toplevel 2>/dev/null || echo "$STD_DIR")"
+CONF="$REPO_ROOT/.standards.conf"
+
+c_red=$'\033[31m'; c_grn=$'\033[32m'; c_yel=$'\033[33m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
+say()  { printf '%s\n' "$*"; }
+ok()   { printf '%s✓%s %s\n' "$c_grn" "$c_off" "$*"; }
+warn() { printf '%s!%s %s\n' "$c_yel" "$c_off" "$*" >&2; }
+die()  { printf '%serror:%s %s\n' "$c_red" "$c_off" "$*" >&2; exit 1; }
+
+load_conf() {
+  [ -f "$CONF" ] || die "no .standards.conf at repo root — run 'standards install' first."
+  # shellcheck disable=SC1090
+  . "$CONF"
+  : "${PRODUCT:?PRODUCT missing in .standards.conf}"
+  PRODUCT_UPPER="${PRODUCT_UPPER:-$(printf '%s' "$PRODUCT" | tr '[:lower:]-' '[:upper:]_')}"
+  LIB="${LIB:-}"
+}
+
+# Replace this product's concrete identifiers with the generic placeholders, in-place,
+# across the given files. Case-aware; word-boundaried. Domain nouns are NOT touched
+# (lint warns about those — a human genericizes them).
+genericize() {
+  PRODUCT="$PRODUCT" PRODUCT_UPPER="$PRODUCT_UPPER" LIB="$LIB" \
+  perl -i -pe '
+    my $p  = quotemeta($ENV{PRODUCT});
+    my $pu = quotemeta($ENV{PRODUCT_UPPER});
+    my $pt = quotemeta(ucfirst($ENV{PRODUCT}));
+    s/\b${pt}\b/SomeProduct/g;
+    s/\b${pu}_/SOMEPRODUCT_/g;
+    s/\b${pu}\b/SOMEPRODUCT/g;
+    s/\b${p}\b/someproduct/g;
+    if (length $ENV{LIB}) { my $l = quotemeta($ENV{LIB}); s/\b${l}\b/libsomeproduct/g; }
+  ' "$@"
+}
+
+# Files changed in the submodule working tree (tracked + untracked), NUL-safe-ish.
+changed_files() {
+  { git -C "$STD_DIR" diff --name-only HEAD; \
+    git -C "$STD_DIR" ls-files --others --exclude-standard; } | sort -u
+}
+
+# Print offenders matching the alternation $1 across files $2..; grep-like exit:
+# returns 0 if any found, 1 if clean.
+scan() {
+  local patterns="$1"; shift
+  local found=1 f
+  for f in "$@"; do
+    [ -f "$STD_DIR/$f" ] || continue
+    if grep -inwE "$patterns" "$STD_DIR/$f" >/dev/null 2>&1; then
+      grep -inwE "$patterns" "$STD_DIR/$f" | sed "s|^|  $f:|"
+      found=0
+    fi
+  done
+  return $found
+}
+
+cmd_install() {
+  local product="" upper="" lib="" archetype="full-stack-product"
+  while [ $# -gt 0 ]; do case "$1" in
+    --product) product="$2"; shift 2;;
+    --upper)   upper="$2";   shift 2;;
+    --lib)     lib="$2";     shift 2;;
+    --archetype) archetype="$2"; shift 2;;
+    *) die "unknown flag: $1";;
+  esac; done
+  [ -n "$product" ] || die "usage: standards install --product <slug> [--upper ENV] [--lib name] [--archetype a]"
+  [ -n "$upper" ] || upper="$(printf '%s' "$product" | tr '[:lower:]-' '[:upper:]_')"
+
+  # 1. record the mapping
+  {
+    echo "# Product identity for the standards tooling (genericizer + lint)."
+    echo "PRODUCT=$product"
+    echo "PRODUCT_UPPER=$upper"
+    echo "LIB=$lib"
+    echo "ARCHETYPE=$archetype"
+  } > "$CONF"
+  ok "wrote .standards.conf ($product / $upper${lib:+ / $lib})"
+
+  # 2. root AGENTS.md from the stub (don't clobber an existing one)
+  if [ -f "$REPO_ROOT/AGENTS.md" ]; then
+    warn "AGENTS.md already exists — left untouched."
+  else
+    sed -e '/^<!--/,/^-->/d' -e "s/{{PRODUCT}}/$product/g" -e "s/{{ARCHETYPE}}/$archetype/g" \
+      "$STD_DIR/templates/consuming-repo-AGENTS.md" | sed '/./,$!d' > "$REPO_ROOT/AGENTS.md"
+    ok "wrote AGENTS.md (archetype: $archetype)"
+  fi
+
+  # 3. link skills + scaffold .mcp.json
+  ( cd "$REPO_ROOT" && "$STD_DIR/templates/link-standards.sh" )
+  ok "install complete. Read standards/AGENTS.md to get going."
+}
+
+cmd_sync() {
+  local before after
+  before="$(git -C "$STD_DIR" rev-parse HEAD)"
+  say "updating standards from upstream…"
+  git -C "$REPO_ROOT" submodule update --remote --quiet standards || die "submodule update failed"
+  after="$(git -C "$STD_DIR" rev-parse HEAD)"
+  if [ "$before" = "$after" ]; then ok "already up to date ($before)"; return 0; fi
+
+  say ""; say "${c_dim}changes ${before:0:8}..${after:0:8}:${c_off}"
+  git -C "$STD_DIR" log --oneline --no-decorate "$before..$after" | sed 's/^/  /'
+  say ""
+  ( cd "$REPO_ROOT" && "$STD_DIR/templates/link-standards.sh" ) >/dev/null
+  git -C "$REPO_ROOT" add standards
+  ok "updated to $after and staged the pointer. Commit it: git commit -m 'chore: sync standards'"
+}
+
+# Verify the files you've changed under standards/ carry none of THIS repo's own
+# identifiers (from .standards.conf — which lives in the consuming repo, never here).
+# No list of product names is stored in the standards repo.
+cmd_lint() {
+  [ -f "$CONF" ] || die "no .standards.conf — run 'standards install' first."
+  load_conf
+  local files; files="$(changed_files)"
+  [ -n "$files" ] || { ok "no changed files under standards/"; return 0; }
+  local own="($PRODUCT|$PRODUCT_UPPER${LIB:+|$LIB})"
+  if scan "$own" $files; then
+    warn "your names ($PRODUCT / $PRODUCT_UPPER${LIB:+ / $LIB}) are still present — run 'standards contribute' to genericize"
+    return 1
+  fi
+  ok "changed files are genericized"
+}
+
+cmd_contribute() {
+  local msg=""
+  while [ $# -gt 0 ]; do case "$1" in
+    -m|--message) msg="$2"; shift 2;;
+    *) die "unknown flag: $1";;
+  esac; done
+  load_conf
+
+  local files; files="$(changed_files)"
+  [ -n "$files" ] || die "no changes under standards/ to contribute."
+  say "changed files:"; printf '  %s\n' $files
+
+  # 1. ensure we commit on main, carrying the working changes
+  git -C "$STD_DIR" switch main >/dev/null 2>&1 || git -C "$STD_DIR" switch -c main >/dev/null 2>&1 || true
+
+  # 2. genericize this product's identifiers in the changed files
+  # shellcheck disable=SC2086
+  ( cd "$STD_DIR" && genericize $files )
+  ok "genericized $PRODUCT → someproduct (+ env/lib) in changed files"
+
+  # 3. guardrail before pushing
+  if ! cmd_lint --changed; then
+    warn "lint found names that couldn't be auto-genericized (likely domain nouns)."
+    warn "edit them by hand, then re-run 'standards contribute'."
+    die "aborting push."
+  fi
+
+  # 4. commit + push upstream
+  [ -n "$msg" ] || { printf 'commit message: '; read -r msg; }
+  git -C "$STD_DIR" add -A
+  git -C "$STD_DIR" commit -q -m "$msg" || die "nothing to commit after genericizing"
+  say "pushing to standards origin/main…"
+  git -C "$STD_DIR" push -q origin main || die "push failed"
+  ok "pushed: $(git -C "$STD_DIR" rev-parse --short HEAD)"
+
+  # 5. bump the pointer in the parent repo
+  git -C "$REPO_ROOT" add standards
+  ok "staged the submodule bump in $(basename "$REPO_ROOT"). Commit it: git commit -m 'chore: update standards'"
+}
+
+usage() {
+  cat <<EOF
+standards — integrate, sync, and contribute to the shared standards submodule.
+
+  standards install --product <slug> [--upper ENV] [--lib name] [--archetype a]
+      Wire this repo to the standards submodule (after 'git submodule add').
+
+  standards sync
+      Pull upstream standards, show what changed, re-link skills, stage the bump.
+
+  standards contribute [-m "message"]
+      Genericize your edits under standards/, push them upstream, bump the pointer.
+
+  standards lint
+      Check that your edits under standards/ carry none of this repo's own names
+      (read from .standards.conf). Run before 'contribute'.
+
+Identifiers are read from <repo>/.standards.conf (written by 'install'). No list of
+product names is ever stored in the standards repo itself.
+EOF
+}
+
+case "${1:-}" in
+  install)    shift; cmd_install "$@";;
+  sync)       shift; cmd_sync "$@";;
+  contribute) shift; cmd_contribute "$@";;
+  lint)       shift; cmd_lint "$@";;
+  ""|-h|--help|help) usage;;
+  *) die "unknown command: $1 (try 'standards help')";;
+esac
