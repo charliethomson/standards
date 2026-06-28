@@ -54,3 +54,27 @@ pub fn to_poem(err: Error) -> poem::Error {
     poem::Error::from_string(err.to_string(), status)
 }
 */
+
+// ──────────────── serializable, keyed errors (the trinity) ────────────────
+// Errors that cross a serialization boundary (a lib* crate, a structured log, an
+// API body) derive the trinity and carry a stable reverse-DNS ERROR KEY per variant:
+//   dev.thmsn.<root>.<area…>.error.<kind>   ({{PRODUCT}} for the root; a lib drops `lib`)
+// The key is the $type discriminant — specific to the code path, stable as a contract.
+/*
+use liberror::AnyError;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error, valuable::Valuable)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase",
+        tag = "$type", content = "context")]
+pub enum ConfigError {
+    #[error("failed to read config at \"{path}\": {inner_error}")]
+    #[serde(rename = "dev.thmsn.{{PRODUCT}}.server.config.error.read")]
+    Read { path: String, inner_error: AnyError }, // AnyError wraps foreign errors, keeping the chain
+
+    #[error("config was modified externally since it was last loaded")]
+    #[serde(rename = "dev.thmsn.{{PRODUCT}}.server.config.error.stale")]
+    Stale,
+}
+pub type ConfigResult<T> = std::result::Result<T, ConfigError>;
+*/

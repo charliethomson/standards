@@ -59,6 +59,11 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   external-adapter example, a metric name) so the docs are fully product-neutral. The real `lib*`
   toolchain and shared-infrastructure names are kept — they're the actual platform, not examples.
 
+- `docs/error-handling.md`: formalized **reverse-DNS error keys** — every serializable error
+  variant carries a stable `$type` key `dev.thmsn.<root>.<area>.error.<kind>`, specific to the
+  code path, via `#[serde(rename = …)]` (libs drop the `lib` prefix from the root). Extended the
+  `error.rs` template, added a glossary entry, and cross-linked from `identifiers.md`.
+
 ### Notes
 
 - Standards are written **canonically** (the rule as target state), per the deep-docs decision.

@@ -39,6 +39,9 @@ actually building.
   expected. See [data-persistence.md](data-persistence.md).
 - **the trinity** — `thiserror` + `liberror` + `valuable`: the derives that make an error type
   serializable, chain-preserving, and structured-loggable. See [error-handling.md](error-handling.md).
+- **error key** — the stable reverse-DNS `$type` on a serializable error variant,
+  `dev.thmsn.<root>.<area>.error.<kind>` — names exactly what failed so you can grep straight to
+  the code path. Part of the reverse-domain identity family. See [error-handling.md](error-handling.md).
 - **OTLP** — OpenTelemetry protocol; services export to the homelab collector with
   `service.name = dev.thmsn.<product>.<component>`. See [observability.md](observability.md).
 - **codegen drift check** — CI fails if a generated client no longer matches the committed

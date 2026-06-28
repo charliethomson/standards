@@ -48,30 +48,37 @@ pub fn to_poem(err: Error) -> poem::Error {
 Handlers: `state.db.list_x().await.map_err(to_poem)?`. Template:
 [`templates/rust/error.rs`](../templates/rust/error.rs).
 
-## Library errors: the trinity
+## Serializable errors: the trinity
 
-Errors that cross a serialization boundary (returned from a `lib*` crate, logged structurally,
-or surfaced in an API body) are **serializable and chain-preserving**:
+Errors that cross a serialization boundary — returned from a `lib*` crate, logged structurally,
+or surfaced in an API body — are **serializable, chain-preserving, and keyed**:
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error, valuable::Valuable)]
-#[serde(tag = "$type", content = "context", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase",
+        tag = "$type", content = "context")]
 pub enum ConfigError {
-    #[serde(rename = "dev.thmsn.config.error.read")]
     #[error("Failed to read config at \"{path}\": {inner_error}")]
+    #[serde(rename = "dev.thmsn.someproduct.server.config.error.read")]
     Read { path: String, inner_error: AnyError },
+
     #[error("Config file was modified externally since it was last loaded")]
+    #[serde(rename = "dev.thmsn.someproduct.server.config.error.stale")]
     Stale,
 }
 pub type ConfigResult<T> = Result<T, ConfigError>;
 ```
 
 Three derives, always together:
-- **`thiserror::Error`** — the `Display` message.
-- **`serde` with `tag = "$type", content = "context"`** — a machine-readable envelope. Name
-  variants with an **FQN** (`dev.thmsn.<lib>.error.<kind>`) via `#[serde(rename = …)]`.
-- **`valuable::Valuable`** — lets `tracing` log the error as **structured fields**, not a
-  flattened string (requires the `tracing_unstable` cfg, see [observability.md](observability.md)).
+- **`thiserror::Error`** — the human `Display` message.
+- **`serde` with `tag = "$type", content = "context"`** — the machine-readable envelope. Every
+  variant carries a stable **error key** (`$type`) via `#[serde(rename = …)]` — see below.
+- **`valuable::Valuable`** — lets `tracing` log the error as **structured fields** (requires the
+  `tracing_unstable` cfg, see [observability.md](observability.md)).
+
+A serialized error is then
+`{ "$type": "dev.thmsn.someproduct.server.config.error.read", "context": { "path": "…",
+"innerError": { … } } }` — the human message and the machine key are decoupled.
 
 **Wrap foreign errors** with [`liberror`](lib-ecosystem.md)'s `AnyError`, which captures any
 `std::error::Error` as `{ $type, context: { message, inner_error } }`, preserving the source
@@ -80,6 +87,34 @@ chain through serialization:
 ```rust
 SomeVariant { inner_error: AnyError },  // from sqlx::Error, io::Error, oauth2::Error, …
 ```
+
+## Error keys
+
+Every serializable error variant gets a stable, **reverse-DNS error key** — the `$type`
+discriminant — so a serialized error names *exactly what failed*, independent of its wording.
+The grammar mirrors the reverse-domain identity convention ([identifiers.md](identifiers.md)):
+
+```
+dev.thmsn.<root>[.<area…>].error.<kind>
+```
+
+- **`<root>`** — the product (`<product>`), or for a `lib*` crate its name **with the `lib`
+  prefix dropped** (`libsomeproduct` → `someproduct`; in the fleet, `libbuildinfo` → `build_info`).
+- **`<area…>`** — one or more segments locating the failure: for a product, the **component**
+  then the module/subject (`server.config`); for a library, the module path (`extract.git`).
+  Be specific — the whole point is that the key points straight at the code path.
+- **`error`** — a literal segment, always second-to-last.
+- **`<kind>`** — the variant, `snake_case`, naming the specific failure.
+
+| Key | Means |
+|---|---|
+| `dev.thmsn.someproduct.server.config.error.read` | the server's config module failed to read |
+| `dev.thmsn.someproduct.worker.error.spawn` | the worker failed to spawn |
+| `dev.thmsn.someproduct.extract.git.error.discover` | (library) the git-extract step couldn't discover the repo |
+
+**Why so specific:** when an error shows up in a log line or an API body, its key is a search
+string that takes you straight to the one place it's raised — that's the debugging payoff. Keep
+keys narrow; rename the `Display` message freely, but treat the **key as part of the contract**.
 
 ## Two layers, one flow
 
@@ -92,6 +127,10 @@ concerns.
 
 - [ ] `core` defines a categorised `Error` enum + a `Result<T>` alias.
 - [ ] `to_poem` (HTTP mapping) lives in `api` only; domain code is HTTP-agnostic.
-- [ ] Library/cross-boundary errors derive `thiserror` + `serde($type/context)` + `valuable`.
-- [ ] Serializable error variants carry FQN names (`dev.thmsn.<lib>.error.<kind>`).
+- [ ] Serializable errors derive `thiserror` + `serde` (`tag="$type"`, `content="context"`,
+      `rename_all`/`rename_all_fields = "camelCase"`) + `valuable`.
+- [ ] **Every** serializable variant has a reverse-DNS error key via `#[serde(rename = …)]`:
+      `dev.thmsn.<root>.<area>.error.<kind>` — specific to the code path, `snake_case` leaf.
+- [ ] Library keys drop the `lib` prefix from the root (`libsomeproduct` → `someproduct`).
+- [ ] Keys are treated as a stable contract (rename messages freely, not keys).
 - [ ] Foreign errors wrapped in `liberror::AnyError` to preserve the chain.

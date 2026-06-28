@@ -54,6 +54,10 @@ Auth grants hang off the **product root**, not a component: `dev.thmsn.<product>
 app id and registered on boot — see [auth-integration.md](auth-integration.md). A grant
 authorizes *access to the product*; it is not a component and is never a `product_name!`.
 
+**Error keys** are another member of this reverse-domain family:
+`dev.thmsn.<root>.<area>.error.<kind>` identifies a specific failure. See
+[error-handling.md](error-handling.md).
+
 ### Segment rules
 
 Each dot-separated segment:
