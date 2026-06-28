@@ -28,7 +28,7 @@ Shipped API:
   deployment hostnames `<service>.dev.thmsn.dev`, workflow names, branch = `main`) that
   currently lives spread across topic docs. Cross-links to the detail docs.
 - **Seed the first shared MCP server** — `mcp/` holds only a README placeholder (`skills/`
-  now has `thmsn-standards` + `thmsn-standards-contribute`).
+  now has six `thmsn-*` skills).
 - **Reference-repo `VERSIONING.md` drift** — one reference repo has diverged from the fleet
   canonical; re-sync when convenient (external code, not touched).
 

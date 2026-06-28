@@ -19,6 +19,10 @@ Consuming repos link these into their own `.claude/skills/` via
 | Skill | What it does |
 |---|---|
 | **`thmsn-standards`** | Audit the current repo against the applicable standards and report — or fix — the findings. (`/thmsn-standards scan this repo and fix all findings`) |
+| **`thmsn-standards-review`** | Diff-scoped check: flag only what your current changes/branch violate. A pre-commit/PR habit. |
+| **`thmsn-standards-init`** | Bootstrap a new/empty repo to an archetype — scaffold the full layout from templates. |
+| **`thmsn-new-component`** | Add a service/binary or a client surface (ios/macos/winui/web) to an existing product, on-standard. |
+| **`thmsn-standards-sync`** | Pull upstream standards, summarize what changed, and re-audit what's newly applicable here. |
 | **`thmsn-standards-contribute`** | Author a change to the standards from a consuming repo and push it upstream, genericized. |
 
 After adding or updating a skill here, consuming repos pick it up on their next
