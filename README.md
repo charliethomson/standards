@@ -20,6 +20,8 @@ so coding agents have one authoritative place to read the rules.
 - **`skills/`** — shared Claude Code skills (`<name>/SKILL.md`), usable by any consuming
   repo. Linked into `.claude/skills/` by the setup script.
 - **`mcp/`** — shared custom MCP servers, referenced from a consuming repo's `.mcp.json`.
+- **`bin/standards`** — the integration CLI (`install` / `sync` / `contribute` / `lint`).
+- **`prompts/`** — copy-paste prompts to hand an agent (e.g. [the install prompt](prompts/install.md)).
 
 See [`docs/skills-and-mcp.md`](docs/skills-and-mcp.md) for how the shared tooling is wired
 into a repo.

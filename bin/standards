@@ -105,6 +105,8 @@ cmd_install() {
   # 3. link skills + scaffold .mcp.json
   ( cd "$REPO_ROOT" && "$STD_DIR/templates/link-standards.sh" )
   ok "install complete. Read standards/AGENTS.md to get going."
+  say "  commit: .gitmodules, standards (pointer), AGENTS.md, .standards.conf, .mcp.json, .claude/skills/"
+  say "          (or add .claude/skills/ to .gitignore — don't leave it untracked)"
 }
 
 cmd_sync() {
