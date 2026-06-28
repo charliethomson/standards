@@ -69,6 +69,9 @@ libraries/CLIs too):
 | Rust conventions | [rust-conventions.md](rust-conventions.md) | Edition 2024, clippy pedantic + allowlist, git deps. |
 | `lib*` ecosystem | [lib-ecosystem.md](lib-ecosystem.md) | Solve cross-cutting concerns once in a shared `lib*`. |
 
+**Unfamiliar term?** [glossary.md](glossary.md) defines the conventions, concepts,
+infrastructure, and `lib*` toolchain referenced throughout.
+
 ## Shared tooling
 
 Beyond docs, this repo ships reusable tooling so every repo gets it through the same

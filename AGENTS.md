@@ -45,4 +45,5 @@ integration**, **configuration** (libconfig), **observability** (liblog/OTLP), *
 [`docs/`](docs/) and indexed in [`docs/overview.md`](docs/overview.md).
 
 Each bullet is a link or a doc in [`docs/`](docs/). When a standard and the code
-disagree, fix the code or flag it — don't silently diverge.
+disagree, fix the code or flag it — don't silently diverge. Unsure of a term (a `lib*` crate,
+a piece of infra, a convention)? See [`docs/glossary.md`](docs/glossary.md).
