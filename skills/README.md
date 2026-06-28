@@ -14,4 +14,12 @@ Consuming repos link these into their own `.claude/skills/` via
 [`../templates/link-standards.sh`](../templates/link-standards.sh). See
 [`../docs/skills-and-mcp.md`](../docs/skills-and-mcp.md) for the full convention.
 
-> No shared skills yet — add the first one as a `<skill-name>/SKILL.md` here.
+## Available skills
+
+| Skill | What it does |
+|---|---|
+| **`thmsn-standards`** | Audit the current repo against the applicable standards and report — or fix — the findings. (`/thmsn-standards scan this repo and fix all findings`) |
+| **`thmsn-standards-contribute`** | Author a change to the standards from a consuming repo and push it upstream, genericized. |
+
+After adding or updating a skill here, consuming repos pick it up on their next
+`standards/bin/standards sync` (which re-runs the linker).

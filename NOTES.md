@@ -27,7 +27,8 @@ Shipped API:
   (reverse-domain identifiers, env-var prefixes, GHCR image tags `<product>-{api,web}:main`,
   deployment hostnames `<service>.dev.thmsn.dev`, workflow names, branch = `main`) that
   currently lives spread across topic docs. Cross-links to the detail docs.
-- **Seed the first shared skill/MCP** — `skills/` and `mcp/` hold only README placeholders.
+- **Seed the first shared MCP server** — `mcp/` holds only a README placeholder (`skills/`
+  now has `thmsn-standards` + `thmsn-standards-contribute`).
 - **Reference-repo `VERSIONING.md` drift** — one reference repo has diverged from the fleet
   canonical; re-sync when convenient (external code, not touched).
 

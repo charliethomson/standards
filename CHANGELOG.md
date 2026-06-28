@@ -27,6 +27,9 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   `branding/build.py`; the consuming-repo `AGENTS.md` stub; `link-standards.sh`; `mcp.json`.
 - **Shared tooling scaffolding** — `skills/` and `mcp/` with conventions; `link-standards.sh`
   symlinks shared skills into `.claude/skills/` and scaffolds `.mcp.json`.
+- **Shared skills** — `thmsn-standards` (audit this repo against the applicable standards and
+  fix findings) and `thmsn-standards-contribute` (author + push a genericized standards change).
+  Consuming repos get them via the submodule + `link-standards.sh`.
 - **Integration CLI** (`bin/standards`) — `install` (wire the submodule into a repo), `sync`
   (pull upstream + show the changelog + re-link + stage the bump), `contribute` (genericize a
   repo's identifiers and push the change upstream), and `lint` (verify your edits carry none of
