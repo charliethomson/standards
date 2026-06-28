@@ -10,30 +10,30 @@ kind** first, then scaffold from `standards/templates/` and wire it in.
 
 Read `.standards.conf` for `PRODUCT` / `PRODUCT_UPPER`. A component is named
 `dev.thmsn.$PRODUCT.<component>` — a service (`server`, `courier`, `cli`, `<name>`) or an app
-surface (`ios`, `macos`, `winui`, `web`). See [identifiers](../../docs/identifiers.md).
+surface (`ios`, `macos`, `winui`, `web`). See [identifiers](standards/docs/identifiers.md).
 
 ## Service / binary component
 
 1. **Crate** — add a member to the `server/` workspace (or `bin/<component>/`), with deps
-   pointing inward per [service-architecture](../../docs/service-architecture.md).
-2. **Version + identity** — `build.rs` from [templates/rust/build.rs](../../templates/rust/build.rs);
+   pointing inward per [service-architecture](standards/docs/service-architecture.md).
+2. **Version + identity** — `build.rs` from [templates/rust/build.rs](standards/templates/rust/build.rs);
    `product_name!("dev.thmsn.$PRODUCT.<component>")` in `main.rs`; clap
    `#[command(version = env!("APP_VERSION"))]`.
 3. **Telemetry/config/errors** — wire `libconfig` `Loader`, `liblog` bootstrap, and the domain
    `Error`→`to_poem` mapping from the rust templates, per the configuration/observability/
    error-handling standards.
-4. **Image** — `Dockerfile` from [templates/docker/Dockerfile.rust](../../templates/docker/Dockerfile.rust)
+4. **Image** — `Dockerfile` from [templates/docker/Dockerfile.rust](standards/templates/docker/Dockerfile.rust)
    (`{{BIN}}`=the bin target); a `<component>.build.yml` workflow (component-first naming,
-   [ci-cd](../../docs/ci-cd.md)) modeled on `server.build.yml`.
+   [ci-cd](standards/docs/ci-cd.md)) modeled on `server.build.yml`.
 5. **Deploy** — if it's a long-running service, add a service to `deploy/compose/prod.compose.yml`
    and the komodo stack; if it's a CLI/tool, add a `cli.release.yml` publishing to the registry
-   ([registry-publishing](../../docs/registry-publishing.md)).
+   ([registry-publishing](standards/docs/registry-publishing.md)).
 
 ## Client surface (ios / macos / winui / web)
 
-1. **App** under `apps/<surface>/`, native UI per [platform-ux](../../docs/platform-ux.md)
+1. **App** under `apps/<surface>/`, native UI per [platform-ux](standards/docs/platform-ux.md)
    (SwiftUI / WinUI / React) — designed for that OS, not ported.
-2. **Generated client** from the committed `api/openapi.json` ([contracts](../../docs/contracts.md)),
+2. **Generated client** from the committed `api/openapi.json` ([contracts](standards/docs/contracts.md)),
    sharing the `<Product>Kit` / `<Product>Core`; isolate any platform-only design system.
 3. **Identifier** — bundle id `dev.thmsn.$PRODUCT.<surface>` (Apple `bundleIdPrefix`).
 4. **CI** — add a per-surface job to `ci.yml` (build + codegen drift check) and a
