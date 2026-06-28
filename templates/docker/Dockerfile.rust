@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1
+# Template: multi-stage build for a Rust service binary. Lives at server/Dockerfile.
+# Replace {{PRODUCT}} (slug, e.g. someproduct), {{BIN}} (the bin target, e.g. api), and
+# {{PRODUCT_UPPER}} (env prefix, e.g. SOMEPRODUCT). Drop the SSH/protoc lines if the
+# crate has no private deps / no prost-build.
+
+# Stage 1: build with a pinned Rust toolchain (edition 2024).
+FROM rust:1-bookworm AS build
+WORKDIR /build
+
+# Private crates (lib*, auth-sdk) are fetched over SSH — the key is supplied at
+# build time via `--mount=type=ssh`, never baked into the image. CI provides the
+# agent (webfactory/ssh-agent + `ssh: default`); locally, `docker compose build`
+# forwards your agent via the `ssh:` key in docker-compose.yml.
+# protobuf-compiler: needed when an auth-sdk/proto dependency compiles .proto via
+# prost-build. openssh-client: for the private-crate SSH fetch.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssh-client protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p -m 0700 /root/.ssh \
+    && ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+# Copy the whole workspace. (For finer dependency caching, copy member Cargo.toml
+# manifests first, then sources — see the reference repos.)
+COPY . .
+
+# Release version (VERSIONING.md). CI passes RELEASE_VERSION as a build-arg
+# because the Docker builder can't rely on git; build.rs reads it to stamp the
+# binary's APP_VERSION.
+ARG RELEASE_VERSION=""
+ENV RELEASE_VERSION=$RELEASE_VERSION
+
+RUN --mount=type=ssh cargo build --release --bin {{BIN}}
+
+# Stage 2: slim runtime image.
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /build/target/release/{{BIN}} /usr/local/bin/{{PRODUCT}}-{{BIN}}
+
+# Data dir (SQLite db, assets, secret key) lives on a mounted volume.
+ENV {{PRODUCT_UPPER}}_DATA_DIR=/data
+ENV {{PRODUCT_UPPER}}_BIND=0.0.0.0:8080
+VOLUME ["/data"]
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["/usr/local/bin/{{PRODUCT}}-{{BIN}}"]

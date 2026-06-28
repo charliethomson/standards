@@ -1,0 +1,81 @@
+# Template: production stack, deployed by Komodo onto the homelab dev box.
+# Replace {{PRODUCT}} (slug), {{PRODUCT_UPPER}} (env prefix), {{LOOPBACK_PORT}}
+# (a free 127.0.0.1 port on the dev box — 8090 AdGuard, 8091 someproduct, … pick the
+# next free one). Images come from ghcr.io/<owner>/{{PRODUCT}}-{api,web}:main,
+# built by server.build.yml / web.build.yml. Komodo writes .env here from the `environment`
+# block in komodo/sync/stacks.toml, then runs `docker compose up -d`.
+#
+# Ingress: the homelab gateway Caddy terminates TLS for {{PRODUCT}}.dev.thmsn.dev
+# and reverse-proxies to `proxy` on 127.0.0.1:{{LOOPBACK_PORT}} (loopback — the
+# gateway is network_mode: host, so localhost reaches it; the LAN can't). Add the
+# gateway block (see standards/docs/deployment.md) before the first deploy.
+services:
+  api:
+    image: ghcr.io/charliethomson/{{PRODUCT}}-api:main
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.scope={{PRODUCT}}"
+    environment:
+      {{PRODUCT_UPPER}}_DATA_DIR: /data
+      {{PRODUCT_UPPER}}_BIND: 0.0.0.0:8080
+      # Telemetry → homelab otelcol (gRPC) → Loki/Tempo for Grafana. The dev box
+      # LAN IP. Log ids/counts/timings only, never message content.
+      OTLP_ENDPOINT: "http://192.168.0.193:4317"
+      PRODUCTION: "true"
+      SAMPLE_RATE: "1.0"
+      # Central auth: the API registers itself + grants on boot and validates JWTs
+      # via the SDK. AUTH_ADMIN_KEY is the TCP HMAC root (a Komodo secret Variable;
+      # must be non-empty). Reaches the auth TCP server over the LAN via the host
+      # IP; override the default (192.168.0.193:7070) with AUTH_TCP_ADDR.
+      AUTH_ADMIN_KEY: "${AUTH_ADMIN_KEY}"
+    volumes:
+      - {{PRODUCT}}-data:/data
+    networks: [{{PRODUCT}}]
+
+  web:
+    image: ghcr.io/charliethomson/{{PRODUCT}}-web:main
+    restart: unless-stopped
+    depends_on: [api]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.scope={{PRODUCT}}"
+    networks: [{{PRODUCT}}]
+
+  # Internal same-origin router (no TLS): /api + /ws → api, everything else → web.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:{{LOOPBACK_PORT}}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [api, web]
+    networks: [{{PRODUCT}}]
+
+  # Polls GHCR for new :main images and recreates only this stack's containers.
+  # Label-scoped (ignores the rest of the box, and isn't culled by other
+  # watchtowers, which SIGTERM same-scope instances on startup). Pinned to the
+  # maintained nickfedor fork (containrrr is unmaintained and negotiates a
+  # too-old Docker API). REPO_USER/PASS auth the poll against private GHCR.
+  watchtower:
+    image: nickfedor/watchtower:1.17.2
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCOPE: {{PRODUCT}}
+      REPO_USER: charliethomson
+      REPO_PASS: "${GHCR_TOKEN}"
+    labels:
+      - "com.centurylinklabs.watchtower.scope={{PRODUCT}}"
+    networks: [{{PRODUCT}}]
+
+networks:
+  {{PRODUCT}}:
+
+volumes:
+  {{PRODUCT}}-data:

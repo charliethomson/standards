@@ -1,0 +1,10 @@
+# Template: no Server resource is declared here on purpose.
+#
+# The stack targets the homelab "dev" Server, already declared and managed by
+# charliethomson/homelab's own resource sync (homelab/komodo/sync/servers.toml).
+# Komodo diffs the union of all syncs pointing at the same Core, so re-declaring
+# "dev" here would create a tug-of-war over its tags/description on every sync.
+#
+# stacks.toml references `server = "dev"` by name; that resolves against the
+# Server resource homelab created, regardless of which sync owns its definition.
+# Nothing else is needed here.

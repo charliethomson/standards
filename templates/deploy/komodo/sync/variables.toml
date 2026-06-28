@@ -1,0 +1,21 @@
+# Template: Komodo Variables for the {{PRODUCT}} stack.
+#
+# Keep SECRETS OUT of this file. Komodo's resource sync diffs `value` fields
+# literally, so declaring a secret here with `value = ""` overwrites the
+# UI-populated value to empty on every sync. Declare only genuinely non-secret
+# shared values here (if any); reference secrets by name from stacks.toml.
+#
+# ─── Secret Variables to create in the Komodo UI before first sync ────────────
+# Settings → Variables → New Variable, `Is Secret` ON. Names are case-sensitive
+# and must match the [[references]] in stacks.toml.
+#
+#   AUTH_ADMIN_KEY — central auth service TCP HMAC root. The SAME shared secret
+#                    the homelab auth stack defines: if it already exists, REUSE
+#                    it; do NOT regenerate (that rotates every app's key).
+#
+#   GHCR_TOKEN     — GitHub PAT with read:packages, for watchtower's GHCR poll.
+#                    (The daemon's initial pull is authed separately via the
+#                    ghcr.io Registry Account in Komodo Settings.)
+#
+# Reminder: `is_secret` only hides values from the UI/logs; Komodo stores them at
+# rest unencrypted — disk security of that volume is the actual protection.

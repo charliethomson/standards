@@ -1,0 +1,87 @@
+# Template: build + push the server image to GHCR. (Scheme B: <component>.<action>.yml)
+# Replace {{PRODUCT}}. Pushes only on main / manual dispatch; PRs build (to catch
+# Dockerfile breakage) but don't push.
+name: server · build image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/server.build.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - ".github/workflows/server.build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: server.build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Canonical version (VERSIONING.md): <tag MAJOR.MINOR>.<commit count>.
+      # Passed into the Docker build as RELEASE_VERSION so the binary is stamped
+      # correctly (the builder can't rely on git).
+      - name: Resolve version
+        run: |
+          set -euo pipefail
+          COUNT="$(git rev-list --count HEAD)"
+          TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+          MM="$(printf '%s' "${TAG#v}" | awk -F. '{ if ($1 != "" && $2 != "") print $1"."$2 }')"
+          [ -n "$MM" ] || MM="0.0"
+          echo "RELEASE_VERSION=$MM.$COUNT" >> "$GITHUB_ENV"
+
+      # Private lib* / auth-sdk crates are fetched over SSH; load the deploy key
+      # into an agent so `ssh: default` forwards it into the build
+      # (`--mount=type=ssh` in the Dockerfile). Drop if there are no private deps.
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/{{PRODUCT}}-api
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          file: server/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            RELEASE_VERSION=${{ env.RELEASE_VERSION }}
+          ssh: default
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

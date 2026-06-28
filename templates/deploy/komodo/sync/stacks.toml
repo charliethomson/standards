@@ -1,0 +1,39 @@
+# Template: Komodo stack resource. Replace {{PRODUCT}}. Wired into the same Komodo
+# Core that manages the homelab. Bootstrap once:
+#   Komodo UI → Syncs → New Sync → name "{{PRODUCT}}"
+#     Repo:           charliethomson/{{PRODUCT}}
+#     Branch:         main
+#     Resource paths: deploy/komodo/sync
+#     Managed mode:   off  (git is source of truth)
+#
+# Komodo clones the repo onto the dev box's Periphery, writes .env into
+# run_directory from the `environment` block below (interpolating [[VAR]] against
+# Komodo Variables — create the secrets in the UI first, see variables.toml),
+# then runs `docker compose --env-file .env -f prod.compose.yml up -d`.
+
+[[stack]]
+name = "{{PRODUCT}}"
+description = "{{PRODUCT}} — Rust API + web client, behind an internal Caddy router, fronted by the homelab gateway at {{PRODUCT}}.dev.thmsn.dev."
+tags = ["dev"]
+deploy = true
+[stack.config]
+server = "dev"
+git_account = "charliethomson"
+repo = "charliethomson/{{PRODUCT}}"
+branch = "main"
+# Periphery authenticates to ghcr.io as `charliethomson` (Registry Account in
+# Komodo UI → Settings) to pull the private {{PRODUCT}}-{api,web} images.
+registry_provider = "ghcr.io"
+registry_account = "charliethomson"
+# Run from deploy/compose so the ./Caddyfile bind-mount and the .env Komodo writes
+# resolve without --project-directory gymnastics.
+run_directory = "deploy/compose"
+file_paths = ["prod.compose.yml"]
+# AUTH_ADMIN_KEY: the central auth service's TCP HMAC root (an existing shared
+# Komodo secret — reference it, don't regenerate). GHCR_TOKEN: read:packages PAT
+# for watchtower's poll. Both must exist as secret Variables before first sync.
+environment = """
+AUTH_ADMIN_KEY = [[AUTH_ADMIN_KEY]]
+# AUTH_TCP_ADDR = 192.168.0.193:7070
+GHCR_TOKEN     = [[GHCR_TOKEN]]
+"""

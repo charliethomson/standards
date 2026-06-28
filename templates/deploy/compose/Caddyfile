@@ -1,0 +1,38 @@
+# Template: internal same-origin router for the {{PRODUCT}} stack. No TLS — the
+# homelab gateway Caddy owns the public hostname {{PRODUCT}}.dev.thmsn.dev and
+# forwards plain HTTP here. /api + /ws → the Rust server; everything else → the
+# static web bundle. `handle` blocks are matched in order, so the catch-all never
+# shadows the API/WS routes. Replace {{PRODUCT}}.
+:80 {
+	# Security headers for the whole app, set once at the single ingress. The
+	# public origin is always HTTPS (the gateway serves TLS), so HSTS is safe even
+	# though this hop is plain HTTP. CSP keeps script locked to 'self' (no inline
+	# script — turns an XSS into a no-op for token theft); style keeps
+	# 'unsafe-inline' for React/Radix/motion inline styles. Validate against your
+	# built bundle and tighten where possible. Update the wss host if the public
+	# hostname changes.
+	header {
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' wss://{{PRODUCT}}.dev.thmsn.dev; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Strict-Transport-Security "max-age=31536000"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle /ws* {
+		reverse_proxy api:8080
+	}
+
+	handle /health {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+}

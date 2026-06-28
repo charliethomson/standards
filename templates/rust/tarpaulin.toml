@@ -1,0 +1,11 @@
+# Coverage config for `cargo tarpaulin` (enforced in CI). Lives at server/tarpaulin.toml.
+# The 80% floor is the fleet standard for services (see standards/docs/testing.md).
+[default]
+workspace = true
+# main.rs is pure bootstrap/wiring (config load, signal handling, server spawn)
+# and is exercised by integration tests rather than unit-covered. Add other
+# I/O-bound edges here (e.g. an external-service gateway) with a justifying comment
+# — exclude wiring, not logic.
+exclude-files = ["api/src/main.rs"]
+timeout = "180s"
+fail-under = 80

@@ -1,0 +1,60 @@
+# Template: build + push the web image to GHCR. (Scheme B: <component>.<action>.yml)
+# Replace {{PRODUCT}}. Pushes only on main / manual dispatch; PRs build but don't push.
+name: web · build image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web.build.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web.build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: web.build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/{{PRODUCT}}-web
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

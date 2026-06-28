@@ -1,0 +1,237 @@
+# Template: the CI gate. Build · clippy · test · coverage · codegen-drift, per
+# changed area, on self-hosted runners. Replace {{PRODUCT}}/{{PRODUCT_KIT}} and
+# prune client jobs (apple/windows) the repo doesn't have.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # Private lib*/auth-sdk crates are fetched over SSH. libgit2's ssh-agent auth
+  # is unreliable on CI runners, so route git through the CLI and trust
+  # github.com's host key on first use.
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=accept-new"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: [self-hosted, Linux, X64]
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      web: ${{ steps.filter.outputs.web }}
+      apple: ${{ steps.filter.outputs.apple }}
+      windows: ${{ steps.filter.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # A change to the OpenAPI spec re-runs every client (generated clients
+          # must stay in sync); a change to ci.yml runs everything.
+          filters: |
+            server:
+              - '.github/workflows/ci.yml'
+              - 'server/**'
+            web:
+              - '.github/workflows/ci.yml'
+              - 'api/openapi.json'
+              - 'apps/web/**'
+            apple:
+              - '.github/workflows/ci.yml'
+              - 'api/openapi.json'
+              - 'apps/apple/**'
+            windows:
+              - '.github/workflows/ci.yml'
+              - 'api/openapi.json'
+              - 'apps/windows/**'
+
+  build-test:
+    name: build · clippy · test
+    needs: changes
+    if: ${{ needs.changes.outputs.server == 'true' }}
+    runs-on: [self-hosted, Linux, X64]
+    # Shared-FS runners: give each Rust job its own target dir so build and
+    # coverage don't race on server/target.
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/server/target-build
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH agent (private crates)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # No passwordless sudo on the agents: install protoc into the tool cache.
+      - name: Set up protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server -> target-build
+          key: build
+      - name: Build
+        run: cargo build --workspace --all-targets
+      - name: Clippy (warnings are errors)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+
+  coverage:
+    name: coverage (tarpaulin, fail under 80%)
+    needs: changes
+    if: ${{ needs.changes.outputs.server == 'true' }}
+    runs-on: [self-hosted, Linux, X64]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/server/target-coverage
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH agent (private crates)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Set up protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server -> target-coverage
+          key: coverage
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      # Threshold + exclusions are read from server/tarpaulin.toml.
+      - name: Coverage
+        run: cargo tarpaulin --out Xml
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: server/cobertura.xml
+        if: always()
+
+  web:
+    name: web · typecheck · lint · test · e2e
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
+    runs-on: [self-hosted, Linux, X64]
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        run: npm ci
+      # The typed client must be reproducible from the committed OpenAPI spec.
+      - name: Codegen drift check
+        run: npm run codegen:check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint (warnings are errors)
+        run: npm run lint
+      - name: Unit + component tests
+        run: npm run test
+      # System libs are pre-installed on the agent once via
+      # `sudo npx playwright install-deps chromium`; this only fetches the binary
+      # (no --with-deps, which needs sudo).
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+      - name: E2E (mocked server + WS streaming)
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+        if: always()
+
+  apple:
+    name: apple · build iOS + macOS · test {{PRODUCT_KIT}}
+    needs: changes
+    if: ${{ needs.changes.outputs.apple == 'true' }}
+    runs-on: [self-hosted, macOS, ARM64]
+    defaults:
+      run:
+        working-directory: apps/apple
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Codegen drift check
+        run: |
+          ./scripts/generate-api.sh
+          git diff --exit-code -- Packages/{{PRODUCT_KIT}}/Sources/{{PRODUCT}}API
+      - name: {{PRODUCT_KIT}} unit tests
+        run: swift test --package-path Packages/{{PRODUCT_KIT}}
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build macOS
+        run: xcodebuild -project {{PRODUCT}}.xcodeproj -scheme {{PRODUCT}}-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+      - name: Build iOS (simulator)
+        run: xcodebuild -project {{PRODUCT}}.xcodeproj -scheme {{PRODUCT}}-iOS -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+  windows:
+    name: windows · build app · test core
+    needs: changes
+    if: ${{ needs.changes.outputs.windows == 'true' }}
+    # No self-hosted Windows runner registered yet; switch to
+    # [self-hosted, Windows, X64] once one exists.
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Kiota drift check
+        shell: pwsh
+        run: |
+          ./scripts/generate-api.ps1
+          git diff --exit-code -- src/{{PRODUCT}}Core/Generated
+      - name: Test {{PRODUCT}}Core (net10.0)
+        run: dotnet test tests/{{PRODUCT}}Core.Tests/{{PRODUCT}}Core.Tests.csproj -c Release
+      - name: Build WinUI app (x64)
+        run: dotnet build src/{{PRODUCT}}App/{{PRODUCT}}App.csproj -c Release -p:Platform=x64
+
+  # Single aggregate status: green when every job that ran passed (skipped jobs
+  # are fine). Set THIS as the required status check for branch protection.
+  ci:
+    name: CI passed
+    if: always()
+    needs: [changes, build-test, coverage, web, apple, windows]
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "A required job did not succeed."
+          exit 1

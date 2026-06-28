@@ -1,0 +1,32 @@
+# Fleet-standard workspace lints + conventions. Merge into the workspace-root Cargo.toml,
+# and add `[lints] workspace = true` to every member crate.
+# See standards/docs/rust-conventions.md.
+
+[workspace.package]
+edition = "2024"
+
+[workspace.lints.clippy]
+pedantic           = { level = "warn", priority = 0 }
+# Allowlist (with the reason each is tolerated):
+missing_errors_doc = { level = "allow", priority = 1 } # serializable error enums document themselves
+implicit_hasher    = { level = "allow", priority = 1 } # generic hashers add noise without value
+panic              = { level = "warn", priority = 1 }   # surface panics; allow case-by-case
+
+# Shared dependency versions (git deps; HTTPS for public repos, SSH for private).
+[workspace.dependencies]
+liberror     = { git = "https://github.com/charliethomson/liberror" }
+libsignal    = { git = "https://github.com/charliethomson/libsignal" }
+libconfig    = { git = "https://github.com/charliethomson/libconfig" }
+libpath      = { git = "https://github.com/charliethomson/libpath" }
+# libproduct is a member crate of the libpath repo (they travel together — paths are
+# keyed by the product name), so it resolves from the same git URL.
+libproduct   = { git = "https://github.com/charliethomson/libpath" }
+libbuildinfo = { git = "https://github.com/charliethomson/libbuildinfo" }
+liblog       = { git = "ssh://git@github.com/charliethomson/liblog.git" }
+
+# ── each member Cargo.toml ──
+# [lints]
+# workspace = true
+#
+# [package]
+# edition.workspace = true
