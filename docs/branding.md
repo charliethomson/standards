@@ -53,7 +53,10 @@ is converted to RGB for SwiftUI and hex for WinUI by the generator.
   accent) is used **only** for that meaning, never decoratively (e.g. reserve a coral accent
   for an active/live state, never for decoration).
 - **Never hardcode surface/text colors in a client.** Consume the generated tokens so
-  light/dark switches automatically.
+  light/dark switches automatically. On web, the shared **`@thmsn/ui`** package ships the
+  default token set ([web-architecture.md](web-architecture.md)); a product's generated
+  `tokens.css` overrides it with the **same variable names** — so the generator's web output
+  stays a drop-in swap, not a fork.
 - **Standardized triad.** `primary`/`secondary`/`tertiary` are the brand seeds every product
   defines; the semantic tokens derive the rest of the system from them.
 

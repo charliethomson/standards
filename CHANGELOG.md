@@ -11,6 +11,12 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **Shared web component library** — `docs/web-architecture.md` now mandates consuming the
+  fleet's **`@thmsn/ui`** package (private registry `npm.dev.thmsn.dev`; shadcn/Radix +
+  Tailwind v3 + HSL tokens + preset) instead of re-vendoring shadcn per app;
+  `docs/branding.md` notes the generated `tokens.css` overrides `@thmsn/ui`'s defaults by the
+  same variable names. New prompt `prompts/migrate-to-thmsn-ui.md` walks an app through an
+  incremental migration.
 - **Entrypoint & index** — `README.md`, `AGENTS.md` (agent entrypoint), `docs/overview.md`
   (operating context + archetype picker + index).
 - **Archetypes** — `docs/archetypes/`: full-stack-product, library, orchestration, cli-tool,
