@@ -68,7 +68,7 @@ libraries/CLIs too):
 | Observability | [observability.md](observability.md) | `liblog`/OTLP; `/api/metrics`; log ids/timings, never bodies. |
 | Grafana dashboards | [grafana-dashboards.md](grafana-dashboards.md) | Committed `<name>.dashboard.json`; queries key off fleet identifiers. |
 | Security | [security.md](security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
-| Web & client arch | [web-architecture.md](web-architecture.md) | TanStack Query (server) + Zustand (UI); generated client; shared Kit. |
+| Web & client arch | [web-architecture.md](web-architecture.md) | TanStack Query (server) + Zustand (UI); generated client; `@thmsn/ui` on Tailwind v4; shared Kit. |
 | Rust conventions | [rust-conventions.md](rust-conventions.md) | Edition 2024, clippy pedantic + allowlist, git deps. |
 | `lib*` ecosystem | [lib-ecosystem.md](lib-ecosystem.md) | Solve cross-cutting concerns once in a shared `lib*`. |
 
