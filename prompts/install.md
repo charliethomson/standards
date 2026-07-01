@@ -14,8 +14,9 @@ Wire this repo to the shared engineering standards (vendored as a git submodule)
      identifiers (product_name!(...), Apple bundle ids) and use that.
    - env prefix — the slug uppercased; pass --upper <ENV> only if it differs.
    - archetype — pick one: full-stack-product (Rust/Poem server + clients), library (a
-     shared lib* crate), orchestration (infra/deploy repo), or cli-tool (a published
-     binary). Infer it from the repo; if genuinely ambiguous, ask me.
+     shared lib* crate), orchestration (infra/deploy repo), cli-tool (a published
+     binary), or vendored-app (a third-party app pinned as upstream/ that we only
+     build/release, no rebrand). Infer it from the repo; if genuinely ambiguous, ask me.
    - lib name — only if this repo *is* a library: pass --lib <name>.
 
 3. Run the installer (add --upper / --lib if needed):
@@ -43,7 +44,7 @@ section.
 ```
 Add the standards submodule and wire it up:
   git submodule add ssh://git@github.com/charliethomson/standards standards
-  standards/bin/standards install --product <slug> --archetype <full-stack-product|library|orchestration|cli-tool>
+  standards/bin/standards install --product <slug> --archetype <full-stack-product|library|orchestration|cli-tool|vendored-app>
 Pick <slug> from the repo's real product identifier (product_name!/bundle id), not just
 the dir name. Then read standards/AGENTS.md, and commit .gitmodules + the standards
 pointer + AGENTS.md + .standards.conf + .mcp.json + the .claude/skills/ symlinks.

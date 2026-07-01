@@ -29,6 +29,7 @@ optional. Full rules in [`archetypes/`](archetypes/).
 | **[Library](archetypes/library.md)** | A shared `lib*` crate consumed by other repos over git | `libsomeproduct` + the `lib*` family | versioning (light), identifiers, testing |
 | **[Orchestration](archetypes/orchestration.md)** | Deployment/infra-as-code for the homelab itself | homelab | deployment, identifiers, secrets split |
 | **[CLI / service tool](archetypes/cli-tool.md)** | Standalone binary published to the registry with an install manifest | someproduct (CLI), worker | versioning, registry publishing, build info |
+| **[Vendored app](archetypes/vendored-app.md)** | A third-party app we don't own, pinned as `upstream/` and built/released into our infra à-la-carte (no rebrand) | relay (wraps subpop/Relay) | ci/cd, registry publishing, self-hosted agents |
 
 When a repo blends types (e.g. a product that also ships a CLI), apply each archetype to
 the relevant subtree.
@@ -84,5 +85,5 @@ submodule:
 
 See [skills-and-mcp.md](skills-and-mcp.md).
 
-> Status: complete first draft. All standards, all four archetypes, skills-and-mcp, and the
+> Status: complete first draft. All standards, all five archetypes, skills-and-mcp, and the
 > copyable templates are written and cross-linked. Open for iteration.

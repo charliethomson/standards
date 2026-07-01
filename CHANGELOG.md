@@ -14,7 +14,7 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 - **Entrypoint & index** — `README.md`, `AGENTS.md` (agent entrypoint), `docs/overview.md`
   (operating context + archetype picker + index).
 - **Archetypes** — `docs/archetypes/`: full-stack-product, library, orchestration, cli-tool,
-  each mapping which standards apply and how strictly.
+  vendored-app, each mapping which standards apply and how strictly.
 - **Foundational standards** — versioning, identifiers, build-info, ci-cd, self-hosted-agents,
   deployment, registry-publishing, testing, platform-ux, workflow, branding, skills-and-mcp.
 - **Implementation standards** (services & clients) — service-architecture, data-persistence,

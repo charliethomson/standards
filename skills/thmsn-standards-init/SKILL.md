@@ -39,6 +39,10 @@ Copy the relevant `standards/templates/` files into place, filling placeholders.
 - **cli-tool** — the binary crate + `build.rs`, `completions/`, a `cli.release.yml`, root
   `VERSIONING.md`.
 - **orchestration** — one dir per stack, `komodo/sync/*.toml`, `docs/HOSTS.md` + `RUNBOOK.md`.
+- **vendored-app** — the third-party app as an `upstream/` submodule (pinned), `scripts/` for
+  self-verifying build-time adjustments, a `<platform>.release.yml` that builds/signs/publishes,
+  root `AGENTS.md` spelling out the à-la-carte overrides. No source, no rebrand, no `VERSIONING.md`
+  (ship upstream's version).
 
 Replace `{{PRODUCT}}`→`$PRODUCT`, `{{PRODUCT_UPPER}}`→`$PRODUCT_UPPER`, `{{BIN}}`/`{{LOOPBACK_PORT}}`
 etc. as the template comments direct. Rename workflows to the component-first scheme

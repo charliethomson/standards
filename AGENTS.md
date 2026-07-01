@@ -7,8 +7,9 @@ unless the repo's own docs explicitly override a specific point.
 ## How to use this
 
 1. **Identify the archetype.** Read [`docs/overview.md`](docs/overview.md) and decide
-   which one this repo is — **full-stack product**, **library**, **orchestration**, or
-   **CLI/service tool**. The archetype determines which standards apply and how strictly.
+   which one this repo is — **full-stack product**, **library**, **orchestration**,
+   **CLI/service tool**, or **vendored app**. The archetype determines which standards apply
+   and how strictly.
    The per-archetype rules live in [`docs/archetypes/`](docs/archetypes/).
 
 2. **Read the relevant topic docs** in [`docs/`](docs/) before making changes in that

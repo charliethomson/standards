@@ -47,4 +47,4 @@ Shipped API:
   checklist.
 - **Convergence treatment** — write standards canonically (target state), no per-repo divergence
   notes (the config interim is the deliberate exception, because it's actively being closed).
-- **Archetypes** — full-stack-product, library, orchestration, cli-tool.
+- **Archetypes** — full-stack-product, library, orchestration, cli-tool, vendored-app.

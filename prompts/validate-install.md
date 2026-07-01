@@ -24,7 +24,7 @@ Run each check, report PASS / WARN / FAIL with the evidence, then offer to fix t
    - PRODUCT must be the repo's real PRODUCT identifier, which can differ from the dir name.
      Cross-check against the code: `grep -rn 'product_name!' .` and any Apple bundle id.
      WARN if PRODUCT looks like the directory name but the code says otherwise.
-   - ARCHETYPE is one of: full-stack-product | library | orchestration | cli-tool.
+   - ARCHETYPE is one of: full-stack-product | library | orchestration | cli-tool | vendored-app.
 
 3. Entrypoint (AGENTS.md)
    - Root AGENTS.md exists, points to `standards/AGENTS.md`, and its Archetype + Identifier
