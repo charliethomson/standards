@@ -59,6 +59,7 @@ libraries/CLIs too):
 |---|---|---|
 | Service architecture | [service-architecture.md](service-architecture.md) | Workspace layered `core→db→engine→api`; poem-openapi; 10s graceful drain. |
 | Data & persistence | [data-persistence.md](data-persistence.md) | sqlx + SQLite, `.sql` migrations, typed `Id<T>` (UUIDv7). |
+| Public short ids | [public-ids.md](public-ids.md) | Stored 11-char Crockford-Base32 alias; URLs use it, UUID stays internal. |
 | API contracts | [contracts.md](contracts.md) | Server emits OpenAPI/AsyncAPI; clients generated + drift-checked. |
 | Error handling | [error-handling.md](error-handling.md) | Domain `Error`→HTTP; `liberror`+`thiserror`+`valuable` trinity. |
 | Auth integration | [auth-integration.md](auth-integration.md) | Central auth via SDK; `me()` is live authority; grant-gated. |

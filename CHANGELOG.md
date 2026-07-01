@@ -20,13 +20,17 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 - **Implementation standards** (services & clients) — service-architecture, data-persistence,
   contracts, error-handling, auth-integration, configuration, observability, security,
   web-architecture, rust-conventions, lib-ecosystem.
+- **Public short ids** — `docs/public-ids.md` + `templates/rust/public_id.rs`: user-facing
+  entities carry an 11-char Crockford Base32 alias (a stored `public_id`, not a UUID encoding)
+  translated to/from the internal `Id<T>` in the exposer layer; cross-linked from
+  data-persistence, contracts, identifiers, and overview.
 - **Glossary** — `docs/glossary.md`: conventions, concepts, infrastructure, and the `lib*`
   toolchain defined in one place.
 - **Prompts** — `prompts/`: copy-paste prompts for agents — `install.md` (wire up the
   submodule) and `validate-install.md` (check an install is correct + committed). `install` now
   reminds which files to commit (including the `.claude/skills/` symlinks).
 - **Copyable templates** (`templates/`) — `VERSIONING.md`; `rust/` (`build.rs`,
-  `tarpaulin.toml`, `id.rs`, `error.rs`, `config.rs`, `observability.rs`,
+  `tarpaulin.toml`, `id.rs`, `public_id.rs`, `error.rs`, `config.rs`, `observability.rs`,
   `Cargo-workspace-lints.toml`); `github-workflows/` (`ci.yml`, `server.build.yml`,
   `web.build.yml`); `docker/Dockerfile.rust`; `deploy/` (compose, Caddyfile, komodo sync);
   `branding/build.py`; the consuming-repo `AGENTS.md` stub; `link-standards.sh`; `mcp.json`.

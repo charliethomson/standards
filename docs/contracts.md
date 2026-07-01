@@ -10,6 +10,9 @@ the server already describes.
 This is the "contract = `api/openapi.json`" half of the product's three sources of truth
 ([archetypes/full-stack-product.md](archetypes/full-stack-product.md)).
 
+Entities exposed in user-facing URLs and public API surfaces are addressed by their **public
+short id**, not their internal `Id<T>` (UUIDv7). See [public-ids.md](public-ids.md).
+
 ## REST: OpenAPI
 
 - poem-openapi derives the spec from the `…Api` structs. Expose it two ways:

@@ -23,6 +23,10 @@ pub struct Id<T> {
 Serializes as a canonical hyphenated UUID string in JSON. `Copy + Clone + Hash + Ord`. Use it
 for every entity id in `core`. Template: [`templates/rust/id.rs`](../templates/rust/id.rs).
 
+`Id<T>` is the *internal* identity. Entities that appear in user-facing URLs also carry a
+**public short id** (a stored Crockford-Base32 alias); the UUID never leaves internal/admin
+surfaces. See [public-ids.md](public-ids.md).
+
 ## Connection & pool
 
 ```rust
@@ -86,5 +90,6 @@ implementations selected by feature. Don't reach for this unless the variability
 - [ ] `create_if_missing`, `foreign_keys`, `busy_timeout`, slow-statement logging set.
 - [ ] `.sql` migrations in `db/migrations/`, run via `sqlx::migrate!` on boot.
 - [ ] Every entity id is a typed `Id<T>` (UUIDv7).
+- [ ] Entities exposed in user-facing URLs also have a public short id ([public-ids.md](public-ids.md)).
 - [ ] Write errors classified (UNIQUE→Conflict, FK→Invalid) into domain errors.
 - [ ] SeaORM/MariaDB only for shared relational data (auth); pluggable backends only when real.

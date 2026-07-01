@@ -1,5 +1,10 @@
 # Identifiers
 
+> This doc is about **reverse-domain names** (`dev.thmsn.*`) for products, components, grants,
+> and error keys. *Entity* ids are elsewhere: internal `Id<T>` (UUIDv7) in
+> [data-persistence.md](data-persistence.md), and user-facing **public short ids** in
+> [public-ids.md](public-ids.md).
+
 ## Rule
 
 Everything that needs a stable name uses a **reverse-domain identifier** rooted at
