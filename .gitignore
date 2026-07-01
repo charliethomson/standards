@@ -4,3 +4,9 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# MCP servers
+# secrets (copy from mcp/.env.example)
+mcp/.env
+# 67M third-party binary; get it via mcp/grafana/install.sh
+mcp/grafana/mcp-grafana

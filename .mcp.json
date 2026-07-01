@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "grafana": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f /Users/charlesthomson/git/standards/mcp/.env ] && . /Users/charlesthomson/git/standards/mcp/.env; exec /Users/charlesthomson/git/standards/mcp/grafana/mcp-grafana"
+      ],
+      "env": {
+        "GRAFANA_URL": "https://grafana.dev.thmsn.dev"
+      }
+    },
+    "komodo": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f /Users/charlesthomson/git/standards/mcp/.env ] && . /Users/charlesthomson/git/standards/mcp/.env; exec /Users/charlesthomson/.local/bin/uv run --script /Users/charlesthomson/git/standards/mcp/komodo/server.py"
+      ],
+      "env": {
+        "KOMODO_HOST": "https://komodo.dev.thmsn.dev"
+      }
+    }
+  }
+}
