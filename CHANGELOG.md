@@ -20,6 +20,10 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 - **Implementation standards** (services & clients) — service-architecture, data-persistence,
   contracts, error-handling, auth-integration, configuration, observability, security,
   web-architecture, rust-conventions, lib-ecosystem.
+- **Grafana dashboards** — `docs/grafana-dashboards.md`: dashboards are committed
+  `<name>.dashboard.json` next to their stack (author in UI → export → commit); queries key
+  off fleet identifiers + structured log fields; datasource-uid pinning and a
+  provision-dashboards next step. Modelled on the fleet's real overview dashboards.
 - **Public short ids** — `docs/public-ids.md` + `templates/rust/public_id.rs`: user-facing
   entities carry an 11-char Crockford Base32 alias (a stored `public_id`, not a UUID encoding)
   translated to/from the internal `Id<T>` in the exposer layer; cross-linked from

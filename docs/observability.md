@@ -51,6 +51,9 @@ Prometheus ──scrape /api/metrics──────────────�
   (`ParentBased(TraceIdRatioBased)`).
 - Telemetry env vars are bare/shared ([configuration.md](configuration.md)).
 
+This is the *emit* side. Reading it back — dashboards over these metrics/logs/traces —
+is [grafana-dashboards.md](grafana-dashboards.md).
+
 ## Structured logging
 
 - Emit **fields, not interpolated strings**: `tracing::info!(method=%m, path=%p, status, duration_ms, "http completed")`.
