@@ -95,6 +95,13 @@ Today: **author in the UI → export JSON → commit → the file is the record.
 running dashboard is redeployed by editing/importing that JSON. Datasources are
 provisioned; dashboards are not, so importing is currently a manual UI step.
 
+**Export clean, or every save is a noisy diff.** Copy from the dashboard's **JSON Model**
+tab (Settings → JSON Model), *not* "Export for sharing externally" — the latter injects
+`__inputs`/`__requires` and templatizes datasources into `${DS_...}` placeholders. Then,
+before committing, strip the instance/volatile fields Grafana stamps in so a diff reflects
+a real change, not a re-save: null the `id`, and drop `version` and `iteration`. Keep
+`uid` stable. (`schemaVersion` bumps on Grafana upgrades — accept that churn.)
+
 **Recommended next step — provision dashboards too**, so the committed files are the
 literal running state (matching how datasources already work). Add a dashboard
 provider and point it at the stack's dashboards dir:
@@ -127,3 +134,4 @@ persist by exporting and committing — no drift between Grafana and git.
 - [ ] Datasources referenced by pinned `uid`s (`prometheus`/`loki`/`tempo`), not
       per-instance generated ids.
 - [ ] Stat row (`h:4`) up top; timeseries (`h:8`) below; an ERROR logs tail.
+- [ ] Exported from the JSON Model tab; `id` nulled, `version`/`iteration` dropped before commit.

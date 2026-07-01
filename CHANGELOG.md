@@ -22,12 +22,14 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   web-architecture, rust-conventions, lib-ecosystem.
 - **Grafana dashboards** — `docs/grafana-dashboards.md`: dashboards are committed
   `<name>.dashboard.json` next to their stack (author in UI → export → commit); queries key
-  off fleet identifiers + structured log fields; datasource-uid pinning and a
-  provision-dashboards next step. Modelled on the fleet's real overview dashboards.
+  off fleet identifiers + structured log fields; export hygiene (strip `id`/`version`/
+  `iteration`), datasource-uid pinning, and a provision-dashboards next step. Modelled on
+  the fleet's real overview dashboards.
 - **Public short ids** — `docs/public-ids.md` + `templates/rust/public_id.rs`: user-facing
   entities carry an 11-char Crockford Base32 alias (a stored `public_id`, not a UUID encoding)
-  translated to/from the internal `Id<T>` in the exposer layer; cross-linked from
-  data-persistence, contracts, identifiers, and overview.
+  translated to/from the internal `Id<T>` in the exposer layer; insert retries on a
+  `public_id` collision (distinct from domain conflicts), ordering/pagination stays on
+  `Id<T>`; cross-linked from data-persistence, contracts, identifiers, and overview.
 - **Glossary** — `docs/glossary.md`: conventions, concepts, infrastructure, and the `lib*`
   toolchain defined in one place.
 - **Prompts** — `prompts/`: copy-paste prompts for agents — `install.md` (wire up the

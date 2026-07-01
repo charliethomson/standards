@@ -100,6 +100,40 @@ Crockford encode/decode, confusable folding, `FromStr`, `Display`, and serde.
   -> Result<Id<Subscription>>` (or fetch the row directly). Map a miss to the standard
   not-found error ([error-handling.md](error-handling.md)).
 
+## Minting & collisions
+
+Mint at insert and **retry the insert, not the request**, on a `public_id` collision.
+The catch: the standard write-error classifier maps *any* `UNIQUE` violation to a domain
+`Conflict` ([data-persistence.md](data-persistence.md)), which would surface a code
+collision to the client as a 409 instead of silently retrying.
+
+Distinguish by the constraint's column. SQLite names it —
+`UNIQUE constraint failed: <table>.public_id` — so the insert loop regenerates only on
+*that* index and lets every other `UNIQUE` (a real business conflict) fall through:
+
+```rust
+for _ in 0..4 {
+    let pid = PublicId::<Subscription>::new();
+    match self.try_insert(pid, /* … */).await {
+        Ok(row) => return Ok(row),
+        Err(e) if is_public_id_conflict(&e) => continue,        // regenerate, retry
+        Err(e) => return Err(map_write_err(&e, /* … */)),       // real conflict/FK
+    }
+}
+Err(Error::storage("public_id: exhausted retries"))            // ~never; RNG/index bug
+```
+
+Four attempts is plenty — per-insert odds are ~1e-9 even at 100M rows, so exhausting them
+means something else is wrong (a broken RNG, a duplicated index).
+
+## Ordering & pagination
+
+The public id is **random, so never sort, range-scan, or paginate on it.** Keep
+`ORDER BY`, cursors, and seek keys on the internal `Id<T>` (UUIDv7, time-ordered) or an
+explicit timestamp — the same key you'd use without public ids. A cursor handed to a
+client is an opaque token over that internal key, not the public id; the public id is a
+point-lookup handle only.
+
 ## Logging
 
 Log **both**: the short id (what appears in user-facing URLs and support tickets) and
@@ -111,6 +145,9 @@ they're safe as structured fields ([observability.md](observability.md)).
 - [ ] Public-facing entities have `public_id TEXT NOT NULL UNIQUE`; PK stays UUIDv7.
 - [ ] Short id is a stored alias: 11-char Crockford Base32, minted at insert,
       regenerated on `UNIQUE` conflict.
+- [ ] Insert retries on a `public_id` `UNIQUE` (matched by column); other `UNIQUE`s
+      still map to domain `Conflict`, not a swallowed retry.
+- [ ] Ordering/pagination keyed on `Id<T>`/timestamp, never the random public id.
 - [ ] `PublicId<T>` newtype; resolved to `Id<T>` once, at the HTTP boundary.
 - [ ] Input normalized (uppercase + Crockford confusables) before lookup.
 - [ ] Authz enforced server-side regardless of the short id — it is not a secret.
