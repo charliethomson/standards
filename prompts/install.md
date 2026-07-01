@@ -6,7 +6,7 @@ Copy everything in the block below to an agent working in the target repo.
 Wire this repo to the shared engineering standards (vendored as a git submodule).
 
 1. Add the submodule:
-   git submodule add git@github.com:charliethomson/standards standards
+   git submodule add ssh://git@github.com/charliethomson/standards standards
 
 2. Work out this repo's identity for the installer:
    - product slug — short lowercase product name → becomes dev.thmsn.<slug>. The product
@@ -42,7 +42,7 @@ section.
 
 ```
 Add the standards submodule and wire it up:
-  git submodule add git@github.com:charliethomson/standards standards
+  git submodule add ssh://git@github.com/charliethomson/standards standards
   standards/bin/standards install --product <slug> --archetype <full-stack-product|library|orchestration|cli-tool>
 Pick <slug> from the repo's real product identifier (product_name!/bundle id), not just
 the dir name. Then read standards/AGENTS.md, and commit .gitmodules + the standards

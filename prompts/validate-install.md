@@ -9,6 +9,11 @@ Run each check, report PASS / WARN / FAIL with the evidence, then offer to fix t
 
 1. Submodule registered & populated
    - `cat .gitmodules` includes a [submodule "standards"] entry → path = standards.
+   - the submodule `url` uses the `ssh://git@github.com/...` scheme, NOT the scp-style
+     `git@github.com:...`. Git accepts both, but cargo's submodule URL parser rejects the
+     scp form ("relative URL without a base"), which breaks any Rust repo that is pulled in
+     as a git dependency. WARN if scp-style → fix: rewrite to `ssh://git@github.com/<owner>/standards`
+     and `git submodule sync`.
    - `git submodule status` — a LEADING SPACE before the hash = initialized & clean.
      A leading `-` = not initialized → fix: `git submodule update --init standards`.
      A leading `+` = checked-out commit differs from the pinned one.
