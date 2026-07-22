@@ -12,6 +12,7 @@ signals, subprocesses), check whether a `lib*` already covers it. They're consum
 | Crate | Purpose | Key API |
 |---|---|---|
 | **liberror** | Serializable error wrapper preserving the source chain | `AnyError { $type, context }`, `From<E: Error>` |
+| **libid** | Typed entity identifiers: internal UUIDv7 + public Crockford alias | `Id<T>`, `PublicId<T>`, `PublicEntity` (opt. `PREFIX`); features `serde`/`sqlx`/`poem-openapi` |
 | **liblog** | tracing + OpenTelemetry subscriber stack | `builder().endpoint(..).sample_rate(..).init() -> guard`; `force_cleanup(guard)` |
 | **libsignal** | Cross-platform graceful shutdown (Unix/Windows signals) | `wait_for_signal()`, `cancel_after_signal(token)`, `*_or(token, fut)` |
 | **libconfig** | TOML + env config with mtime tracking | `load<T>()`, `store_checked()`, `config!{}` macro |

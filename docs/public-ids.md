@@ -78,19 +78,42 @@ anything.
 
 Mirror `Id<T>`: a `PublicId<T>` newtype tagged with the entity, so a subscription's
 public id can't be used to look up an order. Runtime representation is 11 ASCII bytes
-(`Copy`); it serializes as the bare code string and `parse` normalizes confusable
+(`Copy`); it serializes as the canonical code string and `parse` normalizes confusable
 spellings on the way in. Internals never touch it — resolve to `Id<T>` at the edge.
 
+Both types come from **libid** ([lib-ecosystem.md](lib-ecosystem.md)) — don't hand-roll
+a copy:
+
+```toml
+libid = { git = "https://github.com/charliethomson/libid", features = ["sqlx"] }
+```
+
 ```rust
-// core crate, alongside Id<T>
-pub struct PublicId<T> {
-    code: [u8; 11],                  // canonical uppercase Crockford Base32
-    _marker: PhantomData<fn() -> T>,
+use libid::{Id, PublicEntity, PublicId};
+
+struct Subscription;
+impl PublicEntity for Subscription {}   // canonical form: the bare 11-char code
+```
+
+Feature gates: `serde` (default) — canonical-string transport, normalizing parse;
+`sqlx` — SQLite bindings (`Id<T>` as `BLOB` via `Uuid`, `PublicId<T>` as `TEXT`), so the
+typed values bind directly with no `.to_string()` at call sites; `poem-openapi` — both
+types are opaque strings in the contract.
+
+### Optional entity prefix
+
+An entity may override `PublicEntity::PREFIX` (default `""`) with a short lowercase tag:
+
+```rust
+impl PublicEntity for Order {
+    const PREFIX: &'static str = "ord";   // canonical form: ord_9TXK4P2RQ8M
 }
 ```
 
-Template: [`templates/rust/public_id.rs`](../templates/rust/public_id.rs) — minting,
-Crockford encode/decode, confusable folding, `FromStr`, `Display`, and serde.
+The prefix then becomes part of the **canonical form** — stored, displayed, and required
+on parse — making a pasted id self-describing in a URL or support ticket. The 11-char
+code still carries all the entropy; the collision math is unchanged. Pick one style per
+product and keep it: switching later is a data migration, not a display tweak.
 
 ## Persistence & resolution
 
@@ -148,7 +171,8 @@ they're safe as structured fields ([observability.md](observability.md)).
 - [ ] Insert retries on a `public_id` `UNIQUE` (matched by column); other `UNIQUE`s
       still map to domain `Conflict`, not a swallowed retry.
 - [ ] Ordering/pagination keyed on `Id<T>`/timestamp, never the random public id.
-- [ ] `PublicId<T>` newtype; resolved to `Id<T>` once, at the HTTP boundary.
+- [ ] `libid`'s `PublicId<T>` (not a hand-rolled copy); resolved to `Id<T>` once, at the
+      HTTP boundary. Prefixed and bare canonical forms not mixed within a product.
 - [ ] Input normalized (uppercase + Crockford confusables) before lookup.
 - [ ] Authz enforced server-side regardless of the short id — it is not a secret.
 - [ ] Public id is the only id exposed; `Id<T>`↔`PublicId<T>` translation lives in the

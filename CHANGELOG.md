@@ -64,6 +64,13 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Changed
 
+- **Typed identifiers moved to `libid`** — `Id<T>` and `PublicId<T>` are now consumed from the
+  shared **libid** crate (git dep, features `serde`/`sqlx`/`poem-openapi`) instead of copy-pasted
+  templates; `templates/rust/id.rs` and `templates/rust/public_id.rs` are removed.
+  `docs/public-ids.md` documents the `PublicEntity` trait: default is the bare 11-char code, an
+  entity may opt into a self-describing prefix (`ord_9TXK4P2RQ8M`) that becomes part of the
+  canonical (stored/displayed/parsed) form. libid added to the `lib*` catalogue and the
+  workspace-deps template.
 - Replaced the reconstructed `templates/VERSIONING.md` with the byte-identical fleet canonical.
 - Standardized GitHub Actions naming on **Scheme B** (component-first dot-namespaced):
   renamed `build-server.yml`/`build-web.yml` → `server.build.yml`/`web.build.yml`; added the

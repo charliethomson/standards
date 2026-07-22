@@ -21,7 +21,10 @@ pub struct Id<T> {
 ```
 
 Serializes as a canonical hyphenated UUID string in JSON. `Copy + Clone + Hash + Ord`. Use it
-for every entity id in `core`. Template: [`templates/rust/id.rs`](../templates/rust/id.rs).
+for every entity id in `core`. It comes from **libid**
+([lib-ecosystem.md](lib-ecosystem.md)) — `libid = { git = "https://github.com/charliethomson/libid" }` —
+don't hand-roll a copy. The `sqlx` feature binds it as a `BLOB` (delegating to `Uuid`)
+so ids go straight into queries without conversion.
 
 `Id<T>` is the *internal* identity. Entities that appear in user-facing URLs also carry a
 **public short id** (a stored Crockford-Base32 alias); the UUID never leaves internal/admin

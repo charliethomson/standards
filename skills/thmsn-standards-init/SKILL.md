@@ -32,7 +32,8 @@ Copy the relevant `standards/templates/` files into place, filling placeholders.
   shipping; `api/` for the OpenAPI contract; `branding/build.py`; `deploy/` (compose + Caddyfile
   + komodo sync); `.github/workflows/` (`ci.yml`, `server.build.yml`, `web.build.yml`);
   root `VERSIONING.md` + `AGENTS.md`; rust templates (`build.rs`, `tarpaulin.toml`, `config.rs`,
-  `error.rs`, `id.rs`, `observability.rs`, workspace lints).
+  `error.rs`, `observability.rs`, workspace lints). Entity identifiers are NOT scaffolded —
+  depend on `libid` (`Id<T>`/`PublicId<T>`, see [lib-ecosystem](standards/docs/lib-ecosystem.md)).
 - **library** — Cargo workspace, `lib<name>/`, `examples/`, `.cargo/config.toml` if it needs
   `tracing`/private deps, `README.md`, `VERSIONING.md` (placeholder version). CI only if it ships
   an artifact.

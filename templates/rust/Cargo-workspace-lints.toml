@@ -15,6 +15,7 @@ panic              = { level = "warn", priority = 1 }   # surface panics; allow 
 # Shared dependency versions (git deps; HTTPS for public repos, SSH for private).
 [workspace.dependencies]
 liberror     = { git = "https://github.com/charliethomson/liberror" }
+libid        = { git = "https://github.com/charliethomson/libid" }
 libsignal    = { git = "https://github.com/charliethomson/libsignal" }
 libconfig    = { git = "https://github.com/charliethomson/libconfig" }
 libpath      = { git = "https://github.com/charliethomson/libpath" }
