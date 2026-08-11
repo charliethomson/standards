@@ -18,7 +18,7 @@ Before dispatching anything, know three things. Ask only what you can't determin
 
 | | How to get it |
 |---|---|
-| **The backlog** | Linear is the source of truth. `linear issues list --team <key> --project <id>` / `--label <l>`. Then `linear issues get <ID>` per task — it returns `relations[]`, which is how you find the blocking chains. |
+| **The backlog** | Linear is the source of truth. `linear issues list --team <key> --project <id>` / `--label <l>`. Then `linear issues get <ID>` per task — it returns `relations[]`, which is how you find the blocking chains. `linear issues comments <ID>` reads a task's history back, so a task someone already worked tells you where it got to. |
 | **The scope** | Which repos. Read each one's `.standards.conf` (`PRODUCT`) and `AGENTS.md`/`CLAUDE.md`. Sub-agents can reach any sibling under `~/git` regardless of where you're rooted. |
 | **The context** | The docs a competent implementer would need — design notes, runbooks, the relevant `standards/docs/*.md`. Read them yourself now; you'll be quoting them into briefs. |
 
@@ -134,6 +134,10 @@ Give the worker this, verbatim:
 > anything deferred). `linear issues comment` cannot edit a previous comment, so per-step chatter
 > would be unreadable — keep that in the local file. Decisions a successor would otherwise
 > re-litigate go in the finishing comment, not the local file: they outlive the task.
+>
+> Write them as if they will be read cold, because they will be: `linear issues comments <ID>`
+> replays the whole history oldest-first, and it is what a resuming agent has when the local
+> journal is gone.
 
 - Use `isolation: "worktree"` when parallel agents touch the same repo — otherwise they fight over
   the working tree. Journals live outside the repo precisely so they survive the worktree being
@@ -203,7 +207,13 @@ journal is recoverable; ten minutes of summarising is not worth the tokens.
 **On resume** — trust the journals, but verify the world matches them, because a worker can die
 mid-write:
 
-1. Read `PROGRAM.md`, then each journal for a task not marked landed.
+1. Read `PROGRAM.md`, then each journal for a task not marked landed, then
+   **`linear issues comments <ID>`** for those tasks — the boundary comments are the durable
+   half and the journals are not. Read them in both cases, not just when a journal is missing:
+   where they disagree, the comment records what a worker believed at a boundary and the journal
+   records where it actually stopped, and the gap between the two is usually the thing you need
+   to know. On a different machine, or after a worktree was cleaned up, the comments are the
+   only record that survived.
 2. Reconcile against reality — `git status` / `git log` in each repo, and the tracker. A journal
    claiming a commit that isn't there means the worker died before committing; STATE is your
    guide to what to unwind or finish.

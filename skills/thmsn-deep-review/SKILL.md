@@ -110,10 +110,10 @@ agents' summaries:
 Only if the user asked. Use the **`linear`** CLI (see the `linear` skill for full reference).
 
 1. **Discover context**: `linear teams list`; find the project in `linear projects list`; get
-   states + labels. **Gotcha — `linear states list --team <KEY>` and `labels list --team <KEY>`
-   fail; pass the team UUID.** Create missing labels (`Security`, `Testing`, …) — note a label
-   like `Bug` may already exist as a *workspace* label (not in the team list); resolve its id
-   from `linear labels list` (no `--team`).
+   states + labels. Team keys work anywhere a `--team` is taken, so `linear states list --team ENG`
+   is fine. Create missing labels (`Security`, `Testing`, …) — note a label like `Bug` may already
+   exist as a *workspace* label (not in the team list); resolve its id from `linear labels list`
+   (no `--team`).
 2. **One task per actionable recommendation** — consolidate nits/lows into per-module "hardening
    roundup" tasks so the list stays high-signal (~20–35 total for a full repo). Each task is
    **self-contained**:
@@ -123,10 +123,12 @@ Only if the user asked. Use the **`linear`** CLI (see the `linear` skill for ful
    `4` low. Put priority 1–2 in **Todo**, 3–4 in **Backlog**.
 4. **Bulk-create**: write the array to a temp JSON file and `linear issues bulk-create --file …`.
    Prefer a small Python generator that holds the descriptions and emits the JSON.
-5. **Wire systemic dependencies** with relations. **Gotcha — `linear issues relations create`
-   needs UUIDs on BOTH `--issue` and `--related`** (identifiers like `ABC-123` are rejected);
-   map identifier→id from the bulk-create output. Use `blocks` for real ordering (e.g. "server
-   emits terminal frame" blocks the per-client resets) and `related` for siblings.
+   **Check `failedCount` in the output, not the exit code** — a partial failure still exits 0,
+   so a silently half-filed backlog looks identical to a complete one.
+5. **Wire systemic dependencies** with relations. Issue identifiers (`ABC-123`) work on both
+   `--issue` and `--related`, so you can wire straight from the report without mapping
+   identifier→id. Use `blocks` for real ordering (e.g. "server emits terminal frame" blocks the
+   per-client resets) and `related` for siblings.
 6. **Record them in the report** — add the "Linear issues created" section: group by priority,
    one line each (`ABC-154` [title](url) — labels), plus the relations. Then thread the issue
    refs back into the per-module findings and the "what to fix first" table (append `→ ABC-154`)

@@ -83,7 +83,12 @@ Two artifacts, then stop.
 
 **Linear tasks** — `linear issues bulk-create --file <path>` for more than two. Each carries the
 context to be worked cold: goal, acceptance test, the decisions that bind it, exact paths to read.
-Then `linear issues relations create --issue <a> --related <b> --type blocks` for the chain.
+Then `linear issues relations create --issue <a> --related <b> --type blocks` for the chain
+(identifiers like `ABC-123` work on both sides).
+
+**Check `failedCount` in the bulk-create output before you believe the backlog exists.** Partial
+failure does not abort and still exits 0, so a half-filed program looks exactly like a complete
+one — and Ultron would then execute against a plan with holes in it.
 
 **The program brief** at `~/.local/state/thmsn/ultron/<program-slug>/PROGRAM.md`, in the shape
 Ultron expects (its §2 — slug derivation included, so it can find this cold):
