@@ -51,11 +51,29 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   `branding/build.py`; the consuming-repo `AGENTS.md` stub; `link-standards.sh`; `mcp.json`.
 - **Shared tooling scaffolding** — `skills/` and `mcp/` with conventions; `link-standards.sh`
   symlinks shared skills into `.claude/skills/` and scaffolds `.mcp.json`.
-- **Shared skills** — six `thmsn-*` skills: `thmsn-standards` (audit/fix the repo against its
+- **Shared skills** — six `thmsn-*` audit/scaffold skills: `thmsn-standards` (audit/fix the repo against its
   applicable standards), `-review` (diff-scoped check of just your changes), `-init` (scaffold a
   new repo to an archetype), `thmsn-new-component` (add a service or client surface on-standard),
   `-sync` (update the submodule + re-audit), and `-contribute` (author + push a genericized
   standards change). Consuming repos get them via the submodule + `link-standards.sh`.
+- **`thmsn-jarvis` + `thmsn-ultron` skills** — a two-halves workflow for programs of work, generalized
+  from the ad-hoc prompts used for the auth-remediation and compact-view programs.
+  **Jarvis plans**: refines a rough idea *with the user before researching*, fans out spec agents per
+  workstream and reconciles them, surfaces the decisions that are the user's to make (each with a
+  recommendation), then files discrete Linear tasks with real blocking relations plus a program brief.
+  **Ultron executes**: reads that backlog, sequences around the blocking chains, dispatches
+  self-contained implementer sub-agents, verifies their output before marking anything Done, and
+  escalates human-gated actions (cutovers, secrets, ordering hazards, identity calls). Jarvis's output
+  *is* Ultron's input; Ultron handed an unscoped idea points back at Jarvis rather than inventing a
+  decomposition.
+  Programs are **pausable and resumable across sessions** — state splits by durability: the plan,
+  decisions and blockers go to Linear (readable from a phone while a usage limit resets), while
+  volatile progress lives at `~/.local/state/thmsn/ultron/<program-slug>/` as a `PROGRAM.md` ledger
+  plus a per-task journal each worker updates continuously. A worker killed mid-step resumes from its
+  first unchecked step rather than restarting. The slug is derived (`<team>-<label>`), never invented,
+  so a fresh session can find the program cold.
+- **`bin/ultron`** — read-only CLI over that state (`ls`, `status`, `log`, `gc`), so checking where a
+  program stands costs no tokens. Symlink to `~/.local/bin/ultron`.
 - **Integration CLI** (`bin/standards`) — `install` (wire the submodule into a repo), `sync`
   (pull upstream + show the changelog + re-link + stage the bump), `contribute` (genericize a
   repo's identifiers and push the change upstream), and `lint` (verify your edits carry none of
