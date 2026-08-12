@@ -83,14 +83,19 @@ default_program() {
   echo "$p"
 }
 
-# BACKLOG lines from PROGRAM.md -> "TASK<TAB>STATE". Tolerant of prose formatting:
-# any line carrying a task id and a known state word counts.
+# PROGRAM.md -> "TASK<TAB>STATE<TAB>GATE" (gate is "1" for human-gated, else "").
+#
+# A real brief carries a task twice: once in the plan (a BACKLOG table row, no state) and again
+# in a dispatch-log row that does carry one. So a task only counts as *known* when it appears as
+# the first cell of a table row or at the head of a list item — that skips dependency diagrams
+# and prose — and its state is read from the LAST such row, which is the dispatch log. Prose
+# mentions never set state: "blocked on THM-337 landing" must not mark THM-337 blocked.
 backlog() {
   local brief="$1/PROGRAM.md"
   [ -f "$brief" ] || return 0
-  grep -oE "$TASK_RE.*" "$brief" 2>/dev/null | awk '
-    # The state word nearest the task id wins, so a trailing note ("...blocked-on-human for the
-    # flip") cannot override the declared state at the front of the line.
+  awk '
+    # The state word nearest the task id wins, so a trailing note cannot override the declared
+    # state at the front of the row.
     function firststate(s,   words, i, n, p, best, bestw) {
       n = split("landed done dispatched in-flight blocked queued", words, " ")
       best = 0
@@ -100,12 +105,39 @@ backlog() {
       }
       if (bestw == "done")      return "landed"
       if (bestw == "in-flight") return "dispatched"
-      return (bestw == "") ? "queued" : bestw
+      return (bestw == "") ? "" : bestw
     }
     {
-      match($0, /^[A-Z][A-Z0-9]+-[0-9]+/); id = substr($0, 1, RLENGTH)
-      if (!(id in seen)) { seen[id] = 1; print id "\t" firststate(tolower($0)) }
-    }'
+      if (!match($0, /[A-Z][A-Z0-9]+-[0-9]+/)) next
+      id = substr($0, RSTART, RLENGTH)
+      low = tolower($0)
+
+      # A markdown table row whose first cell is just the task id.
+      isrow = 0
+      if ($0 ~ /^[[:space:]]*\|/) {
+        cell = $0; sub(/^[[:space:]]*\|/, "", cell); sub(/\|.*$/, "", cell)
+        gsub(/[^A-Za-z0-9-]/, "", cell)
+        if (cell == id) isrow = 1
+      }
+      # Or a list item that starts with the task id: "- THM-264 queued — ..."
+      if ($0 ~ /^[[:space:]]*[-*][[:space:]]*\**[A-Z][A-Z0-9]+-[0-9]+/) isrow = 1
+      # Rows only — a dependency diagram puts several tasks on one line, so reading a marker
+      # from prose tags whichever task happens to come first: the M1 chain ending
+      # "THM-343 (port) -> THM-342 [HUMAN]" would gate THM-341.
+      if (!isrow) next
+
+      if (low ~ /human-gated/ || $0 ~ /\[HUMAN\]/ || index($0, "🔒") > 0) gate[id] = 1
+
+      if (!(id in seen)) { seen[id] = 1; order[++n_ids] = id }
+      st = firststate(low)
+      if (st != "") state[id] = st          # last row wins — the dispatch log is written last
+    }
+    END {
+      for (i = 1; i <= n_ids; i++) {
+        id = order[i]
+        printf "%s\t%s\t%s\n", id, (id in state ? state[id] : "queued"), (id in gate ? "1" : "")
+      }
+    }' "$brief" 2>/dev/null
 }
 
 # PLAN checkbox progress in a journal -> "done/total" (empty if no checkboxes)
@@ -139,17 +171,21 @@ cmd_ls() {
   local progs; progs=$(list_programs)
   [ -n "$progs" ] || { printf '%sno programs under %s%s\n' "$c_dim" "$STATE_DIR" "$c_off"; return 0; }
 
-  printf '%s%-28s %7s %10s %8s %9s  %s%s\n' "$c_bold" "PROGRAM" "TASKS" "LANDED" "ACTIVE" "BLOCKED" "LAST" "$c_off"
-  local p dir total landed active blocked
+  printf '%s%-24s %6s %7s %7s %8s %6s  %s%s\n' \
+    "$c_bold" "PROGRAM" "TASKS" "LANDED" "ACTIVE" "BLOCKED" "GATED" "LAST" "$c_off"
+  local p dir rows total landed active blocked gated
   while IFS= read -r p; do
     dir="$STATE_DIR/$p"
-    total=$(backlog "$dir" | wc -l | tr -d ' ')
-    landed=$(backlog "$dir" | grep -c 'landed$' || true)
-    active=$(backlog "$dir" | grep -c 'dispatched$' || true)
-    blocked=$(backlog "$dir" | grep -c 'blocked$' || true)
-    printf '%-28s %7s %10s %8s %s%9s%s  %s%s%s\n' \
+    rows=$(backlog "$dir")
+    total=$(printf '%s' "$rows" | grep -c . || true)
+    landed=$(awk -F'\t' '$2 == "landed"     { n++ } END { print n + 0 }' <<< "$rows")
+    active=$(awk -F'\t' '$2 == "dispatched" { n++ } END { print n + 0 }' <<< "$rows")
+    blocked=$(awk -F'\t' '$2 == "blocked"   { n++ } END { print n + 0 }' <<< "$rows")
+    gated=$(awk  -F'\t' '$3 == "1"          { n++ } END { print n + 0 }' <<< "$rows")
+    printf '%-24s %6s %7s %7s %s%8s%s %s%6s%s  %s%s%s\n' \
       "$p" "$total" "$landed" "$active" \
       "$([ "$blocked" -gt 0 ] && printf '%s' "$c_yel")" "$blocked" "$c_off" \
+      "$([ "$gated" -gt 0 ] && printf '%s' "$c_yel")" "$gated" "$c_off" \
       "$c_dim" "$(ago "$(newest "$dir")")" "$c_off"
   done <<< "$progs"
 }
@@ -166,9 +202,9 @@ cmd_status() {
   if [ -z "$rows" ]; then
     printf '%sno backlog lines in PROGRAM.md%s\n' "$c_dim" "$c_off"
   else
-    printf '%s%-12s %-11s %6s %9s  %s%s\n' "$c_bold" "TASK" "STATE" "PLAN" "JOURNAL" "NOW" "$c_off"
-    local id state journal colour
-    while IFS=$'\t' read -r id state; do
+    printf '%s%-12s %-13s %6s %9s  %s%s\n' "$c_bold" "TASK" "STATE" "PLAN" "JOURNAL" "NOW" "$c_off"
+    local id state gate journal colour label
+    while IFS=$'\t' read -r id state gate; do
       journal="$dir/$id.md"
       case $state in
         landed)     colour=$c_grn ;;
@@ -176,8 +212,16 @@ cmd_status() {
         dispatched) colour=$c_bold ;;
         *)          colour=$c_dim ;;
       esac
-      printf '%-12s %s%-11s%s %6s %s%9s%s  %s\n' \
-        "$id" "$colour" "$state" "$c_off" \
+      # printf pads by bytes, and 🔒 is four bytes wide but occupies two columns — pad by hand
+      # or every gated row shifts the rest of the table left.
+      label="$state"; pad=$((13 - ${#state}))
+      if [ -n "$gate" ]; then
+        label="$state 🔒"; pad=$((13 - ${#state} - 3))
+        [ "$state" = queued ] && colour=$c_yel
+      fi
+      [ "$pad" -lt 1 ] && pad=1
+      printf '%-12s %s%s%*s%s %6s %s%9s%s  %s\n' \
+        "$id" "$colour" "$label" "$pad" "" "$c_off" \
         "$(plan_progress "$journal")" \
         "$c_dim" "$([ -f "$journal" ] && ago "$(mtime "$journal")" || echo '-')" "$c_off" \
         "$(state_line "$journal")"
@@ -195,8 +239,15 @@ cmd_status() {
   done
   [ -n "$orphans" ] && printf '\n%s! journals with no backlog entry:%s%s\n' "$c_yel" "$orphans" "$c_off"
 
-  local blocked; blocked=$(awk -F'\t' '$2 == "blocked" { print $1 }' <<< "$rows" | tr '\n' ' ')
-  [ -n "${blocked// /}" ] && printf '\n%swaiting on you:%s %s\n' "$c_yel" "$c_off" "$blocked"
+  # A journal for a task the ledger still calls queued means the ledger is stale — exactly the
+  # discrepancy a resuming Ultron needs to notice.
+  local stale; stale=$(awk -F'\t' -v d="$dir" \
+    '$2 == "queued" { f = d "/" $1 ".md"; if ((getline line < f) >= 0) print $1; close(f) }' <<< "$rows" | tr '\n' ' ')
+  [ -n "${stale// /}" ] && printf '\n%s! journal exists but the ledger still says queued:%s %s\n' "$c_yel" "$c_off" "$stale"
+
+  # A gated task that already landed isn't waiting on anyone.
+  local waiting; waiting=$(awk -F'\t' '$2 != "landed" && ($2 == "blocked" || $3 == "1") { print $1 }' <<< "$rows" | tr '\n' ' ')
+  [ -n "${waiting// /}" ] && printf '\n%swaiting on you:%s %s\n' "$c_yel" "$c_off" "$waiting"
   return 0
 }
 

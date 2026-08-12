@@ -62,8 +62,17 @@ BACKLOG          — tracker IDs, their blocking order, agent-vs-human, and curr
 down as a decision — otherwise each fresh sub-agent re-opens it and you spend the program
 re-arguing settled ground. When the user settles something mid-program, add it.
 
-Keep the BACKLOG line for each task current as you go (`queued` / `dispatched` / `landed` /
-`blocked-on-human`). That ledger is what lets a fresh Ultron resume this program cold — see §8.
+Keep each task's state current as you go (`queued` / `dispatched` / `landed` / `blocked`). That
+ledger is what lets a fresh Ultron resume this program cold — see §8.
+
+Structure the brief however the program needs — a plan section and a separate dispatch log is a
+good shape, and prose around it is welcome. Two constraints only, so `ultron status` can read it:
+
+- **State lives in a per-task row** — a markdown table row whose first cell is the task id, or a
+  list item starting with it. The *last* such row wins, so a dispatch-log row supersedes the
+  plan row. State mentioned only in prose is invisible to the CLI, and a dependency diagram
+  naming several tasks on one line sets nothing.
+- **Mark human-gated tasks in their own row** with `human-gated`, `[HUMAN]`, or 🔒.
 
 ## 3. Sequence
 
