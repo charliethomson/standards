@@ -44,6 +44,7 @@ Inspect it without spending tokens using [`../bin/ultron`](../bin/ultron):
 ```sh
 ultron ls                 # programs: task counts, what's blocked, last activity
 ultron status <program>   # per-task table: state, plan progress, what each worker is on
+ultron watch <program>    # live status, redrawn when the state changes (-n <seconds>)
 ultron log <TASK-ID>      # a task's journal
 ultron gc <program>       # drop state for a finished program (prompts)
 ```

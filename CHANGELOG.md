@@ -72,8 +72,11 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   plus a per-task journal each worker updates continuously. A worker killed mid-step resumes from its
   first unchecked step rather than restarting. The slug is derived (`<team>-<label>`), never invented,
   so a fresh session can find the program cold.
-- **`bin/ultron`** — read-only CLI over that state (`ls`, `status`, `log`, `gc`), so checking where a
-  program stands costs no tokens. Symlink to `~/.local/bin/ultron`.
+- **`bin/ultron`** — read-only CLI over that state (`ls`, `status`, `watch`, `log`, `gc`), so checking
+  where a program stands costs no tokens. `watch` is a live view that redraws only when the state
+  actually changes, waits for a program to appear rather than erroring if you start it first, and
+  prints once instead of emitting escape codes when its output isn't a terminal. Symlink to
+  `~/.local/bin/ultron`.
 - **Integration CLI** (`bin/standards`) — `install` (wire the submodule into a repo), `sync`
   (pull upstream + show the changelog + re-link + stage the bump), `contribute` (genericize a
   repo's identifiers and push the change upstream), and `lint` (verify your edits carry none of

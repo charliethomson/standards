@@ -3,6 +3,7 @@
 #
 #   ultron ls                  list programs: task counts, what's blocked, last activity
 #   ultron status [<program>]  per-task table for a program (default: the only/most recent one)
+#   ultron watch [<program>]   live status, redrawn when the state changes (-n <seconds>)
 #   ultron log <TASK-ID>       print a task's journal
 #   ultron gc [<program>]      remove state for a fully-landed program (prompts)
 #
@@ -56,6 +57,14 @@ program_dir() {
   local slug=$1
   [ -d "$STATE_DIR/$slug" ] || die "no such program: $slug (try 'ultron ls')"
   echo "$STATE_DIR/$slug"
+}
+
+# A cheap signature of a program's state — every file plus its mtime. Watch redraws only when
+# this changes, so a quiet program doesn't flicker once a second.
+fingerprint() {
+  local f out=""
+  while IFS= read -r f; do out+="$f:$(mtime "$f");"; done < <(find "$1" -type f 2>/dev/null | sort)
+  printf '%s' "$out"
 }
 
 # programs, most-recently-touched first
@@ -191,6 +200,65 @@ cmd_status() {
   return 0
 }
 
+# Interruptible sleep. bash defers a trap until the running foreground command finishes, so a
+# plain `sleep 30` would swallow ctrl-c for up to 30 seconds; backgrounding it and waiting lets
+# the signal land immediately.
+nap() { sleep "$1" & wait $! 2>/dev/null || true; }
+
+cmd_watch() {
+  local interval=2 slug=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -n|--interval) interval="${2:-}"; shift 2 || die "--interval needs a value" ;;
+      -*)            die "unknown option: $1" ;;
+      *)             slug=$1; shift ;;
+    esac
+  done
+  case $interval in
+    ''|*[!0-9]*) die "--interval must be a whole number of seconds" ;;
+  esac
+  [ "$interval" -ge 1 ] || die "--interval must be at least 1 second"
+
+  # Validate before taking over the screen, so the error is actually readable.
+  [ -z "$slug" ] || program_dir "$slug" >/dev/null
+
+  # Not a terminal (piped, redirected, in CI): print once and stop, rather than
+  # spraying escape codes into whatever is reading.
+  if [ ! -t 1 ]; then cmd_status "$slug"; return; fi
+
+  printf '\033[?1049h\033[?25l'                       # alternate screen, hide cursor
+  # shellcheck disable=SC2064
+  trap 'printf "\033[?25h\033[?1049l"' EXIT
+  trap 'exit 0' INT TERM
+
+  local last="" sig target stamp
+  while :; do
+    target="$slug"
+    [ -n "$target" ] || target=$(list_programs | head -1)
+
+    if [ -z "$target" ]; then
+      # No program yet — wait for one rather than erroring. Starting the watch before
+      # Ultron creates the program is the normal order of operations.
+      if [ "$last" != "@waiting" ]; then
+        printf '\033[H\033[2J%swaiting for a program under %s …%s\n' "$c_dim" "$STATE_DIR" "$c_off"
+        last="@waiting"
+      fi
+      nap "$interval"; continue
+    fi
+
+    sig=$(fingerprint "$STATE_DIR/$target")
+    if [ "$sig" != "$last" ]; then
+      stamp=$(date +%H:%M:%S)
+      printf '\033[H\033[2J'
+      cmd_status "$target"
+      printf '\n%slast change %s · polling every %ss · ctrl-c to stop%s\n' \
+        "$c_dim" "$stamp" "$interval" "$c_off"
+      last="$sig"
+    fi
+    nap "$interval"
+  done
+}
+
 cmd_log() {
   local id="${1:-}"
   [ -n "$id" ] || die "usage: ultron log <TASK-ID>"
@@ -222,13 +290,15 @@ cmd_gc() {
   esac
 }
 
+# The header comment block, minus the shebang — so adding a command can't desync the help.
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 { if (!/^#/) exit; sub(/^#[[:space:]]?/, ""); print }' "$0"
 }
 
 case "${1:-ls}" in
   ls|list)        shift || true; cmd_ls ;;
   status|st)      shift || true; cmd_status "${1:-}" ;;
+  watch|w)        shift || true; cmd_watch "$@" ;;
   log|cat)        shift || true; cmd_log "${1:-}" ;;
   gc)             shift || true; cmd_gc "${1:-}" ;;
   -h|--help|help) usage ;;
