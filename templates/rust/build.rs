@@ -16,8 +16,7 @@ use std::process::Command;
 fn main() {
     // Re-run when HEAD moves or a tag is pushed, so the version stays current.
     println!("cargo:rerun-if-env-changed=RELEASE_VERSION");
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs/tags");
+    emit_git_rerun_paths();
 
     let version = std::env::var("RELEASE_VERSION")
         .ok()
@@ -26,6 +25,27 @@ fn main() {
         .unwrap_or_else(|| "0.0.0".to_owned());
 
     println!("cargo:rustc-env=APP_VERSION={version}");
+}
+
+/// Watch the real git metadata paths.
+///
+/// `cargo:rerun-if-changed` resolves relative paths against the **package** root, and in a
+/// workspace the package root (`api/`, `cli/`, …) has no `.git` — so a literal `.git/HEAD`
+/// names a file that does not exist, which cargo treats as "changed", re-running this script
+/// on every single build. Ask git where its directory actually is instead.
+///
+/// Emitting nothing when there is no repo (vendored sources, a Docker build without `.git`)
+/// is correct: there is no git state to invalidate on.
+fn emit_git_rerun_paths() {
+    // Per-worktree: HEAD moves when you switch branch or commit.
+    if let Some(dir) = git(&["rev-parse", "--absolute-git-dir"]) {
+        println!("cargo:rerun-if-changed={dir}/HEAD");
+    }
+    // Shared across linked worktrees: where tags land, loose or packed.
+    if let Some(dir) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"]) {
+        println!("cargo:rerun-if-changed={dir}/refs/tags");
+        println!("cargo:rerun-if-changed={dir}/packed-refs");
+    }
 }
 
 fn derive_version() -> Option<String> {

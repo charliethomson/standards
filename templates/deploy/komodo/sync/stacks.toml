@@ -34,6 +34,10 @@ file_paths = ["prod.compose.yml"]
 # for watchtower's poll. Both must exist as secret Variables before first sync.
 environment = """
 AUTH_ADMIN_KEY = [[AUTH_ADMIN_KEY]]
-# AUTH_TCP_ADDR = 192.168.0.193:7070
+# The auth transport settings are THIS stack's own config fields, so they carry this
+# product's prefix. The bare AUTH_TCP_* names are silently ignored by libconfig.
+# {{PRODUCT_UPPER}}_AUTH_TCP_ADDR   = tcp.auth.dev.thmsn.dev:7070
+# {{PRODUCT_UPPER}}_AUTH_TCP_TLS    = true
+# {{PRODUCT_UPPER}}_AUTH_TCP_DOMAIN = tcp.auth.dev.thmsn.dev
 GHCR_TOKEN     = [[GHCR_TOKEN]]
 """

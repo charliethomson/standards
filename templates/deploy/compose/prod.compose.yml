@@ -26,8 +26,10 @@ services:
       SAMPLE_RATE: "1.0"
       # Central auth: the API registers itself + grants on boot and validates JWTs
       # via the SDK. AUTH_ADMIN_KEY is the TCP HMAC root (a Komodo secret Variable;
-      # must be non-empty). Reaches the auth TCP server over the LAN via the host
-      # IP; override the default (192.168.0.193:7070) with AUTH_TCP_ADDR.
+      # must be non-empty) and stays bare — the SDK reads it from the environment.
+      # The transport settings are this service's OWN config fields, so they take
+      # this product's prefix ({{PRODUCT_UPPER}}_AUTH_TCP_ADDR, …), never the bare
+      # AUTH_TCP_* names, which libconfig silently ignores.
       AUTH_ADMIN_KEY: "${AUTH_ADMIN_KEY}"
     volumes:
       - {{PRODUCT}}-data:/data

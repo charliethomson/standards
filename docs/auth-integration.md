@@ -72,6 +72,11 @@ plain `connect`, gated by config so it rolls out per environment:
 
 - `AUTH_TCP_TLS` (bool, default `false` during migration), `AUTH_TCP_ADDR` = the cert's
   `domain:port`, `AUTH_TCP_DOMAIN` = the SNI/verification name.
+- **These three are the consuming service's own config fields, so their env vars carry that
+  service's prefix** — `SOMEPRODUCT_AUTH_TCP_ADDR`, not bare `AUTH_TCP_ADDR`. Only
+  `AUTH_ADMIN_KEY` and `AUTH_MODE` stay unprefixed (the SDK reads those from the environment
+  itself). Getting this wrong is silent — the bare name is ignored, the default applies, and the
+  service tries plaintext against a TLS-only listener ([configuration.md](configuration.md)).
 - Never point `connect_tls` at a bare IP — hostname verification needs the cert's name.
 - Plaintext `connect` is acceptable **only** for loopback local dev.
 

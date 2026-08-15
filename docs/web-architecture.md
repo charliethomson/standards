@@ -60,6 +60,14 @@ published to the private registry at **`https://npm.dev.thmsn.dev`** — shadcn/
 **Install:** scope the registry in `.npmrc` (`@thmsn:registry=https://npm.dev.thmsn.dev/`;
 auth via `npm login`), then `bun add @thmsn/ui`.
 
+**Pin the current minor — `^0.x`.** The library is pre-1.0 and ships breaking changes as
+minors, so the pin is a `^0.x` range (`"@thmsn/ui": "^0.4.0"`), not `^1`. Check what the
+registry actually has (`npm view @thmsn/ui version`) and pin that; **never guess a major**. A
+pin that resolves to nothing is not a soft failure — `npm install` aborts with `ETARGET`, so no
+lockfile can be generated at all and every CI job that installs the workspace is unrunnable
+before it reaches a single test. When a new minor lands, consumers bump the pin
+([`prompts/migrate-to-thmsn-ui.md`](../prompts/migrate-to-thmsn-ui.md)).
+
 ### Tailwind v4 (CSS-first) — for new and migrating apps
 
 One import in your CSS entry does everything — theme mapping, dark variant, content
@@ -74,6 +82,43 @@ and base element styles:
 ```
 
 No `tailwind.config` needed.
+
+Two v4 rules that fail **silently** — both produce a green build that emits nothing:
+
+**A product token is not a utility until you map it.** Importing a `tokens.css` that defines
+`--brand` gives you the CSS variable, not a `bg-brand` class. Utilities only exist for names v4
+knows about, so a token the library's `theme.css` doesn't already cover needs its own
+`@theme inline` mapping. Re-theming an *existing* token (same variable name, `:root` + `.dark`)
+is already mapped and needs nothing extra — this is only for tokens the product **adds**:
+
+```css
+@import "tailwindcss";
+@import "@thmsn/ui/theme.css";
+@import "./tokens.generated.css";   /* defines --brand: 217 91% 52% */
+
+@theme inline {
+  --color-brand: hsl(var(--brand));   /* now `bg-brand` / `text-brand` exist */
+}
+```
+
+Mirror the library's convention exactly: tokens are **HSL triplets**, so the mapping wraps them
+in `hsl()` and the `--color-*` name is distinct from the raw token. A mapping that forgets
+`hsl()` — or that points a `--color-x` at itself — yields a utility that resolves to nothing.
+
+**v4 only emits a class it literally sees in your source.** There is no config `safelist`; the
+scanner matches plain substrings and does not evaluate expressions, so a composed class name
+produces **no CSS at all**:
+
+```tsx
+<div className={`bg-${status}`} />              {/* ✗ emits nothing */}
+<div className={{ active: 'bg-active', idle: 'bg-idle' }[status]} />  {/* ✓ */}
+```
+
+Write every candidate out in full — a lookup map or an explicit ternary, never interpolation.
+The failure mode is a build that exits 0 while the utility is simply absent, so if a style is
+missing at runtime, **grep the built CSS for the class name** before suspecting specificity or
+import order. Files outside the scanned roots (a sibling workspace package) need an explicit
+`@source` for the same reason.
 
 ### Tailwind v3 (config-file) — legacy path
 
@@ -141,7 +186,9 @@ domain logic packages. A single-surface app can stay flat (`src/api`, `src/store
 
 - [ ] React + Vite + Tailwind + shadcn/Radix, with primitives from **`@thmsn/ui`**, not
       re-vendored per app.
+- [ ] `@thmsn/ui` pinned to the current published minor (`^0.x`, verified against the registry) — never a guessed major.
 - [ ] Tailwind v4 CSS-first: `@import "@thmsn/ui/theme.css"` after `@import "tailwindcss"`, no `tailwind.config` (v3 + `tailwind-preset` + `tokens.css` is the legacy path).
+- [ ] Product-**added** tokens have an `@theme inline` mapping; no dynamic/interpolated class names (`bg-${x}`) — full literals only.
 - [ ] Rebranding: generated product `tokens.css` (same variable names, `:root` + `.dark`) imported after the library's theme/tokens; semantic classes only.
 - [ ] Server state in TanStack Query with a central `qk` key registry; UI state in Zustand; no duplication.
 - [ ] Typed client via `openapi-typescript` + `openapi-fetch`, generated from the committed spec.

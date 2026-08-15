@@ -10,12 +10,20 @@ use serde::{Deserialize, Serialize};
 
 // Defaults are hardcoded HERE, not in a committed TOML.
 const DEFAULT_BIND: &str = "127.0.0.1:8080"; // loopback locally; Docker sets {{PRODUCT_UPPER}}_BIND=0.0.0.0:8080
-const DEFAULT_AUTH_TCP_ADDR: &str = "192.168.0.193:7070"; // homelab dev box
+// A NAME, not an IP: the TLS leg verifies the certificate's hostname.
+const DEFAULT_AUTH_TCP_ADDR: &str = "tcp.auth.dev.thmsn.dev:7070";
 
-// Fleet-shared, unprefixed env vars every service reads.
-const SHARED_ENV: [&str; 4] = ["AUTH_ADMIN_KEY", "AUTH_TCP_ADDR", "OTLP_ENDPOINT", "PRODUCTION"];
+// Fleet-shared, UNPREFIXED env vars every service reads. AUTH_TCP_* deliberately does NOT
+// belong here: those are this service's own fields and take the {{PRODUCT_UPPER}}_ prefix.
+// Listing them here fails silently — the bare names are ignored and the defaults apply.
+const SHARED_ENV: [&str; 4] = ["AUTH_ADMIN_KEY", "AUTH_MODE", "OTLP_ENDPOINT", "PRODUCTION"];
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// NOTE: do NOT `#[derive(Default)]` here. libconfig's lowest precedence layer is
+// `Serialized::defaults(Config::default())` — it serializes this `Default` impl, so a derived
+// one supplies `""`/`0`/`None` for every field and the `#[serde(default = "...")]` functions
+// below never run. Every DEFAULT_* const would be dead and `bind` would silently become "".
+// Write `Default` by hand and delegate to the same functions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_bind")]
     pub bind: String,
@@ -35,6 +43,19 @@ fn default_bind() -> String {
 }
 fn default_auth_tcp_addr() -> String {
     DEFAULT_AUTH_TCP_ADDR.to_owned()
+}
+
+// The real default layer. Keep every field in sync with the `#[serde(default = "...")]`
+// attributes above — this impl, not those attributes, is what libconfig actually reads.
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            bind: default_bind(),
+            auth_tcp_addr: default_auth_tcp_addr(),
+            auth_admin_key: String::new(), // required; supplied by the shared env layer
+            otlp_endpoint: None,
+        }
+    }
 }
 
 impl Config {
