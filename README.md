@@ -15,8 +15,8 @@ so coding agents have one authoritative place to read the rules.
 - **`docs/archetypes/`** — per-repo-type rules. A repo is one of: full-stack product,
   library, orchestration, or CLI/service tool. Start here to know which standards apply.
 - **`templates/`** — copyable scaffolding (workflows, `build.rs`, `tarpaulin.toml`,
-  `VERSIONING.md`, Komodo stacks, the consuming-repo `AGENTS.md` stub). Copy these into a
-  new repo rather than writing them from scratch.
+  `VERSIONING.md`, Komodo stacks, the consuming-repo `AGENTS.md`, `SHORTCUTS.md` and
+  `README` stubs). Copy these into a new repo rather than writing them from scratch.
 - **`skills/`** — shared Claude Code skills (`<name>/SKILL.md`), usable by any consuming
   repo. Linked into `.claude/skills/` by the setup script.
 - **`mcp/`** — shared custom MCP servers, referenced from a consuming repo's `.mcp.json`.
@@ -33,8 +33,9 @@ git submodule add git@github.com:charliethomson/standards standards
 standards/bin/standards install --product <slug> [--upper ENV] [--lib name] [--archetype <type>]
 ```
 
-`install` writes a root `AGENTS.md` (pointing agents into `standards/`), records the product's
-identity in `.standards.conf`, links shared skills into `.claude/skills/`, and scaffolds `.mcp.json`.
+`install` writes a root `AGENTS.md` (pointing agents into `standards/`) and an empty
+`SHORTCUTS.md`, records the product's identity in `.standards.conf`, links shared skills into
+`.claude/skills/`, and scaffolds `.mcp.json`.
 
 ## Keeping in sync
 

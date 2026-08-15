@@ -71,6 +71,32 @@ scan() {
   return $found
 }
 
+# Write <repo>/SHORTCUTS.md from the template. Never clobbers: returns 1 if it already
+# exists. $1 = product slug (for the header); falls back to the repo directory name.
+scaffold_shortcuts() {
+  local product="${1:-$(basename "$REPO_ROOT")}"
+  [ -f "$REPO_ROOT/SHORTCUTS.md" ] && return 1
+  [ -f "$STD_DIR/templates/SHORTCUTS.md" ] || return 1
+  sed "s/{{PRODUCT}}/$product/g" "$STD_DIR/templates/SHORTCUTS.md" > "$REPO_ROOT/SHORTCUTS.md"
+  ok "wrote SHORTCUTS.md (empty — agents fill it in as they learn this repo's operations)"
+  return 0
+}
+
+# Write <repo>/README.md from the archetype-appropriate skeleton. Never clobbers: returns 1
+# if it already exists. $1 = product slug, $2 = archetype.
+scaffold_readme() {
+  local product="${1:-$(basename "$REPO_ROOT")}" archetype="${2:-full-stack-product}" tpl
+  [ -f "$REPO_ROOT/README.md" ] && return 1
+  case "$archetype" in
+    library|cli-tool) tpl="$STD_DIR/templates/README.library.md";;
+    *)                tpl="$STD_DIR/templates/README.product.md";;
+  esac
+  [ -f "$tpl" ] || return 1
+  sed "s/{{PRODUCT}}/$product/g" "$tpl" > "$REPO_ROOT/README.md"
+  ok "wrote README.md (skeleton — fill it in; see standards/docs/readmes.md)"
+  return 0
+}
+
 cmd_install() {
   local product="" upper="" lib="" archetype="full-stack-product"
   while [ $# -gt 0 ]; do case "$1" in
@@ -102,15 +128,31 @@ cmd_install() {
     ok "wrote AGENTS.md (archetype: $archetype)"
   fi
 
-  # 3. link skills + scaffold .mcp.json
+  # 3. SHORTCUTS.md from the template (don't clobber an existing one)
+  scaffold_shortcuts "$product" || warn "SHORTCUTS.md already exists — left untouched."
+
+  # 4. README.md skeleton for the archetype (don't clobber an existing one)
+  scaffold_readme "$product" "$archetype" || warn "README.md already exists — left untouched."
+
+  # 5. link skills + scaffold .mcp.json
   ( cd "$REPO_ROOT" && "$STD_DIR/templates/link-standards.sh" )
   ok "install complete. Read standards/AGENTS.md to get going."
-  say "  commit: .gitmodules, standards (pointer), AGENTS.md, .standards.conf, .mcp.json, .claude/skills/"
+  say "  commit: .gitmodules, standards (pointer), AGENTS.md, README.md, SHORTCUTS.md, .standards.conf, .mcp.json, .claude/skills/"
   say "          (or add .claude/skills/ to .gitignore — don't leave it untracked)"
 }
 
 cmd_sync() {
-  local before after
+  local before after product="" archetype=""
+  # Backfill SHORTCUTS.md / README.md for repos installed before those conventions existed
+  # (both no-op if the file is already there).
+  # shellcheck disable=SC1090
+  if [ -f "$CONF" ]; then
+    product="$(   . "$CONF" >/dev/null 2>&1; printf '%s' "${PRODUCT:-}" )"
+    archetype="$( . "$CONF" >/dev/null 2>&1; printf '%s' "${ARCHETYPE:-}" )"
+  fi
+  scaffold_shortcuts "$product" || true
+  scaffold_readme "$product" "$archetype" || true
+
   before="$(git -C "$STD_DIR" rev-parse HEAD)"
   say "updating standards from upstream…"
   git -C "$REPO_ROOT" submodule update --remote --quiet standards || die "submodule update failed"

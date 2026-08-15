@@ -11,6 +11,31 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **READMEs** — `docs/readmes.md` + `templates/README.product.md` /
+  `templates/README.library.md`: every repo keeps a root `README.md` written for a reader
+  arriving cold, and so does every independently-buildable subtree. Codifies the spine the
+  fleet's best READMEs already use — pitch, **mechanism** (not a feature list), layout,
+  quickstart where required env vars explain *why* they're required, the commands CI runs
+  plus the regeneration/drift rule, "things that will bite you", and an explicit statement
+  of what is still a stub. Separates the three root docs by reader (`README.md` = what is
+  this and how do I run it; `AGENTS.md` = what binds a change; `SHORTCUTS.md` = routes to
+  the running system), bans hand-maintained tables of contents and captured live state
+  ("prod is on 1.4.212"), and caps a README at ~200 lines with overflow promoted into
+  `docs/`. Per-archetype required sections are in the doc and in each archetype checklist.
+  `standards install` scaffolds the archetype-appropriate skeleton and `standards sync`
+  backfills it (neither clobbers an existing README); the maintenance rule — change the
+  behaviour, update the README in the same commit — lives in the consuming repo's
+  `AGENTS.md` stub.
+- **Shortcuts** — `docs/shortcuts.md` + `templates/SHORTCUTS.md`: every repo keeps a root
+  `SHORTCUTS.md` answering the operational questions that get asked repeatedly ("is it up to
+  date in prod?") with one command each, so agents stop re-deriving prod hosts and deploy
+  mechanisms from workflows and compose files every session. The rule is read-before-recon /
+  write-after-recon, recording the **route** (endpoint, command, mechanism) rather than the
+  **reading** (a version number, a timestamp) so entries don't rot; entries carry a
+  `_Verified:_` date and a wrong one gets fixed on the spot. The trigger lives in the
+  consuming repo's root `AGENTS.md` stub (what agents actually load); `standards install`
+  scaffolds the file and `standards sync` backfills it into repos installed earlier
+  (neither clobbers an existing one).
 - **Shared web component library** — `docs/web-architecture.md` now mandates consuming the
   fleet's **`@thmsn/ui`** package (private registry `npm.dev.thmsn.dev`; shadcn/Radix + HSL
   tokens) instead of re-vendoring shadcn per app, and documents both Tailwind consumption

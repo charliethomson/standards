@@ -78,3 +78,6 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
 - [ ] `*.build`/`*.release` workflows on self-hosted runners; version computed once.
 - [ ] Server ≥80% coverage; web has hermetic e2e; native UI not unit-tested.
 - [ ] Root `AGENTS.md` stub + `VERSIONING.md` copied from `standards/templates`.
+- [ ] Root `README.md` covers mechanism, layout, quickstart (with *why* each env var is
+      required), what CI runs, and the codegen/drift rule; each app has its own
+      ([`../readmes.md`](../readmes.md)).

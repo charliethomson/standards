@@ -58,7 +58,9 @@ lib<name>/
 
 - [ ] One workspace-unified placeholder version; no per-commit bumps, no tags (unless a
       published contract → then manual semver).
-- [ ] Public API is trait-driven and documented in the README.
+- [ ] Public API is trait-driven and documented in the README — which for a library *is* the
+      API documentation: install snippet, a minimal compiling example, feature flags, and
+      what stays in the consuming repo ([`../readmes.md`](../readmes.md)).
 - [ ] `examples/` cover the real usage paths and compile.
 - [ ] Logic/parsing tested inline; optional `scripts/cov.sh`.
 - [ ] Optional features gate any heavy or platform-specific surface.

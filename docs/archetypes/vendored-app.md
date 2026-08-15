@@ -83,3 +83,5 @@ Two rules keep this honest and keep upstream re-syncs cheap:
 - [ ] Published version is **upstream's** (from its tag), not the derived scheme; attributed to upstream, `category: external`.
 - [ ] No rebrand — the artifact keeps upstream's bundle id / name / icons; `dev.thmsn.<product>` is tooling-only.
 - [ ] `AGENTS.md` spells out the à-la-carte overrides (which standards apply, what's N/A, and that there's no rebrand).
+- [ ] Root `README.md` says what upstream is and at which ref it's pinned, what we add and
+      where, and that there is no rebrand ([`../readmes.md`](../readmes.md)).

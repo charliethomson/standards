@@ -50,6 +50,8 @@ the relevant subtree.
 | Platform UX | [platform-ux.md](platform-ux.md) | Native per OS, designed for the target OS. |
 | Workflow | [workflow.md](workflow.md) | Commit to `main`; versions for debugging, not releases. |
 | Skills & MCP | [skills-and-mcp.md](skills-and-mcp.md) | Shared skills/MCP live here; repos link them in. |
+| Shortcuts | [shortcuts.md](shortcuts.md) | Repeated operational questions get a one-command answer in the repo's `SHORTCUTS.md`. |
+| READMEs | [readmes.md](readmes.md) | Root `README.md` everywhere: pitch, mechanism, layout, quickstart, what CI runs, what's missing. |
 
 ### Implementation standards (services & clients)
 

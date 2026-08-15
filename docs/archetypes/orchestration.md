@@ -72,3 +72,5 @@ records); access is via the tailnet.
 - [ ] Host IPs defined once and referenced via `envsubst`.
 - [ ] Ingress via Caddy (DNS-01 TLS); auto-update via scoped Watchtower.
 - [ ] `docs/HOSTS.md` + `docs/RUNBOOK.md` kept current; gotchas in `CLAUDE.md`.
+- [ ] Root `README.md` carries the stack inventory, the hostname/DNS schema, the topology,
+      and **state that lives outside the repo** ([`../readmes.md`](../readmes.md)).

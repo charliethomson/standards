@@ -4,6 +4,11 @@ You are working in a repo that vendors this `standards/` submodule. These are th
 conventions this fleet of repos follows. Treat them as binding defaults: follow them
 unless the repo's own docs explicitly override a specific point.
 
+**Operational question first?** If you're being asked about the *running system* — is it up
+to date in prod, what's live, where are the logs — check the repo's root `SHORTCUTS.md`
+before you go spelunking through workflows and compose files. And when you do have to go
+spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](docs/shortcuts.md).
+
 ## How to use this
 
 1. **Identify the archetype.** Read [`docs/overview.md`](docs/overview.md) and decide
@@ -37,6 +42,11 @@ unless the repo's own docs explicitly override a specific point.
 - **Testing** — aim for >80% coverage on services; do not unit-test UIs.
 - **Branding** — a self-contained, code-as-source-of-truth generator in the repo.
 - **Platform UX** — native per OS, designed for the target OS, not ported across.
+- **Shortcuts** — repeated operational questions get one-command answers in the repo's
+  root `SHORTCUTS.md`; read before recon, write after. See [`docs/shortcuts.md`](docs/shortcuts.md).
+- **READMEs** — every repo (and every independently-buildable subtree) has one, covering the
+  mechanism, the layout, the quickstart, and what CI runs. Change the behaviour it describes
+  and you update it in the same commit. See [`docs/readmes.md`](docs/readmes.md).
 
 For services and clients there's a deeper layer of implementation standards — **service
 architecture** (`core→db→engine→api`, poem-openapi), **data & persistence** (sqlx, typed
