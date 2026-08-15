@@ -33,24 +33,38 @@ breaking change, a milestone). Everything else rides the commit count.
 
 CI is the source of truth. Compute the version once per run and pass it everywhere.
 
-Checkout must fetch full history and tags:
+The clone must fetch **full history and tags** — a shallow clone gives the derivation neither
+([ci-cd.md](ci-cd.md)):
 
 ```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
-    fetch-tags: true
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      partial: false
+      tags: true
 ```
 
-Then derive `RELEASE_VERSION`:
+Put the derivation in **`scripts/ci/version.sh`** and `eval` it from each pipeline that needs
+it, rather than inlining a copy per pipeline — four copies of these lines is four places for
+them to drift:
 
 ```sh
 COUNT="$(git rev-list --count HEAD)"
 TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
 MM="$(printf '%s' "${TAG#v}" | awk -F. '{ if ($1 != "" && $2 != "") print $1"."$2 }')"
 [ -n "$MM" ] || MM="0.0"
-echo "RELEASE_VERSION=$MM.$COUNT" >> "$GITHUB_ENV"
+printf 'RELEASE_VERSION=%s\n' "$MM.$COUNT"
 ```
+
+Two traps this simple form has hit in practice, worth handling if the repo has release tags:
+
+- **`git describe` walks only the current branch's ancestry**, so a tag on a sibling branch is
+  invisible to it and the version silently drops to the `0.0` fallback.
+- **Sort `MAJOR.MINOR` numerically, field by field.** A lexical sort puts `0.9` after `0.10`,
+  so the first `v0.10.x` tag drags every build back below what is already published — which
+  clients read as "no update available", permanently. BSD `sort` has no `-V`, and the macOS
+  agent is a real target, so use explicit numeric keys.
 
 ## Consume it per platform
 

@@ -42,8 +42,8 @@ the relevant subtree.
 | Identifiers | [identifiers.md](identifiers.md) | Reverse-domain `dev.thmsn.*`; inject via `libproduct`. |
 | Build info | [build-info.md](build-info.md) | Embed git/build metadata via `libbuildinfo` when feasible. |
 | Branding | [branding.md](branding.md) | One in-repo, code-as-truth generator produces all assets. |
-| CI/CD | [ci-cd.md](ci-cd.md) | Self-hosted runners; build → GHCR/registry on `main`. |
-| Self-hosted agents | [self-hosted-agents.md](self-hosted-agents.md) | Runners managed by agentutil; dev Mac for Apple builds. |
+| CI/CD | [ci-cd.md](ci-cd.md) | Woodpecker pipelines in `.woodpecker/`; build → GHCR/registry on `main`. |
+| Self-hosted agents | [self-hosted-agents.md](self-hosted-agents.md) | Woodpecker agents by label; dev Mac for Apple builds. |
 | Deployment | [deployment.md](deployment.md) | Komodo GitOps + Watchtower + Caddy; secrets out of git. |
 | Registry publishing | [registry-publishing.md](registry-publishing.md) | Client apps ship via `apps.dev.thmsn.dev`. |
 | Testing | [testing.md](testing.md) | >80% on services; don't unit-test UIs. |

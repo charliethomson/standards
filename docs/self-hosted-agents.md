@@ -2,11 +2,21 @@
 
 ## Rule
 
-CI builds run on **self-hosted GitHub Actions runners**, managed as a fleet by
-**agentutil** (deployed at `agentutil.dev.thmsn.dev`). A repo
-opts a job onto the fleet with `runs-on: [self-hosted, …]`.
+CI builds run on **self-hosted agents**, on hardware we own. There are **two substrates**,
+because the fleet is mid-migration ([ci-cd.md](ci-cd.md)):
 
-## What an "agent" is
+- **Woodpecker agents — the standard.** The Woodpecker server runs in the homelab; a repo
+  opts a pipeline onto an agent with `labels:`. Linux agents run the **docker** backend and
+  are deployed by Komodo alongside the server; the **macOS and Windows agents run the `local`
+  backend, are hand-managed, and have no checked-in configuration**.
+- **GitHub Actions runners — legacy**, for repos not yet converted. These are the fleet
+  **agentutil** (at `agentutil.dev.thmsn.dev`) manages, and a job opts in with
+  `runs-on: [self-hosted, …]`.
+
+**agentutil manages only the Actions runners.** It has not been extended to Woodpecker, and
+Woodpecker agents are not visible to it. Do not expect one tool to show you the whole fleet.
+
+## What an Actions "agent" is
 
 A remote machine running one or more GitHub Actions self-hosted runners. agentutil tracks a
 desired-state `(repository, agent)` matrix in a database and reconciles it over SSH:
@@ -23,29 +33,36 @@ establishes the contract agentutil relies on:
 You then register the host + an SSH key in agentutil and assign repositories to it; the
 runner name is `<prefix>-<agent-name>`.
 
-## How a repo uses it
+## How a repo picks an agent
 
-Pick the runner label for the job's platform:
-
-| Job | `runs-on` | Notes |
+| Job | Woodpecker `labels:` | legacy Actions `runs-on` |
 |---|---|---|
-| Linux build/test/coverage, image builds | `[self-hosted, Linux, X64]` | the workhorse |
-| Apple build + notarize | `[self-hosted, macOS, ARM64]` | the dev Mac (below) |
-| Windows | `windows-latest` | GitHub-hosted until a self-hosted Windows runner exists |
-| Browser e2e (Playwright) | GitHub-hosted or Linux self-hosted | mind the no-sudo gotcha |
+| Linux build/test/coverage, image builds | `platform: linux/amd64` | `[self-hosted, Linux, X64]` |
+| Apple build + notarize | `os: macos` | `[self-hosted, macOS, ARM64]` |
+| Windows build/release | `os: windows` | `windows-latest` |
+| Browser e2e (Playwright) | `platform: linux/amd64` | GitHub-hosted or Linux self-hosted |
 
-The runner constraints shape the workflow — see the **self-hosted runner gotchas** in
-[ci-cd.md](ci-cd.md) (SSH agent for private crates, `protoc` via setup-protoc, no
-`--with-deps`, per-job `CARGO_TARGET_DIR`). These exist because the agents have **no
-passwordless sudo** and a **shared filesystem**.
+**A self-hosted Windows agent now exists** (hand-managed, on the tailnet, labelled
+`os: windows`), so Windows work no longer has to fall back to a GitHub-hosted runner.
+
+The agent constraints shape the pipeline — see [ci-cd.md](ci-cd.md) (SSH agent for private
+crates, per-step `CARGO_TARGET_DIR`, bounded caches, the local-backend rules). Note the
+constraints **differ by substrate**: the Actions runners have **no passwordless sudo** and a
+**shared filesystem**, whereas a Woodpecker Docker step runs as root in a fresh container —
+so the sudo workarounds are unnecessary there, and the caching ones are mandatory.
 
 ## The dev Mac as the macOS agent
 
 Apple builds (iOS/macOS archive, sign, notarize) need macOS and Apple toolchains, so **the
-dev machine acts as the macOS agent** — registered like any other agent, labelled
-`[self-hosted, macOS, ARM64]`. It's where `macos.release.yml` / `ios.release.yml` produce
-notarized artifacts before publishing to the registry. agentutil's host-prep is Linux-only
-today, so the Mac is prepared manually; the runner registration is the same.
+dev machine acts as the macOS agent**. It's where `macos.release.yml` / `ios.release.yml`
+produce notarized artifacts before publishing to the registry. Host prep is Linux-only in
+both substrates, so the Mac is prepared manually either way.
+
+It is also where anything requiring **byte-exact output** must run. Rasterised PNGs are not
+reproducible across librsvg/cairo builds, so a branding drift check that diffs generated
+icons has to run on the machine the committed ones were generated on — otherwise it fails on
+rasteriser noise, which is a red check nobody can act on. The alternative is to scope the
+diff to the deterministic text outputs and drop the image comparison.
 
 ## Scope
 
@@ -55,8 +72,9 @@ full-stack product deployed that way.
 
 ## Checklist
 
-- [ ] CI jobs use `runs-on: [self-hosted, …]` with the right platform labels.
-- [ ] The host is prepared via `setup-agent.sh` and registered + assigned in agentutil.
-- [ ] Apple jobs target the dev Mac (`[self-hosted, macOS, ARM64]`).
-- [ ] Workflows account for no-sudo / shared-FS runner constraints (see ci-cd.md).
-- [ ] Windows stays on `windows-latest` until a self-hosted Windows runner exists.
+- [ ] Every Woodpecker pipeline sets `labels:` — an unlabelled one can land on a local-backend
+      agent, and a mismatched one never schedules **silently**.
+- [ ] Apple and byte-exact jobs target the dev Mac (`os: macos`); Windows targets `os: windows`.
+- [ ] macOS/Windows pipelines handle the local backend: `skip_clone` + hand clone + env script.
+- [ ] Legacy Actions repos only: host prepared via `setup-agent.sh`, registered + assigned in
+      agentutil, and workflows account for no-sudo / shared-FS constraints.

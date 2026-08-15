@@ -41,6 +41,14 @@ public.
 
 ## Publish from CI
 
+> **Woodpecker repos cannot use the composite action below.** Woodpecker has no `uses:` and
+> cannot call a GitHub Action at all ([ci-cd.md](ci-cd.md)). A Woodpecker
+> `<surface>.release.yml` calls the same registry API from a **`scripts/ci/publish.sh`**
+> instead. The inputs, the ordering, and the draft → artifacts → finalize path documented here
+> are the contract either way — only the invocation differs. If that script does not exist in
+> the repo yet, keep the release pipeline `event: manual` rather than shipping a trigger it
+> cannot honour.
+
 Use the composite action `charliethomson/registry/.github/actions/publish@main` in a
 `<surface>.release.yml` workflow (e.g. `macos.release.yml`), after building (and
 signing/notarizing) the artifact. Pass the product identifier as `product`, the app slug as

@@ -72,10 +72,23 @@ counts. Path segments are route names/ids, not user prose.
 
 ## Metrics
 
-Expose a `/api/metrics` poem handler (`text/plain; version=0.0.4`) backed by `prometheus-client`.
+Expose a `/api/metrics` poem handler backed by **`prometheus-client`**, served as
+
+```
+application/openmetrics-text; version=1.0.0; charset=utf-8
+```
+
 Define counters/gauges/histograms with label families, `<product>_*` named (e.g.
 `someproduct_jobs_started`). Recompute snapshot gauges from in-memory state immediately before
 rendering. Add a scrape target in the homelab `monitoring/prometheus` config.
+
+> **It is OpenMetrics, not `text/plain; version=0.0.4`.** `prometheus-client`'s only text
+> encoder (`prometheus_client::encoding::text`) emits the OpenMetrics text format — `_total`
+> counter suffixes and a trailing `# EOF` — and the crate ships no Prometheus-0.0.4 encoder to
+> switch to. Prometheus has negotiated and parsed OpenMetrics since 2.x, so this is the format
+> to *declare*; labelling the same bytes `text/plain` would work only by accident, with `# EOF`
+> swallowed as a comment. The crate exports no content-type constant, so declare the one above
+> yourself, next to the handler.
 
 ## Checklist
 
@@ -84,4 +97,5 @@ rendering. Add a scrape target in the homelab `monitoring/prometheus` config.
 - [ ] Logs are structured fields; requests wrapped in spans; errors `Valuable`.
 - [ ] `tracing_unstable` rustflag set in `.cargo/config.toml`.
 - [ ] No bodies or query strings ever logged.
-- [ ] `/api/metrics` in Prometheus format (`<product>_*`), scraped by the homelab.
+- [ ] `/api/metrics` served as `application/openmetrics-text; version=1.0.0` (`<product>_*`),
+      scraped by the homelab.
