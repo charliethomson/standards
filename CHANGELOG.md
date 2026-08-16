@@ -215,6 +215,32 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   don't-trust-a-half-filed-backlog guard that `failedCount` used to be. Agents act under their
   own `vsn_` key so the timeline attributes to them. `prompts/linear-project-from-codebase.md`
   is now `prompts/vision-project-from-codebase.md`.
+- **`docs/observability.md`: a component whose stdout is a wire logs to stderr.** The mandate
+  to initialise `liblog` was unconditional, and `liblog` only knew how to write its
+  human-readable layer to stdout — so a stdio-protocol server (an MCP server speaking JSON-RPC
+  over stdin/stdout) could not comply without corrupting its own transport on the first
+  `tracing::info!`, and a standards audit would have flagged it for correctly not complying.
+  The carve-out is stated in the **Rule** itself, with the mechanism in a new *When stdout is
+  the wire* section: `liblog` stays mandatory, initialised with
+  `.console_stream(ConsoleStream::Stderr)` (the redirect added to `liblog` alongside this) —
+  `.quiet(true)` is not the fix, since it protects the wire by giving up logs. The section also
+  states the corollary that nothing else may write to stdout either, and that this is proven by
+  **mutation** — inject one `println!` and watch the protocol tests fail — because inspection
+  cannot prove the absence of a stray write. Checklist item added; the "fans out to pretty
+  stdout" description is now "console (stdout by default, redirectable)".
+- **`product_name!` alone does not set the identifier — the docs now say so.** The macro only
+  *declares* a const; without a `set_global()` call `ProductName::global()` stays `None`, the
+  OTel `service.name` falls back, and every `libpath`-derived root (logs, config, cache)
+  silently lands under `dev.thmsn.unspecified`. The old wording ("`product_name!(…)` **set**
+  before init") read as "declared" to anyone who had just typed the macro, and components
+  following it in good faith got it wrong. Corrected in `docs/observability.md` (bootstrap
+  snippet + checklist), `docs/identifiers.md` (new *Declaring is not publishing* section, the
+  "How to set it" table, and the checklist), `docs/archetypes/cli-tool.md`,
+  `docs/rust-conventions.md`, and `templates/rust/observability.rs` — which scaffolded the
+  incomplete form and so propagated it. The word *set* is avoided throughout in favour of
+  **declared and published**. All snippets bind the const to a local before calling
+  `set_global()`, since `product_name!` expands to a `const` holding a `LazyLock` and borrowing
+  it inline both acts on a fresh copy and trips `clippy::borrow_interior_mutable_const`.
 - **Typed identifiers moved to `libid`** — `Id<T>` and `PublicId<T>` are now consumed from the
   shared **libid** crate (git dep, features `serde`/`sqlx`/`poem-openapi`) instead of copy-pasted
   templates; `templates/rust/id.rs` and `templates/rust/public_id.rs` are removed.

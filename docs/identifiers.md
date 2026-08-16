@@ -90,12 +90,32 @@ A product typically has both: identifier `dev.thmsn.someproduct`, hostname `some
 
 | Context | Mechanism |
 |---|---|
-| **Rust binary** (service component) | `libproduct`'s `product_name!("dev.thmsn.<product>.<component>")` in `main.rs` — e.g. `.server`, `.worker`, `.cli`. The canonical injection point; also becomes the OTel `service.name`. |
+| **Rust binary** (service component) | `libproduct`'s `product_name!("dev.thmsn.<product>.<component>")` in `main.rs` — e.g. `.server`, `.worker`, `.cli` — **followed by `set_global()`** (see below). The canonical injection point; also becomes the OTel `service.name`. |
 | **Apple** (`ios`/`macos`) | `project.yml` (XcodeGen): `options.bundleIdPrefix: dev.thmsn.<product>` and per-target `PRODUCT_BUNDLE_IDENTIFIER: dev.thmsn.<product>.{ios,macos}`. |
 | **Windows / Web** (`winui`/`web`) | The WinUI app identity / web app config uses `dev.thmsn.<product>.{winui,web}`. |
 | **Auth grants** | `#[derive(App)]` with `id = "dev.thmsn.<product>"` and a `Grants` enum (`Use`/`Read`/`Write`/`Admin` → `dev.thmsn.<product>.{use,read,write,admin}`), registered idempotently on startup. |
 | **Notifications / channels / log service names** | Constants reusing the component string, e.g. `Notification.Name("dev.thmsn.someproduct.newJobRequested")`, OTel `service_name = dev.thmsn.<product>.server`. |
 | **Registry source** | iOS source identifier `dev.thmsn.apps` (must never change). |
+
+### Declaring is not publishing
+
+`product_name!` **only declares a const.** The identifier is not in effect until something
+publishes it, and until then `ProductName::global()` is `None` — the OTel `service.name` falls
+back and every `libpath`-derived root (logs, config, cache) silently lands under
+`dev.thmsn.unspecified`. Nothing errors; the component just runs under the wrong identity.
+
+```rust
+product_name!("dev.thmsn.someproduct.server");   // declares PRODUCT_NAME
+
+// Bind to a local first: the macro expands to a `const` holding a LazyLock, so
+// borrowing it inline acts on a fresh copy and trips
+// clippy::borrow_interior_mutable_const.
+let product_name = PRODUCT_NAME;
+product_name.set_global().expect("product name already set");
+```
+
+Do this **first** in `main`, before `liblog` init and before anything reads a `libpath` root
+([observability.md](observability.md), [configuration.md](configuration.md)).
 
 ## Why
 
@@ -109,7 +129,9 @@ is a substring search. The strict segment rules keep IDs URL- and filename-safe.
 - [ ] Product has one root identifier `dev.thmsn.<product>`.
 - [ ] Each component is named `dev.thmsn.<product>.<component>` — a service (`server`,
       `worker`, `cli`, `<service_name>`) or an app surface (`ios`, `macos`, `winui`, `web`).
-- [ ] Rust binaries set their component id via `libproduct`'s `product_name!()`.
+- [ ] Rust binaries **declare** their component id via `libproduct`'s `product_name!()` **and
+      publish it with `set_global()`** at the top of `main` — declaring alone leaves every
+      `libpath` root under `dev.thmsn.unspecified`.
 - [ ] Apple targets derive bundle ids from `bundleIdPrefix: dev.thmsn.<product>` (`.ios`/`.macos`).
 - [ ] Auth grants use `dev.thmsn.<product>.{use,read,write,admin}` (parallel to components).
 - [ ] OTel `service_name`, notification names, etc. reuse the component string.

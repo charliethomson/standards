@@ -7,7 +7,7 @@
 
 use libproduct::product_name;
 
-// Reverse-domain product name → OTel service.name.
+// Reverse-domain product name → OTel service.name. This only DECLARES it; init_telemetry publishes it.
 product_name!("dev.thmsn.{{PRODUCT}}.{{SERVICE}}");
 
 /// `PRODUCTION=true|1|yes` (any case). Not `is_ok()`: that makes `PRODUCTION=false` prod.
@@ -26,11 +26,16 @@ fn sampling() -> liblog::Sampling {
 }
 
 fn init_telemetry() -> liblog::LoggingGuard {
-    // liblog reads service.name from the GLOBAL product name; without this it is "".
-    // (Bind first: PRODUCT_NAME is a `const LazyLock`, so borrowing it in place trips
-    // clippy's borrow_interior_mutable_const.)
+    // Publish the product name, before liblog init and before anything reads a libpath root.
+    // Skip this and ProductName::global() stays None: service.name falls back and
+    // logs/config/cache all land under dev.thmsn.unspecified, with no error.
+    // Bind to a local first — product_name! expands to a `const` holding a
+    // LazyLock, so borrowing it inline acts on a fresh copy and trips
+    // clippy::borrow_interior_mutable_const.
     let product_name = PRODUCT_NAME;
-    product_name.set_global().expect("product name already set");
+    product_name
+        .set_global()
+        .expect("failed to set global product name");
 
     let otlp = std::env::var("OTLP_ENDPOINT").ok();
     let production = production();
@@ -42,6 +47,10 @@ fn init_telemetry() -> liblog::LoggingGuard {
         .endpoint(otlp.as_deref())
         .sampling(sampling)
         .deployment_environment(if production { "production" } else { "development" })
+        // If this binary speaks a protocol over stdio (e.g. an MCP server), add:
+        //     .console_stream(liblog::ConsoleStream::Stderr)
+        // Otherwise the first log record is written into the wire and the peer's
+        // parser fails, silently. See standards/docs/observability.md.
         .init();
 
     tracing::info!(

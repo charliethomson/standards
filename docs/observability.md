@@ -7,6 +7,11 @@ and identify themselves by their `dev.thmsn.<product>.<service>` name. **Log str
 — ids, counts, timings — never message bodies or query strings.** Metrics are exposed in
 Prometheus format at `/api/metrics`.
 
+**A component whose stdout is a wire logs to stderr** — `liblog` is still mandatory, but it is
+initialised with `.console_stream(liblog::ConsoleStream::Stderr)`. See
+[When stdout is the wire](#when-stdout-is-the-wire). This is the one carve-out; there is no
+component exempt from initialising `liblog` at all.
+
 ## Bootstrap
 
 Declare the product name, **register it globally**, then init `liblog`, then log startup;
@@ -14,10 +19,17 @@ flush on exit. liblog reads `service.name` from the global product name, so skip
 `set_global()` exports an empty `service.name`:
 
 ```rust
-product_name!("dev.thmsn.someproduct.api");          // becomes OTel service.name
+product_name!("dev.thmsn.someproduct.api");          // declares a const — nothing is live yet
 
-let product_name = PRODUCT_NAME;                  // a const LazyLock: bind, then borrow
-product_name.set_global().expect("product name set twice");
+// Publish it. The macro only *declares*; until set_global() runs,
+// ProductName::global() is None, the OTel service.name falls back, and every
+// libpath-derived root (logs, config, cache) lands under dev.thmsn.unspecified.
+// Bind to a local first: product_name! expands to a `const` holding a LazyLock,
+// so borrowing it inline acts on a fresh copy and trips
+// clippy::borrow_interior_mutable_const.
+let product_name = PRODUCT_NAME;
+product_name.set_global().expect("product name already set");
+
 let otlp = std::env::var("OTLP_ENDPOINT").ok();
 let production = std::env::var("PRODUCTION")
     .is_ok_and(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes"));
@@ -37,7 +49,8 @@ tracing::info!(version = env!("APP_VERSION"), ?sampling, "starting someproduct-a
 liblog::force_cleanup(guard);                    // flush OTLP before exit
 ```
 
-`liblog` fans out to: pretty **stdout** (suppressible), a size-capped **JSON file** (under
+`liblog` fans out to: a pretty **console** layer (stdout by default, suppressible with
+`.quiet(true)`, redirectable with `.console_stream(..)`), a size-capped **JSON file** (under
 `libpath::logs_root()` — set `LIBPATH_BASE_DIR` to redirect it off the OS user dir in a
 container, see [configuration.md](configuration.md)), and **OTLP** (traces + logs, batched).
 Resource attributes come from
@@ -45,6 +58,35 @@ Resource attributes come from
 `service.version`, `deployment.environment.name`, `service.build_info` (commit + dirty flag),
 plus `host.name` and `service.instance.id` (from `HOSTNAME`).
 Template: [`templates/rust/observability.rs`](../templates/rust/observability.rs).
+
+## When stdout is the wire
+
+Some components speak a protocol over stdin/stdout — an **MCP server on the stdio transport**
+is the standard case; so is any CLI whose stdout is designed to be piped into another program.
+For these, **stdout is not output, it is the transport**, and the console layer's first record
+is interleaved into the frame stream:
+
+```rust
+let guard = liblog::builder()
+    .endpoint(otlp.as_deref())
+    .console_stream(liblog::ConsoleStream::Stderr)   // stdout carries JSON-RPC
+    .init();
+```
+
+Everything else is unchanged: the JSON file and OTLP layers are untouched, and the component
+is as observable as any other.
+
+**Why this is a rule and not a preference.** The failure is silent and total. Nothing errors —
+the peer's parser meets a frame it can neither read nor attribute, the session stops making
+sense, and the symptom surfaces in whatever client is on the other end, a long way from the
+cause. `.quiet(true)` is not the fix: it protects the wire by giving up human-readable logs
+entirely, which is why `liblog` grew a redirect instead.
+
+**Nothing else may write to stdout either** — no `println!`, no `dbg!`, no dependency that
+logs helpfully on its own. Reading the code cannot prove the absence of a stray write, so
+**prove it by mutation**: inject a single `println!` into the handshake path and confirm the
+protocol tests fail. A test suite that passes both with and without that `println!` is not
+testing the wire.
 
 ## The pipeline
 
@@ -139,10 +181,13 @@ rendering. Add a scrape target in the homelab `monitoring/prometheus` config.
 
 ## Checklist
 
-- [ ] `product_name!("dev.thmsn.<product>.<service>")` **and `PRODUCT_NAME.set_global()`**
-      before init (else `service.name` is empty).
+- [ ] `product_name!("dev.thmsn.<product>.<service>")` **declared and published via
+      `set_global()`** before init. The macro alone only declares it (else `service.name` is empty).
 - [ ] `liblog::builder()` with `OTLP_ENDPOINT`, `PRODUCTION` parsed as a bool (not
       `is_ok()`), `Sampling::AlwaysOn` unless `SAMPLE_RATE` overrides; guard flushed on exit.
+- [ ] Components whose stdout is a protocol stream init with
+      `.console_stream(ConsoleStream::Stderr)`, and nothing anywhere writes to stdout,
+      proven by injecting a `println!` and watching the protocol tests fail.
 - [ ] Per-layer filters left at defaults in code; tuned via `LIBLOG_*_FILTER` env.
 - [ ] Tracing follows [tracing.md](tracing.md) (its own checklist).
 - [ ] Logs are structured fields; requests wrapped in spans; errors `Valuable`.

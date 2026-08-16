@@ -56,7 +56,8 @@ CI enforces it: `cargo clippy --workspace --all-targets -- -D warnings`
 ## Project shape
 
 - Workspace-unified version placeholder; versioning is derived ([versioning.md](versioning.md)).
-- Binaries set their identifier with `product_name!("dev.thmsn.…")` ([identifiers.md](identifiers.md)).
+- Binaries declare their identifier with `product_name!("dev.thmsn.…")` and publish it with
+  `set_global()` in `main` — the macro alone only declares it ([identifiers.md](identifiers.md)).
 - Errors follow the [error-handling](error-handling.md) trinity; shared concerns come from the
   [`lib*` ecosystem](lib-ecosystem.md) rather than being re-solved.
 
