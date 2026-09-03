@@ -46,6 +46,119 @@ coverage. No hard coverage gate — the 80% floor is for services. An optional
 `scripts/cov.sh` (tarpaulin, HTML/Lcov) is fine for spot-checks. See
 [archetypes/library.md](archetypes/library.md).
 
+## No change-detector tests
+
+**A test that fails when the implementation changes, rather than when the behaviour changes,
+is deleted or rewritten. It is never "fixed" to match the new code.**
+
+A change-detector test is one whose assertions are a transformation of the code under test:
+it mocks every collaborator and verifies that each was called, in order, with the arguments
+the implementation happens to pass. Such a test is a checksum of the implementation. A
+correct program and a broken one are equally likely to pass it, and every refactor breaks it
+and has to be mechanically re-derived from the new code. That is negative value: no defects
+caught, and a maintenance tax on every change. (Alex Eagle, *Change-Detector Tests Considered
+Harmful*, Google Testing on the Toilet, 2015.)
+
+This matters more here than at Google. Most of the fleet's code is agent-written, and an
+agent chasing the 80% floor above will reach for exactly this shape, because it is the
+cheapest way to execute lines. **Coverage counts lines executed, not behaviour verified.** A
+change detector that lifts coverage is still deleted; if the floor then fails, the answer is
+a behaviour test or a justified wiring exclusion, never a mock-verify test.
+
+### How to recognise one
+
+Any of these is a strong signal:
+
+- The only assertions are that collaborators were called (`expect_x().times(1)` on a mock,
+  `toHaveBeenCalledWith`, `verify(...)`), especially in a prescribed order.
+- The test could not have been written from the function's contract alone; you had to read
+  the implementation to know what to assert.
+- A pure refactor (rename, extract, reorder, change a parameter) broke it and the fix was
+  mechanical. If you are applying the same edit to many tests after a refactor, they are all
+  change detectors.
+- A snapshot was committed without anyone deciding the captured output was *right*.
+
+The two questions that settle it: **would this fail if the code were wrong?** and **would
+this still pass if the code were correctly refactored?** A test worth keeping answers yes to
+both.
+
+### The shape to avoid, in fleet idioms
+
+```rust
+// engine: a thin orchestration
+pub async fn ingest(&self, item: NewItem) -> Result<Item> {
+    let item = self.normaliser.normalise(item)?;
+    self.store.insert(item).await
+}
+
+// ❌ change detector: restates the body as expectations, verifies nothing about the result
+#[tokio::test]
+async fn ingest_normalises_then_inserts() {
+    let mut normaliser = MockNormaliser::new();
+    let mut store = MockStore::new();
+    normaliser.expect_normalise().times(1).returning(Ok);
+    store.expect_insert().times(1).returning(|i| Ok(i));
+    Engine::new(normaliser, store).ingest(new_item()).await.unwrap();
+}
+
+// ✅ behaviour: real in-memory store, assert on what came out
+#[tokio::test]
+async fn ingest_stores_a_normalised_item() {
+    let engine = Engine::in_memory().await;
+    let stored = engine.ingest(new_item_titled("  Hello ")).await.unwrap();
+    assert_eq!(stored.title, "Hello");
+    assert_eq!(engine.store.get(stored.id).await.unwrap().title, "Hello");
+}
+```
+
+```ts
+// ❌ change detector: asserts the hook's wiring, not what the user sees
+it("uses the orders query", () => {
+  renderHook(() => useOrders());
+  expect(useQuery).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["orders"] }));
+});
+
+// ✅ behaviour: mocked route, assert on the rendered outcome
+it("lists the orders the server returns", async () => {
+  server.get("/api/orders", () => [order({ id: "ord_1", title: "Widgets" })]);
+  render(<Orders />);
+  expect(await screen.findByText("Widgets")).toBeInTheDocument();
+});
+```
+
+### What to do instead
+
+- **Assert on outputs and state**, not on calls: the return value, the row in the store, the
+  rendered text, the frame on the wire, the error variant. This is why the fleet's data layer
+  is sqlx + SQLite ([data-persistence.md](data-persistence.md)): an in-memory database is
+  cheap, so engine tests can use the real store instead of mocking it.
+- **Mock only at genuine I/O edges** you cannot run hermetically: an external-service
+  gateway, the clock, the network. A mock there is a *stub that returns data*, not a
+  *spy that asserts calls*. Even then, prefer asserting the effect on your side (what got
+  persisted, what got emitted) over the shape of the outbound call.
+- **Pure orchestration has nothing to unit-test.** If a function only sequences
+  collaborators, either test it through an integration path that exercises the real
+  collaborators, or exclude it from coverage as wiring with a justifying comment (the
+  "wiring, not logic" rule above). Do not manufacture a mock-verify test for it.
+- **When a refactor breaks a test and the fix would be mechanical, stop.** Rewrite it
+  against behaviour or delete it, in the same commit as the refactor. Never land the
+  mechanical fix.
+- **Snapshots need a reviewer.** A committed snapshot is an assertion someone chose. Keep
+  them small, name what they pin, and read them when they change.
+
+### Change detection that is the point
+
+Some checks in this fleet detect change on purpose, and they are fine, because the *change
+itself* is the defect they guard against:
+
+- the **codegen drift check** ([contracts.md](contracts.md)): a generated client diverging
+  from the committed spec is exactly the failure;
+- a golden file for a wire format or on-disk layout you have promised to keep stable;
+- a migration checksum.
+
+The distinction is whether the thing pinned is a **contract** (drift is a bug) or an
+**implementation** (drift is a refactor). Pin contracts. Never pin implementations.
+
 ## Why these lines
 
 - **Services get the gate** because their logic is invisible at runtime until it's wrong,
@@ -54,6 +167,9 @@ coverage. No hard coverage gate — the 80% floor is for services. An optional
   low-signal; a few hermetic e2e flows catch the regressions that matter for far less upkeep.
 - **The core, not the views**, on native — the protocol/dedupe/reconnect/VM layer is where
   correctness lives and it's cheaply testable; the views are thin.
+- **Change detectors are banned** because a coverage floor is only a safety net if the tests
+  under it can fail for the right reason. A mock-verify test cannot, and it makes every refactor
+  cost more, which for agent-written code is the wrong trade twice.
 
 ## Checklist
 
@@ -63,3 +179,6 @@ coverage. No hard coverage gate — the 80% floor is for services. An optional
 - [ ] Native: core unit tests (protocol/dedupe/reconnect/VMs); no view unit tests.
 - [ ] Every generated client has a drift check in CI.
 - [ ] Libraries test the logic surface inline; no coverage gate.
+- [ ] No test asserts only that collaborators were called; assertions are on outputs and state.
+- [ ] Mocks stub I/O edges only; pure orchestration is integration-tested or excluded as wiring.
+- [ ] A refactor that breaks tests gets those tests rewritten or deleted, not mechanically patched.

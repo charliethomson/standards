@@ -46,6 +46,10 @@ actually building.
   `service.name = dev.thmsn.<product>.<component>`. See [observability.md](observability.md).
 - **codegen drift check** — CI fails if a generated client no longer matches the committed
   `api/openapi.json`. See [contracts.md](contracts.md).
+- **change-detector test** — a test whose assertions restate the implementation (mock every
+  collaborator, verify the calls) so it fails on any refactor and passes on any bug. Banned;
+  rewritten against behaviour or deleted. Distinct from a drift check, which pins a *contract*.
+  See [testing.md](testing.md).
 - **three sources of truth** — behaviour = the server, contract = `api/openapi.json`, UX = the
   web client. See [archetypes/full-stack-product.md](archetypes/full-stack-product.md).
 - **`Loader`** — `libconfig`'s builder for loading service config (`path`/`pure_env`/`module`)

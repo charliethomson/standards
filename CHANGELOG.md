@@ -11,6 +11,19 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **No change-detector tests** — `docs/testing.md` gains a section banning tests whose
+  assertions restate the implementation (mock every collaborator, verify the calls in order):
+  they fail on every refactor and pass on every bug, so they are rewritten against behaviour or
+  deleted, never mechanically patched. Adapted from Alex Eagle's *Change-Detector Tests
+  Considered Harmful* (Google Testing on the Toilet, 2015) with the fleet-specific angle stated
+  outright: coverage counts lines executed, not behaviour verified, and an agent chasing the
+  80% floor will produce exactly this shape unless told not to. Gives the recognisers, the
+  two settling questions, Rust (mockall) and Vitest before/after examples, what to do instead
+  (assert on outputs and state; real in-memory sqlx store over mocks; stub I/O edges only;
+  integration-test or exclude pure orchestration), and the carve-out for change detection that
+  is the point (codegen drift checks, golden wire formats, migration checksums — pins on
+  *contracts*, not implementations). Cross-linked from `AGENTS.md`, the overview index, the
+  glossary, the tarpaulin template, and both audit skills.
 - **READMEs** — `docs/readmes.md` + `templates/README.product.md` /
   `templates/README.library.md`: every repo keeps a root `README.md` written for a reader
   arriving cold, and so does every independently-buildable subtree. Codifies the spine the

@@ -46,7 +46,9 @@ Report concisely, worst-first:
 
 Call out new identifiers that aren't `dev.thmsn.<product>.<component>`, workflows not following
 component-first naming, hand-rolled `std::env::var` instead of `libconfig`, logging of bodies/
-query strings, missing codegen-drift or coverage on a changed surface, etc.
+query strings, missing codegen-drift or coverage on a changed surface, new tests whose only
+assertions are that mocks were called (change detectors — see testing.md), and refactors that
+mechanically patch existing tests instead of rewriting or deleting them, etc.
 
 If the diff is clean, say so plainly.
 

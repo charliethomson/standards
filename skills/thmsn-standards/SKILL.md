@@ -46,7 +46,8 @@ Heuristics for the items that need more than a glance:
   is the gate; self-hosted runners; coverage + codegen-drift gates present.
 - **Deployment** — `deploy/` has compose + internal Caddyfile + komodo sync; no secrets in git.
 - **Configuration** — config via `libconfig` (`Loader`/`config!{}`), not hand-rolled `std::env::var`.
-- **Testing** — services have `tarpaulin.toml` with `fail-under = 80`; UIs are not unit-tested.
+- **Testing** — services have `tarpaulin.toml` with `fail-under = 80`; UIs are not unit-tested;
+  no change-detector tests (mock-everything, verify-the-calls) — flag them for rewrite/deletion.
 - **Observability / Error handling / Service architecture / etc.** — verify against their checklists.
 
 Mark anything you can't determine confidently as **needs review** rather than guessing.

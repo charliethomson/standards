@@ -5,7 +5,8 @@ workspace = true
 # main.rs is pure bootstrap/wiring (config load, signal handling, server spawn)
 # and is exercised by integration tests rather than unit-covered. Add other
 # I/O-bound edges here (e.g. an external-service gateway) with a justifying comment
-# — exclude wiring, not logic.
+# — exclude wiring, not logic. Coverage counts lines executed, not behaviour verified:
+# never lift the number with mock-verify tests (docs/testing.md, "No change-detector tests").
 exclude-files = ["api/src/main.rs"]
 timeout = "180s"
 fail-under = 80

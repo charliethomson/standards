@@ -46,7 +46,7 @@ the relevant subtree.
 | Self-hosted agents | [self-hosted-agents.md](self-hosted-agents.md) | Woodpecker agents by label; dev Mac for Apple builds. |
 | Deployment | [deployment.md](deployment.md) | Komodo GitOps + Watchtower + Caddy; secrets out of git. |
 | Registry publishing | [registry-publishing.md](registry-publishing.md) | Client apps ship via `apps.dev.thmsn.dev`. |
-| Testing | [testing.md](testing.md) | >80% on services; don't unit-test UIs. |
+| Testing | [testing.md](testing.md) | >80% on services; don't unit-test UIs; no change-detector tests. |
 | Platform UX | [platform-ux.md](platform-ux.md) | Native per OS, designed for the target OS. |
 | Workflow | [workflow.md](workflow.md) | Commit to `main`; versions for debugging, not releases. |
 | Skills & MCP | [skills-and-mcp.md](skills-and-mcp.md) | Shared skills/MCP live here; repos link them in. |
