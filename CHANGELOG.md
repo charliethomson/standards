@@ -123,6 +123,19 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Changed
 
+- **Tracker moved from Linear to vision** — `thmsn-jarvis`, `thmsn-ultron` and
+  `thmsn-deep-review` now drive the self-hosted **vision** tracker through the `vision` CLI and
+  point at the `vision` skill for flags. The model maps directly: one vision project per repo
+  (found by matching its `repo`, created with a 2–8 character slug when missing) replaces
+  team + project; a cross-repo program is a plain kebab label (`auth-remediation`, no team-key
+  prefix), since a parent can't cross projects; Bug/Feature labels become the workitem `kind`.
+  Ultron's program slug is now derived from that label (or a parent ref), and workers still
+  comment at boundaries only but also attach commits and PRs with `vision issues link`. With no
+  bulk-create, Jarvis and deep-review file one `vision issues create` per task, stop on the first
+  failure, and count the result with `vision issues list --label … --all` — the same
+  don't-trust-a-half-filed-backlog guard that `failedCount` used to be. Agents act under their
+  own `vsn_` key so the timeline attributes to them. `prompts/linear-project-from-codebase.md`
+  is now `prompts/vision-project-from-codebase.md`.
 - **Typed identifiers moved to `libid`** — `Id<T>` and `PublicId<T>` are now consumed from the
   shared **libid** crate (git dep, features `serde`/`sqlx`/`poem-openapi`) instead of copy-pasted
   templates; `templates/rust/id.rs` and `templates/rust/public_id.rs` are removed.

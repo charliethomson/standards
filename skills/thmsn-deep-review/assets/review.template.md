@@ -62,12 +62,12 @@ appears in ≥2 modules.
 
 …
 
-## Linear issues created
+## vision tasks created
 
-{{Only if issues were filed. Group by priority; one line each. Omit this whole section if none.}}
+{{Only if tasks were filed. Group by priority; one line each. Omit this whole section if none.}}
 
 **P0 · Urgent**
-- `ABC-154` [macOS self-updater: verify code signature before swap](https://linear.app/issue/ABC-154) — Security, Bug
+- `ABC-154` [macOS self-updater: verify code signature before swap](https://vision.dev.thmsn.dev/w/ABC-154) — bug, security
 - …
 
 **P1 · High**

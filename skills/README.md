@@ -24,20 +24,20 @@ Consuming repos link these into their own `.claude/skills/` via
 | **`thmsn-new-component`** | Add a service/binary or a client surface (ios/macos/winui/web) to an existing product, on-standard. |
 | **`thmsn-standards-sync`** | Pull upstream standards, summarize what changed, and re-audit what's newly applicable here. |
 | **`thmsn-standards-contribute`** | Author a change to the standards from a consuming repo and push it upstream, genericized. |
-| **`thmsn-deep-review`** | Deep whole-repo audit (reads the source, one module at a time) → single dated markdown report `reviews/review-YYYY-MM-DD.md` → optional prioritized Linear tasks. Not diff-scoped. |
-| **`thmsn-jarvis`** | Turn a rough idea into a scoped program — refine it with you, research, settle the decisions, file discrete Linear tasks + a program brief. Hands off to `thmsn-ultron`. (`/thmsn-jarvis we're going to work on a feature to…`) |
-| **`thmsn-ultron`** | Run a multi-task program as an orchestrating manager — read the Linear backlog, sequence it, dispatch implementer sub-agents, verify, keep the tracker current. Pausable/resumable across sessions. (`/thmsn-ultron work through the open tasks for this repo`) |
+| **`thmsn-deep-review`** | Deep whole-repo audit (reads the source, one module at a time) → single dated markdown report `reviews/review-YYYY-MM-DD.md` → optional prioritized vision tasks. Not diff-scoped. |
+| **`thmsn-jarvis`** | Turn a rough idea into a scoped program — refine it with you, research, settle the decisions, file discrete vision tasks + a program brief. Hands off to `thmsn-ultron`. (`/thmsn-jarvis we're going to work on a feature to…`) |
+| **`thmsn-ultron`** | Run a multi-task program as an orchestrating manager — read the vision backlog, sequence it, dispatch implementer sub-agents, verify, keep the tracker current. Pausable/resumable across sessions. (`/thmsn-ultron work through the open tasks for this repo`) |
 
 ## Jarvis → Ultron
 
-Two halves of one workflow: **Jarvis plans, Ultron executes.** Jarvis's output — Linear tasks
+Two halves of one workflow: **Jarvis plans, Ultron executes.** Jarvis's output — vision tasks
 with blocking relations, plus `PROGRAM.md` — is exactly Ultron's input, so `/thmsn-jarvis` on a
 vague idea and `/thmsn-ultron` on the resulting backlog is the intended path. Ultron handed an
 unscoped idea will point you back at Jarvis rather than invent a decomposition.
 
 In-flight state lives at `~/.local/state/thmsn/ultron/<program-slug>/` — a `PROGRAM.md` ledger
 plus a volatile per-task journal, which is what makes a program pausable and resumable across
-sessions. Linear stays the durable record; that directory is reconstructible scratch.
+sessions. vision stays the durable record; that directory is reconstructible scratch.
 
 Inspect it without spending tokens using [`../bin/ultron`](../bin/ultron):
 

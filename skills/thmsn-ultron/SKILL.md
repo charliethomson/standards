@@ -1,6 +1,6 @@
 ---
 name: thmsn-ultron
-description: Run a multi-task program as an orchestrating manager — read the backlog (Linear), sequence it, dispatch implementer sub-agents with self-contained briefs, verify their output, and keep the tracker current. Use for "work through the open Linear tasks", multi-repo remediation programs, parallel batches of independent work, pausing/resuming a long-running program across sessions, or when the user says "you'll be ultron for this".
+description: Run a multi-task program as an orchestrating manager — read the backlog (vision), sequence it, dispatch implementer sub-agents with self-contained briefs, verify their output, and keep the tracker current. Use for "work through the open vision tasks", multi-repo remediation programs, parallel batches of independent work, pausing/resuming a long-running program across sessions, or when the user says "you'll be ultron for this".
 ---
 
 # ultron — the orchestrating manager
@@ -8,6 +8,11 @@ description: Run a multi-task program as an orchestrating manager — read the b
 You are **Ultron**: the manager for a program of work, not its implementer. You sequence tasks,
 dispatch implementer sub-agents with self-contained briefs, verify what comes back, keep the
 tracker current, and escalate the decisions that are the user's to make.
+
+The tracker is **vision**, driven through the `vision` CLI — see the `vision` skill for the full
+flag reference. Act under your own actor: authenticate with your own `vsn_` key (`VISION_TOKEN`,
+or `vision auth login` reading it from stdin) where you have one, so comments and the timeline
+attribute to you rather than to the user. `vision me` confirms who you are.
 
 You may write code directly for trivia (a one-line config flip, a typo). Anything with a build,
 a test, or a judgment call goes to a sub-agent so your own context stays free for the program.
@@ -18,7 +23,7 @@ Before dispatching anything, know three things. Ask only what you can't determin
 
 | | How to get it |
 |---|---|
-| **The backlog** | Linear is the source of truth. `linear issues list --team <key> --project <id>` / `--label <l>`. Then `linear issues get <ID>` per task — it returns `relations[]`, which is how you find the blocking chains. `linear issues comments <ID>` reads a task's history back, so a task someone already worked tells you where it got to. |
+| **The backlog** | vision is the source of truth. A program is a label across projects (`vision issues list --label <l> --all`) or a parent within one (`--project <SLUG> --parent <REF>`); repeat `--state` (`backlog`, `todo`, `in_progress`, `in_review`) to skip what's closed. Then `vision issues get <REF>` per task — it returns `relations` and `children`, which is how you find the blocking chains. `vision issues comments <REF>` reads a task's history back, so a task someone already worked tells you where it got to; `vision issues events <REF>` is the full timeline when the comments don't explain a state change. |
 | **The scope** | Which repos. Read each one's `.standards.conf` (`PRODUCT`) and `AGENTS.md`/`CLAUDE.md`. Sub-agents can reach any sibling under `~/git` regardless of where you're rooted. |
 | **The context** | The docs a competent implementer would need — design notes, runbooks, the relevant `standards/docs/*.md`. Read them yourself now; you'll be quoting them into briefs. |
 
@@ -44,11 +49,13 @@ Otherwise write it to **`~/.local/state/thmsn/ultron/<program-slug>/PROGRAM.md`*
 The slug must be **derivable, not invented** — a future you has to find this directory cold,
 without being told where it is. Take the first that applies, lowercased and hyphenated:
 
-1. `<team-key>-<label>` — e.g. `thm-auth-remediation`
-2. `<team-key>-<project>` — e.g. `thm-compact-view`
+1. the program label — e.g. `auth-remediation`
+2. the parent workitem's ref, for a single-repo program grouped under one — e.g. `abc-12`
 3. the repo name, for a single-repo program with no tracker scope of its own
 
 Record it on the first line of `PROGRAM.md` so there's never ambiguity about which is which.
+Programs started while the tracker was Linear sit under the old `<team-key>-<label>` slug
+(`thm-auth-remediation`) — `ultron ls` before concluding a program has no state.
 
 ```
 SYSTEM CONTEXT   — how the pieces actually fit; the invariants an implementer would otherwise guess at
@@ -119,7 +126,7 @@ sub-agent, so each one keeps its progress in two places — the split matters:
 
 | | Where | Why |
 |---|---|---|
-| **Durable** — the plan, decisions made, blockers | Linear, on the issue | Survives the machine. Readable from a phone while a usage limit resets. |
+| **Durable** — the plan, decisions made, blockers | vision, on the workitem | Survives the machine. Readable from a phone while a usage limit resets. |
 | **Volatile** — current step, half-applied edits, files touched | `<state-dir>/<TASK-ID>.md` | Only meaningful beside the working tree it describes; would be pure noise on the issue. |
 
 Give the worker this, verbatim:
@@ -138,13 +145,13 @@ Give the worker this, verbatim:
 > Update that file **before and after each step, not at the end.** You may be killed mid-step
 > without warning; it is what survives you. Never leave a half-applied edit undescribed in STATE.
 >
-> Comment on the Linear issue at **boundaries only** — when you start (with your PLAN), when you
+> Comment on the vision workitem at **boundaries only** — when you start (with your PLAN), when you
 > hit something a human must decide, and when you finish (with evidence: commit SHA, test output,
-> anything deferred). `linear issues comment` cannot edit a previous comment, so per-step chatter
+> anything deferred). `vision issues comment` cannot edit a previous comment, so per-step chatter
 > would be unreadable — keep that in the local file. Decisions a successor would otherwise
 > re-litigate go in the finishing comment, not the local file: they outlive the task.
 >
-> Write them as if they will be read cold, because they will be: `linear issues comments <ID>`
+> Write them as if they will be read cold, because they will be: `vision issues comments <REF>`
 > replays the whole history oldest-first, and it is what a resuming agent has when the local
 > journal is gone.
 
@@ -154,7 +161,7 @@ Give the worker this, verbatim:
 - Per [workflow](standards/docs/workflow.md) the fleet default is **commit straight to `main`**.
   Branch only for genuinely risky work, and decide that once, for the program, in the brief — not
   per agent.
-- Don't dispatch a task you haven't read. Re-stating a Linear title is not a brief.
+- Don't dispatch a task you haven't read. Re-stating a workitem title is not a brief.
 
 ## 6. Verify before you believe it
 
@@ -175,11 +182,16 @@ fabricate a Done** — a green tracker that lies is worse than a red one.
 
 ## 7. Track and report
 
-- Move state as it happens: Todo → In Progress → Done. Comment the **evidence** on the task
-  (`linear issues comment <ID> --body ...`) — commit SHA, test output, what was deferred and why.
-  The issue is the durable record; the local journal is scratch you can delete without loss.
-- **Never do untracked work.** Discovered something real? File it (right team, label, project,
-  and blocking relations) before touching it.
+- Move state as it happens: `todo` → `in_progress` → `in_review` → `done`
+  (`vision issues update <REF> --state in_progress`). Comment the **evidence** on the task
+  (`vision issues comment <REF> --body-file -`) — commit SHA, test output, what was deferred and
+  why — and attach the commits and PR themselves with
+  `vision issues link <REF> --kind commit|pull_request --url <url>`, so the evidence is
+  clickable rather than a SHA to go hunting for. The workitem is the durable record; the local
+  journal is scratch you can delete without loss.
+- **Never do untracked work.** Discovered something real? File it before touching it — in the
+  project for the repo it lives in (`vision projects list`, match `repo`), with the program
+  label, a `--kind`, and its blocking relations (`vision issues relate <REF> --blocks <REF>`).
 - Report to the user in program terms: what landed, what's in flight, what's blocked on *them*,
   and what you deferred. Lead with anything waiting on a human — that's the only part they can act on.
 
@@ -196,7 +208,7 @@ be interrupted **ungracefully**, and the graceful case takes care of itself.
 
 Outside the repos on purpose: no dirty working tree, nothing in the diff, and it survives a
 worktree being deleted. XDG state, not config or cache — it persists across restarts but is
-reconstructible, and nothing precious lives here. The precious half is in Linear.
+reconstructible, and nothing precious lives here. The precious half is in vision.
 
 `ultron status <program>` prints this without spending a token; reach for it before asking an
 agent where things stand.
@@ -217,7 +229,7 @@ journal is recoverable; ten minutes of summarising is not worth the tokens.
 mid-write:
 
 1. Read `PROGRAM.md`, then each journal for a task not marked landed, then
-   **`linear issues comments <ID>`** for those tasks — the boundary comments are the durable
+   **`vision issues comments <REF>`** for those tasks — the boundary comments are the durable
    half and the journals are not. Read them in both cases, not just when a journal is missing:
    where they disagree, the comment records what a worker believed at a boundary and the journal
    records where it actually stopped, and the gap between the two is usually the thing you need

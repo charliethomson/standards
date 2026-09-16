@@ -1,14 +1,14 @@
 ---
 name: thmsn-deep-review
-description: Deep, whole-repo code review that reads the source (not just the diff), one module at a time, and writes a single dated markdown report — reviews/review-YYYY-MM-DD.md — pairing the overarching review with the findings, then optionally files the recommendations as prioritized, self-contained Linear tasks and lists them in the report. Use for "review the whole repo / every module", "audit this codebase", "deep code review", or "review X and file the findings as Linear tasks". NOT for diff-scoped checks (use /thmsn-standards-review or /code-review).
+description: Deep, whole-repo code review that reads the source (not just the diff), one module at a time, and writes a single dated markdown report — reviews/review-YYYY-MM-DD.md — pairing the overarching review with the findings, then optionally files the recommendations as prioritized, self-contained vision tasks and lists them in the report. Use for "review the whole repo / every module", "audit this codebase", "deep code review", or "review X and file the findings as vision tasks". NOT for diff-scoped checks (use /thmsn-standards-review or /code-review).
 ---
 
-# thmsn-deep-review — whole-repo audit → one markdown report → Linear tasks
+# thmsn-deep-review — whole-repo audit → one markdown report → vision tasks
 
 Produces a **module-by-module** audit of an entire repo across four dimensions —
 **correctness & bugs, security, architecture & maintainability, testing & CI** — as a single
 dated markdown file, `reviews/review-YYYY-MM-DD.md`. Optionally files the recommendations as
-prioritized Linear tasks and lists them in the report.
+prioritized vision tasks and lists them in the report.
 
 This is a **deep** review: subagents read the actual source and cite `file:line`. It is not
 the diff-scoped `/thmsn-standards-review`, nor the correctness-of-a-diff `/code-review`.
@@ -18,13 +18,13 @@ the diff-scoped `/thmsn-standards-review`, nor the correctness-of-a-diff `/code-
 One deep-audit **subagent per module, in parallel**. Each agent reads its module and *returns*
 its findings as a markdown section (it writes no files). You then compose them into one
 document: an overarching review up top (scorecard, architecture, cross-cutting themes,
-prioritized fixes) followed by the per-module sections, and — if asked — a list of the Linear
-issues created. The parallelism is what makes a whole-repo audit tractable; a single markdown
+prioritized fixes) followed by the per-module sections, and — if asked — a list of the vision
+tasks created. The parallelism is what makes a whole-repo audit tractable; a single markdown
 file keeps it portable, diffable, and committable.
 
 Bundled asset: [`assets/review.template.md`](assets/review.template.md) — the exact document
 skeleton (front-matter summary, scorecard table, architecture, cross-cutting themes, "what to
-fix first", per-module sections, issues-created list, methodology). Fill it in; don't reinvent
+fix first", per-module sections, tasks-created list, methodology). Fill it in; don't reinvent
 the shape.
 
 **One file, dated.** Write to `reviews/review-YYYY-MM-DD.md` (get the date from
@@ -38,7 +38,7 @@ history. Create the dir with `mkdir -p reviews`.
 **Ask 2–4 clarifying questions first** (the user usually expects this for a broad review):
 depth (overview vs architectural vs deep line-level), which dimensions to emphasize, audience/
 tone (author = blunt/technical; contributor = explanatory; stakeholder = polished), and whether
-to also create Linear tasks. Default to author-tone + all four dimensions if they decline.
+to also create vision tasks. Default to author-tone + all four dimensions if they decline.
 
 Then enumerate the modules. For a `full-stack-product` archetype that's typically:
 
@@ -105,34 +105,37 @@ agents' summaries:
 - **Module reviews** — the agents' sections, in dependency order (foundations first).
 - **Methodology footer** — what was and wasn't line-audited; the severity legend.
 
-## Phase 3 — (Optional) Prioritized Linear tasks
+## Phase 3 — (Optional) Prioritized vision tasks
 
-Only if the user asked. Use the **`linear`** CLI (see the `linear` skill for full reference).
+Only if the user asked. Use the **`vision`** CLI (see the `vision` skill for full reference).
 
-1. **Discover context**: `linear teams list`; find the project in `linear projects list`; get
-   states + labels. Team keys work anywhere a `--team` is taken, so `linear states list --team ENG`
-   is fine. Create missing labels (`Security`, `Testing`, …) — note a label like `Bug` may already
-   exist as a *workspace* label (not in the team list); resolve its id from `linear labels list`
-   (no `--team`).
+1. **Discover context**: find the repo's project — `vision projects list` and match its `repo`
+   against `git remote get-url origin` (`owner/name`). If the repo has none, create one:
+   `vision projects create --slug <2–8 uppercase> --title <name> --repo <owner/name>`.
+   `vision labels list` shows the labels already in use; they're global and lowercase, so reuse
+   `security` / `testing` rather than minting a variant. Tag every task with a
+   `review-YYYY-MM-DD` label too — it's how you count them in step 4.
 2. **One task per actionable recommendation** — consolidate nits/lows into per-module "hardening
    roundup" tasks so the list stays high-signal (~20–35 total for a full repo). Each task is
    **self-contained**:
    > **Context** (module + role) · **Problem** (`file:line`, the concrete failure) ·
    > **Fix** (steps) · **Acceptance criteria** (checkboxes) · **Source** (this review file).
-3. **Priority = severity**: `1` urgent (Critical + the scariest High), `2` high, `3` medium,
-   `4` low. Put priority 1–2 in **Todo**, 3–4 in **Backlog**.
-4. **Bulk-create**: write the array to a temp JSON file and `linear issues bulk-create --file …`.
-   Prefer a small Python generator that holds the descriptions and emits the JSON.
-   **Check `failedCount` in the output, not the exit code** — a partial failure still exits 0,
-   so a silently half-filed backlog looks identical to a complete one.
-5. **Wire systemic dependencies** with relations. Issue identifiers (`ABC-123`) work on both
-   `--issue` and `--related`, so you can wire straight from the report without mapping
-   identifier→id. Use `blocks` for real ordering (e.g. "server emits terminal frame" blocks the
-   per-client resets) and `related` for siblings.
-6. **Record them in the report** — add the "Linear issues created" section: group by priority,
-   one line each (`ABC-154` [title](url) — labels), plus the relations. Then thread the issue
-   refs back into the per-module findings and the "what to fix first" table (append `→ ABC-154`)
-   so the review and the backlog point at each other.
+3. **Priority = severity**: `urgent` (Critical + the scariest High), `high`, `medium`, `low`.
+   Put urgent/high in `todo`, medium/low in `backlog`. **Kind**: a real defect is `bug`; the
+   rest are `task`.
+4. **Create**: there is no bulk call — one `vision issues create --project <SLUG> --title …
+   --kind … --priority … --state … --label … --description-file <path>` per task, keeping the
+   `.data.reference` each prints. Prefer a small Python generator that holds the descriptions,
+   writes each to a temp file, and runs the loop. **Stop on the first non-zero exit, then count**
+   (`vision issues list --project <SLUG> --label review-YYYY-MM-DD --all`) — a loop that swallows
+   one failure leaves a half-filed backlog that looks identical to a complete one.
+5. **Wire systemic dependencies** with relations. Refs (`ABC-123`) work on both sides, so you can
+   wire straight from the report. Use `vision issues relate <REF> --blocks <REF>` for real ordering
+   (e.g. "server emits terminal frame" blocks the per-client resets) and `--related` for siblings.
+6. **Record them in the report** — add the "vision tasks created" section: group by priority,
+   one line each (`ABC-154` [title](https://vision.dev.thmsn.dev/w/ABC-154) — kind, labels), plus
+   the relations. Then thread the refs back into the per-module findings and the "what to fix
+   first" table (append `→ ABC-154`) so the review and the backlog point at each other.
 
 ---
 
