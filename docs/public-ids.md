@@ -34,12 +34,25 @@ this mechanism.
 
 The public id is the **only** identifier that crosses the public boundary. Anywhere
 an id is exposed — URL path, query param, JSON body, real-time event envelope — it is
-the public id, never the UUID. Translation lives in the **exposer layer** (the poem
-API, and any other outward-facing surface): it maps an inbound `PublicId<T>` to its
-`Id<T>` on the way in, and `Id<T>` back to `PublicId<T>` on the way out. `core`, `db`,
-and `engine` only ever see `Id<T>` — they never learn an entity has a public id. A
-DTO's `id` field therefore carries the public id; the UUID is never serialized to a
-client.
+the public id, never the UUID. A DTO's `id` field carries the public id; the UUID is
+never serialized to a client.
+
+### Where each id lives
+
+The public id is a **stored attribute of the entity**, not a view-layer invention: `db`
+mints it at insert and owns the `resolve_*` lookup. So the layers split like this:
+
+- **`core` / `db` may carry it.** A domain model or row struct can hold a
+  `public_id: PublicId<T>` field alongside its `Id<T>`, the same way it holds any other
+  column. An event/audit row that is itself exposed to clients may cite the public ids of
+  the entities it references, so replaying it needs no translation.
+- **Relationships and internal calls stay on `Id<T>`.** Foreign keys, repo method
+  arguments, engine operations, joins, cursors and ordering all use `Id<T>`. Nothing
+  inside the server looks an entity up by its public id except the resolver.
+- **Resolution and choice of wire id live in the exposer.** The poem API (or any other
+  outward-facing surface) parses the inbound `PublicId<T>`, resolves it to `Id<T>` once
+  via `db`, and passes only `Id<T>` inward. On the way out it decides which id goes on
+  the wire: always the public id.
 
 ## Which entities get one
 
@@ -79,7 +92,7 @@ anything.
 Mirror `Id<T>`: a `PublicId<T>` newtype tagged with the entity, so a subscription's
 public id can't be used to look up an order. Runtime representation is 11 ASCII bytes
 (`Copy`); it serializes as the canonical code string and `parse` normalizes confusable
-spellings on the way in. Internals never touch it — resolve to `Id<T>` at the edge.
+spellings on the way in. Internal operations take `Id<T>` — resolve at the edge.
 
 Both types come from **libid** ([lib-ecosystem.md](lib-ecosystem.md)) — don't hand-roll
 a copy:
@@ -175,5 +188,6 @@ they're safe as structured fields ([observability.md](observability.md)).
       HTTP boundary. Prefixed and bare canonical forms not mixed within a product.
 - [ ] Input normalized (uppercase + Crockford confusables) before lookup.
 - [ ] Authz enforced server-side regardless of the short id — it is not a secret.
-- [ ] Public id is the only id exposed; `Id<T>`↔`PublicId<T>` translation lives in the
-      exposer layer; `core`/`db`/`engine` see only `Id<T>`.
+- [ ] Public id is the only id exposed. Models/rows may carry `public_id`, and exposed
+      event rows may cite public ids, but internal calls, FKs and cursors use `Id<T>`;
+      inbound resolution and the choice of wire id live in the exposer layer.

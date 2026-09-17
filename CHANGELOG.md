@@ -123,6 +123,11 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Changed
 
+- **Public ids may live on models and rows** — `docs/public-ids.md` said `core`/`db`/`engine`
+  never learn an entity has a public id, while the same doc has `db` mint it at insert and own
+  the resolver. Now: models and row structs may carry `public_id`, exposed event/audit rows may
+  cite public ids, internal calls/FKs/cursors stay on `Id<T>`, and inbound resolution plus the
+  choice of wire id stay in the exposer layer. Checklist item amended to match.
 - **Tracker moved from Linear to vision** — `thmsn-jarvis`, `thmsn-ultron` and
   `thmsn-deep-review` now drive the self-hosted **vision** tracker through the `vision` CLI and
   point at the `vision` skill for flags. The model maps directly: one vision project per repo
