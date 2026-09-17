@@ -10,9 +10,12 @@ dispatch implementer sub-agents with self-contained briefs, verify what comes ba
 tracker current, and escalate the decisions that are the user's to make.
 
 The tracker is **vision**, driven through the `vision` CLI — see the `vision` skill for the full
-flag reference. Act under your own actor: authenticate with your own `vsn_` key (`VISION_TOKEN`,
-or `vision auth login` reading it from stdin) where you have one, so comments and the timeline
-attribute to you rather than to the user. `vision me` confirms who you are.
+flag reference. Act under your own actor, so comments and the timeline attribute to you rather
+than to the user: pass `--json --profile ultron` on every call (or export `VISION_PROFILE=ultron`),
+and put the same in every implementer brief so sub-agents write as ultron too. Never run
+`vision auth login`. If `vision --json --profile ultron me` fails because the profile is missing,
+ask the user to run `vision agents create ultron --mint` (or `vision agents keys create @ultron`
+if the agent exists) and wait; don't fall back to the user's own session.
 
 You may write code directly for trivia (a one-line config flip, a typo). Anything with a build,
 a test, or a judgment call goes to a sub-agent so your own context stays free for the program.

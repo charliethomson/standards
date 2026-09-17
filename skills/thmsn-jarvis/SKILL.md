@@ -82,7 +82,9 @@ Cut the work into tasks an implementer can finish without asking you anything:
 Two artifacts, then stop.
 
 **vision tasks** — through the `vision` CLI (the `vision` skill has the full flag reference),
-filed under your own actor's key where you have one, so the timeline shows Jarvis filed them.
+filed as Jarvis so the timeline shows who filed them: pass `--json --profile jarvis` on every call.
+If that profile is missing, ask the user to run `vision agents create jarvis --mint`; never run
+`vision auth login` or file under the user's session.
 
 - **The project** is per repo. Find it with `vision projects list` and match `repo`; if a repo
   has none, `vision projects create --slug <2–8 uppercase> --title <name> --repo <owner/name>`.
