@@ -108,8 +108,8 @@ missing upstream resource, end of stream, a declined credential. A WARN nobody a
 trains everyone to ignore WARN.
 
 The export filter defaults to `info` with noisy dependencies capped (liblog's
-`NOISY_TARGETS`: `h2`, `hyper`, `tonic`, `tower`, `reqwest`, `rustls`, `sqlx`,
-`opentelemetry*`), overridable per layer from env without a rebuild
+`NOISY_TARGETS`: `h2`, `hyper`, `hyper_util`, `tonic`, `tower`, `reqwest`, `rustls`,
+`sqlx`, `opentelemetry*`, `chromiumoxide`), overridable per layer from env without a rebuild
 ([observability.md](observability.md#filters)).
 
 ## Errors
@@ -171,7 +171,7 @@ Clients don't export spans. On every request whose headers they control, they se
 | `traceparent` | `00-<32 hex trace>-<16 hex span>-01`, a **fresh trace per user action**. A 401 → refresh → retry keeps the trace id with a new span per attempt; a proactive/background refresh gets its own trace |
 | `x-<product>-client` | stable app slug: `web`, `ios`, `macos`, `winui`, `cli`, … |
 | `x-<product>-client-version` | the fleet version ([versioning.md](versioning.md)); web: the git short hash |
-| `x-<product>-platform` | the OS actually running (`ios`, `macos`, `windows`, `linux`) |
+| `x-<product>-platform` | the OS actually running (`ios`, `macos`, `windows`, `linux`); a web client sends `browser` |
 | `x-<product>-install-id` | UUIDv4 persisted per install; **never in a URL** |
 | `x-<product>-session-id` | UUIDv4 per launch / page load |
 | `User-Agent` (native) | `<Product>/<app>/<version> (<platform>; <os>)` |
@@ -179,15 +179,19 @@ Clients don't export spans. On every request whose headers they control, they se
 - Ids come from a CSPRNG and are never all-zero. Header values are printable ASCII, ≤ 64
   chars; the server drops anything else.
 - **Identity headers go only to the product's own origin.** Gate on the server origin before
-  adding them. A cross-host redirect drops `traceparent` and `x-<product>-*` the way it drops
-  `Authorization`. Third-party hosts (CDNs, avatars, platform APIs) never see them.
+  adding them. Third-party hosts (CDNs, avatars, platform APIs) never see them. Most HTTP
+  stacks (browser fetch, URLSession, reqwest's default policy) re-send custom headers on a
+  redirect, so the rule has two halves: **the server never redirects an identity-bearing
+  request cross-host**, and a client that handles redirects itself drops `traceparent` and
+  `x-<product>-*` on a cross-host hop the way it drops `Authorization`.
 - **The server** continues the inbound trace, records the headers and `enduser.id` on the
   request span, and echoes the trace id in **`x-<product>-trace-id`** on every response that
   has one (its own id, or the caller's when nothing is exported). The header is listed in
   CORS `expose_headers`, and the outermost layer stamps it so error and panic responses get
   it too. JSON error bodies carry the same id as **`traceId`**.
 - **Clients show `Ref: <first 8 hex>`** on errors, with copy-the-full-id, and log the full id
-  locally. The trace id on an error is the header echo, then the body's `traceId`, then the id
+  locally. A terminal client (a CLI) prints the full 32-hex id instead: the user copies text
+  out of a terminal anyway, and the full id needs no prefix lookup. The trace id on an error is the header echo, then the body's `traceId`, then the id
   the client sent.
 - **Loads that can't carry headers** (`<video>`, `<img>`, `EventSource`, `AVPlayer`, HLS
   segments) are traced through the signing/mint call that precedes them. A reconnecting

@@ -61,7 +61,9 @@ Prometheus ──scrape /api/metrics──────────────�
   parent-based ratio) and the spec's `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG`
   (`always_on`, `parentbased_always_on`, `traceidratio`, `parentbased_traceidratio`,
   `always_off`) are overrides for local work, never the production default. Env beats the
-  builder.
+  builder. liblog has no true off switch: `traceidratio` is parent-based like
+  `parentbased_traceidratio`, and `always_off` is a parent-based ratio of 0, so a request
+  arriving with a sampled parent is still sampled.
 - Telemetry env vars are bare/shared ([configuration.md](configuration.md)).
 
 This is the *emit* side. Reading it back — dashboards over these metrics/logs/traces —
