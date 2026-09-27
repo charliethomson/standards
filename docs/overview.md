@@ -69,6 +69,7 @@ libraries/CLIs too):
 | Refresh tokens | [refresh-tokens.md](refresh-tokens.md) | Client stores in Keychain/DPAPI/httpOnly-cookie/0600; rotate single-flight; refresh is non-idempotent. |
 | Configuration | [configuration.md](configuration.md) | libconfig `Loader`: defaults→TOML→shared→prefixed env. |
 | Observability | [observability.md](observability.md) | `liblog`/OTLP; `/api/metrics`; log ids/timings, never bodies. |
+| Tracing | [tracing.md](tracing.md) | Always-on export, collector tail-samples; spans finish inside 60 s; `traceparent` + `x-<product>-*` from clients, trace id echoed as `Ref:`. |
 | Grafana dashboards | [grafana-dashboards.md](grafana-dashboards.md) | Committed `<name>.dashboard.json`; queries key off fleet identifiers. |
 | Security | [security.md](security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | Web & client arch | [web-architecture.md](web-architecture.md) | TanStack Query (server) + Zustand (UI); generated client; `@thmsn/ui` on Tailwind v4; shared Kit. |

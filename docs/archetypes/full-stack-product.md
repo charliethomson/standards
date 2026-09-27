@@ -57,6 +57,7 @@ This is the organizing principle. Each concern has exactly one home:
 | [Auth integration](../auth-integration.md) | Central auth SDK; `me()` live authority; grant-gated. |
 | [Configuration](../configuration.md) | `libconfig` `Loader`; `<PRODUCT>_` + bare shared env. |
 | [Observability](../observability.md) | liblog/OTLP; `/api/metrics`; ids/timings only. |
+| [Tracing](../tracing.md) | Always-on + collector tail sampling; short linked roots; client `traceparent`/`x-<product>-*`, `Ref:` on errors. |
 | [Security](../security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | [Web & client arch](../web-architecture.md) | TanStack Query + Zustand; generated client; shared Kit. |
 | [Rust conventions](../rust-conventions.md) | Edition 2024, clippy pedantic, git deps. |
@@ -76,6 +77,10 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
 - [ ] Branding generator present and run; no hand-edited icon assets.
 - [ ] `deploy/` has Komodo sync TOML + compose + Caddyfile; secrets only in Komodo UI.
 - [ ] `*.build`/`*.release` workflows on self-hosted runners; version computed once.
+- [ ] Telemetry per [`../observability.md`](../observability.md) (`set_global()` before init,
+      always-on) and tracing per [`../tracing.md`](../tracing.md): request span continues
+      `traceparent`, echoes `x-<product>-trace-id` + `traceId`; every client sends the header
+      contract and shows `Ref:` on errors.
 - [ ] Server ≥80% coverage; web has hermetic e2e; native UI not unit-tested.
 - [ ] Root `AGENTS.md` stub + `VERSIONING.md` copied from `standards/templates`.
 - [ ] Root `README.md` covers mechanism, layout, quickstart (with *why* each env var is

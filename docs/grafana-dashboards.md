@@ -62,6 +62,46 @@ datasource by `uid`.
 while it matches the live box and breaks on a rebuilt Grafana. Pin all three uids in the
 provisioning file and reference those from every panel, so dashboards are portable.
 
+## Trace ↔ log ↔ metric links
+
+Provision the links on the datasources so every signal is one click from the other two
+([tracing.md](tracing.md)). `$$` escapes Grafana's provisioning env expansion.
+
+```yaml
+# grafana/provisioning/datasources/*.yml
+  - name: Loki
+    uid: loki
+    jsonData:
+      derivedFields:                      # log → trace
+        - { matcherType: label, matcherRegex: trace_id, name: TraceID,
+            datasourceUid: tempo, url: "$${__value.raw}" }
+        # a correlation id (structured metadata on every line) → every trace for that entity;
+        # long work is many linked short traces, so this finds all of them
+        - { matcherType: label, matcherRegex: order_id, name: Order traces,
+            datasourceUid: tempo, url: '{ span.order_id = "$${__value.raw}" }' }
+  - name: Tempo
+    uid: tempo
+    jsonData:
+      tracesToLogsV2:                     # span → its logs, same service, ±5m
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        filterByTraceID: true
+        customQuery: true
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__trace.traceId}"'
+      tracesToMetrics:                    # span → RED for its span name
+        datasourceUid: prometheus
+        queries:
+          - name: p95 latency
+            query: 'histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="$${__span.tags["service.name"]}", span_name="$${__span.name}"}[5m])))'
+          - name: call rate
+            query: 'sum by (status_code) (rate(traces_span_metrics_calls_total{service_name="$${__span.tags["service.name"]}", span_name="$${__span.name}"}[5m]))'
+      nodeGraph: { enabled: true }
+```
+
+A service map needs the collector's `servicegraph` connector; without it, don't provision
+`serviceMap` (it renders empty).
+
 ## Query conventions
 
 Panels are built on the fleet's naming, so they read the same everywhere:
@@ -77,6 +117,15 @@ Panels are built on the fleet's naming, so they read the same everywhere:
   ids/counts/timings ([observability.md](observability.md)).
 - A **logs panel** filtered to `severity_text = "ERROR"` for the selected `$service`
   is the standard "recent errors" tail.
+- **Span metrics** (the collector's `span_metrics` connector, computed from every span
+  *before* tail sampling, so they cover 100 % of traffic):
+  `traces_span_metrics_calls_total` and
+  `traces_span_metrics_duration_milliseconds_{bucket,sum,count}`, labelled `service_name`,
+  `span_name`, `span_kind` (`SPAN_KIND_SERVER`, …) and `status_code` (`STATUS_CODE_ERROR`,
+  …). Request rate/errors/latency per route come from these (`span_name` is the
+  `"{METHOD} {route}"` of `http.request` spans), not from Tempo searches, which only see the
+  sampled ~5 %. Buckets are coarse (10 ms … 120 s); fine-grained latency still belongs in the
+  service's own histograms.
 
 ## Panel layout
 
@@ -133,5 +182,8 @@ persist by exporting and committing — no drift between Grafana and git.
       structured fields (`severity_text`, `duration_ms`, `api_operation`).
 - [ ] Datasources referenced by pinned `uid`s (`prometheus`/`loki`/`tempo`), not
       per-instance generated ids.
+- [ ] Datasources provision trace → logs, trace → metrics (span metrics) and log → trace
+      derived fields (`trace_id` + the product's correlation id).
+- [ ] RED panels use `traces_span_metrics_*`, not Tempo searches.
 - [ ] Stat row (`h:4`) up top; timeseries (`h:8`) below; an ERROR logs tail.
 - [ ] Exported from the JSON Model tab; `id` nulled, `version`/`iteration` dropped before commit.

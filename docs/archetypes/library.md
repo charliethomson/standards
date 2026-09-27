@@ -36,6 +36,7 @@ lib<name>/
 | [Rust conventions](../rust-conventions.md) | Edition 2024, clippy pedantic + allowlist, git-dep distribution. |
 | [`lib*` ecosystem](../lib-ecosystem.md) | This **is** a `lib*` — follow the catalogue conventions; reuse siblings. |
 | [Observability](../observability.md) | Optional: `tracing` + `valuable` fields if it logs; no OTLP wiring of its own. |
+| [Tracing](../tracing.md) | If it opens spans: explicit names, per-item/per-line work at DEBUG, no process-lifetime spans, no URLs/argv in fields or error `Display`. |
 | Service architecture / Data / Contracts / Auth / Security / Web | **N/A.** |
 
 ## Conventions

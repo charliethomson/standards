@@ -52,7 +52,8 @@ spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](doc
 For services and clients there's a deeper layer of implementation standards — **service
 architecture** (`core→db→engine→api`, poem-openapi), **data & persistence** (sqlx, typed
 `Id<T>`), **contracts** (OpenAPI/AsyncAPI + drift checks), **error handling**, **auth
-integration**, **configuration** (libconfig), **observability** (liblog/OTLP), **security**,
+integration**, **configuration** (libconfig), **observability** (liblog/OTLP), **tracing** (always-on +
+tail sampling, span shape, the client↔server trace contract), **security**,
 **web/client architecture**, **rust conventions**, and the **`lib*` ecosystem**. All are in
 [`docs/`](docs/) and indexed in [`docs/overview.md`](docs/overview.md).
 

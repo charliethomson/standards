@@ -66,7 +66,8 @@ boots.
 - **Bare, fleet-shared (no prefix):**
   - `AUTH_ADMIN_KEY`, `AUTH_MODE` — read out of the environment by the auth SDK itself, so they
     keep these exact names in every service.
-  - `OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE` — telemetry knobs ([observability.md](observability.md)).
+  - `OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE` — telemetry knobs ([observability.md](observability.md));
+    `SAMPLE_RATE` is an override only, production is always-on ([tracing.md](tracing.md)).
 - **`AUTH_TCP_ADDR` / `AUTH_TCP_TLS` / `AUTH_TCP_DOMAIN` are prefixed, not shared.** They look
   fleet-wide but they are *the consuming service's own* config fields, so under `libconfig` they
   take that service's prefix — `SOMEPRODUCT_AUTH_TCP_ADDR`, **not** `AUTH_TCP_ADDR`. Putting them

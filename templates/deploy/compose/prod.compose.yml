@@ -23,7 +23,9 @@ services:
       # LAN IP. Log ids/counts/timings only, never message content.
       OTLP_ENDPOINT: "http://192.168.0.193:4317"
       PRODUCTION: "true"
-      SAMPLE_RATE: "1.0"
+      # Export every span; the collector tail-samples (docs/tracing.md). Don't set
+      # SAMPLE_RATE here: a ratio (even 1.0) is parent-based and honours sampled=0.
+      OTEL_TRACES_SAMPLER: always_on
       # Central auth: the API registers itself + grants on boot and validates JWTs
       # via the SDK. AUTH_ADMIN_KEY is the TCP HMAC root (a Komodo secret Variable;
       # must be non-empty) and stays bare — the SDK reads it from the environment.

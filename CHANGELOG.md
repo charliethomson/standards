@@ -9,7 +9,33 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
+### Fixed
+
+- **`templates/rust/observability.rs`** — calls `PRODUCT_NAME.set_global()` before init (it
+  exported an empty `service.name`), parses `PRODUCTION` as a bool (`is_ok()` made
+  `PRODUCTION=false` production), and defaults to `Sampling::AlwaysOn` with `SAMPLE_RATE` as an
+  override. Compile-checked against liblog `5af859b` (clippy pedantic clean). The compose
+  template sets `OTEL_TRACES_SAMPLER=always_on` instead of `SAMPLE_RATE=1.0` (a ratio is
+  parent-based and honours `sampled=0`).
+
 ### Added
+
+- **Tracing** — new `docs/tracing.md`, distilled from a whole-product tracing overhaul:
+  services export always-on and the collector tail-samples (errors / HTTP > 1 s / > 10 s /
+  `sampling.keep` / 5 % baseline, span metrics before sampling; traces 7 d, logs 7 d);
+  one span = one unit of work that finishes inside the collector's 60 s window, long work as
+  linked short roots per phase, no loop/connection spans, per-item work DEBUG (with the three
+  demotions that taught it); `<component>.<unit>[.<phase>]` names, `http.request` +
+  `otel.name`; a levels table; 5xx-only ERROR and one log per failure; correlation ids on
+  spans *and* events; privacy incl. signed URLs in `reqwest::Error` `Display` and argv; the
+  client↔server contract (`traceparent` per action, `x-<product>-*` identity headers,
+  `x-<product>-trace-id` + `traceId` echo, `Ref:` in client error UI); pipeline hygiene
+  (`memory_limiter`, pinned images, alerting on the pipeline's own metrics, the span-metrics
+  label gotcha). `observability.md` drops the 10 % `ParentBased(TraceIdRatioBased)` default for
+  always-on, documents liblog's per-layer `LIBLOG_*_FILTER` env and `OTEL_TRACES_SAMPLER`, and
+  the propagation helpers. `grafana-dashboards.md` gains trace ↔ log ↔ metric link
+  provisioning and the `traces_span_metrics_*` series. Indexed in `AGENTS.md`, the overview,
+  the full-stack-product and library archetypes and the review skill.
 
 - **No change-detector tests** — `docs/testing.md` gains a section banning tests whose
   assertions restate the implementation (mock every collaborator, verify the calls in order):

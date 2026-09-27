@@ -23,8 +23,8 @@ Only load the standards a change actually touches:
 | Changed path | Standards to check |
 |---|---|
 | `.github/workflows/**` | ci-cd (naming, gates) |
-| `server/**`, `*.rs` | service-architecture, error-handling, configuration, observability, rust-conventions, data-persistence |
-| `apps/**` (clients) | platform-ux, web-architecture, contracts |
+| `server/**`, `*.rs` | service-architecture, error-handling, configuration, observability, tracing, rust-conventions, data-persistence |
+| `apps/**` (clients) | platform-ux, web-architecture, contracts, tracing (client header contract, `Ref:`) |
 | `api/openapi.json`, generated clients | contracts (drift) |
 | `deploy/**` | deployment |
 | `Cargo.toml`, manifests, version refs | versioning, rust-conventions |
