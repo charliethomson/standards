@@ -20,6 +20,18 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **Client analytics** — new `docs/client-analytics.md`: clients batch usage events to their
+  own server's `POST /api/telemetry/events` (authenticated, in the contract); the server
+  validates them, stamps the existing `x-<product>-*` identity and emits one `client_event`
+  OTLP log per event with `event.source = "client"`; the collector routes those to
+  ClickHouse (400 d, a `client_events` view) instead of Loki, and Grafana reads them back.
+  Defines the event shape and limits, the reserved fleet events (`app.*`, `screen.view`,
+  `error.client`, `perf.*`, `cli.command`), privacy rules (flat enum/count/duration props,
+  no fingerprinting, no third-party analytics SDKs), client batching/persistence/retry, and
+  the server's drop-don't-fail validation and kill switch. Linked from tracing,
+  observability, the overview, the full-stack-product archetype, `AGENTS.md`, the glossary
+  and the review skill.
+
 - **Tracing** — new `docs/tracing.md`, distilled from a whole-product tracing overhaul:
   services export always-on and the collector tail-samples (errors / HTTP > 1 s / > 10 s /
   `sampling.keep` / 5 % baseline, span metrics before sampling; traces 7 d, logs 7 d);

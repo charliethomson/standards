@@ -44,6 +44,9 @@ actually building.
   the code path. Part of the reverse-domain identity family. See [error-handling.md](error-handling.md).
 - **OTLP** — OpenTelemetry protocol; services export to the homelab collector with
   `service.name = dev.thmsn.<product>.<component>`. See [observability.md](observability.md).
+- **client event** — one usage event from a client (`screen.view`, `job.create`), batched to
+  the product server's `POST /api/telemetry/events`, re-emitted as an OTLP log with
+  `event.source = "client"` and stored in ClickHouse. See [client-analytics.md](client-analytics.md).
 - **codegen drift check** — CI fails if a generated client no longer matches the committed
   `api/openapi.json`. See [contracts.md](contracts.md).
 - **change-detector test** — a test whose assertions restate the implementation (mock every

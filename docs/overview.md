@@ -70,6 +70,7 @@ libraries/CLIs too):
 | Configuration | [configuration.md](configuration.md) | libconfig `Loader`: defaults→TOML→shared→prefixed env. |
 | Observability | [observability.md](observability.md) | `liblog`/OTLP; `/api/metrics`; log ids/timings, never bodies. |
 | Tracing | [tracing.md](tracing.md) | Always-on export, collector tail-samples; spans finish inside 60 s; `traceparent` + `x-<product>-*` from clients, trace id echoed as `Ref:`. |
+| Client analytics | [client-analytics.md](client-analytics.md) | Clients batch usage events to their own server, which re-emits them as OTLP logs routed to ClickHouse; no third-party analytics SDKs, no user content in props. |
 | Grafana dashboards | [grafana-dashboards.md](grafana-dashboards.md) | Committed `<name>.dashboard.json`; queries key off fleet identifiers. |
 | Security | [security.md](security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | Web & client arch | [web-architecture.md](web-architecture.md) | TanStack Query (server) + Zustand (UI); generated client; `@thmsn/ui` on Tailwind v4; shared Kit. |

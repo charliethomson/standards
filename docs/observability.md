@@ -66,6 +66,9 @@ Prometheus ──scrape /api/metrics──────────────�
   arriving with a sampled parent is still sampled.
 - Telemetry env vars are bare/shared ([configuration.md](configuration.md)).
 
+Client usage events ride the same OTLP log path from the product server, and the collector
+routes them to ClickHouse instead of Loki: [client-analytics.md](client-analytics.md).
+
 This is the *emit* side. Reading it back — dashboards over these metrics/logs/traces —
 is [grafana-dashboards.md](grafana-dashboards.md).
 

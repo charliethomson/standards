@@ -58,6 +58,7 @@ This is the organizing principle. Each concern has exactly one home:
 | [Configuration](../configuration.md) | `libconfig` `Loader`; `<PRODUCT>_` + bare shared env. |
 | [Observability](../observability.md) | liblog/OTLP; `/api/metrics`; ids/timings only. |
 | [Tracing](../tracing.md) | Always-on + collector tail sampling; short linked roots; client `traceparent`/`x-<product>-*`, `Ref:` on errors. |
+| [Client analytics](../client-analytics.md) | Every client records the reserved usage events through one recorder; the server serves `POST /api/telemetry/events` and re-emits them to ClickHouse. |
 | [Security](../security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | [Web & client arch](../web-architecture.md) | TanStack Query + Zustand; generated client; shared Kit. |
 | [Rust conventions](../rust-conventions.md) | Edition 2024, clippy pedantic, git deps. |
@@ -81,6 +82,9 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
       always-on) and tracing per [`../tracing.md`](../tracing.md): request span continues
       `traceparent`, echoes `x-<product>-trace-id` + `traceId`; every client sends the header
       contract and shows `Ref:` on errors.
+- [ ] Client analytics per [`../client-analytics.md`](../client-analytics.md): every client
+      emits the reserved events through one recorder, the server serves
+      `POST /api/telemetry/events`, no third-party analytics SDK in any client.
 - [ ] Server ≥80% coverage; web has hermetic e2e; native UI not unit-tested.
 - [ ] Root `AGENTS.md` stub + `VERSIONING.md` copied from `standards/templates`.
 - [ ] Root `README.md` covers mechanism, layout, quickstart (with *why* each env var is
