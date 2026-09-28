@@ -142,6 +142,11 @@ The export filter defaults to `info` with noisy dependencies capped (liblog's
 - **`#[instrument(skip_all, fields(...))]` is the default.** Record chosen fields. Never
   `Debug` a whole struct (a request type with a token in it); give credential-carrying types
   a redacting `Debug` or none. Never `ret` on anything that can hold a URL or token.
+- **Record numbers as `i64` (or `f64`), never `u64`/`usize` or `%`/Display.**
+  tracing-opentelemetry exports unsigned integers (and anything formatted with `%`) as
+  strings, on span fields and span events alike, so TraceQL can't compare them
+  (`span.duration_ms > 1000` quietly matches nothing). Convert at the call site:
+  `duration_ms = i64::try_from(d.as_millis()).unwrap_or(i64::MAX)`. Ids stay strings.
 - **Cap attributes.** liblog sets `max_attributes_per_span(32)`; a span that hits it is
   carrying things that belong on child spans or events.
 - **Security-relevant changes emit an audit event** (`audit = true`, `action`, `enduser.id`,
@@ -242,7 +247,7 @@ The collector is fleet-shared: one service at 100 % can flatten it for everyone.
       for the peer.
 - [ ] Expected outcomes INFO/DEBUG; 5xx → ERROR + `error.type`, 4xx not; one log per failure.
 - [ ] Correlation ids on spans **and** events; one name per concept; `outcome` on units;
-      `skip_all` default.
+      `skip_all` default; numeric fields as `i64`/`f64`.
 - [ ] No bodies, query strings, tokens, signed URLs (incl. error `Display` →
       `without_url()`), argv or free text on spans/logs.
 - [ ] Clients send `traceparent` + `x-<product>-*` to the own origin only; server echoes
