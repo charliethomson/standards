@@ -21,6 +21,8 @@ so coding agents have one authoritative place to read the rules.
   repo. Linked into `.claude/skills/` by the setup script.
 - **`mcp/`** — shared custom MCP servers, referenced from a consuming repo's `.mcp.json`.
 - **`bin/standards`** — the integration CLI (`install` / `sync` / `contribute` / `lint`).
+- **`bin/janitor`** — finds and removes the stale worktrees and cargo target dirs agents leave
+  across `~/git` (`janitor scan`, then `janitor clean`).
 - **`prompts/`** — copy-paste prompts to hand an agent (e.g. [the install prompt](prompts/install.md)).
 
 See [`docs/skills-and-mcp.md`](docs/skills-and-mcp.md) for how the shared tooling is wired

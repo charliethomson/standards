@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# janitor — find (and clean up) the git worktrees and cargo target dirs agents leave behind.
+#
+#   janitor [scan]  [options]   report every linked worktree and what `clean` would do (read-only)
+#   janitor clean   [options]   do it, after one confirmation prompt
+#
+# Options:
+#   --root <dir>      where to look for repos (repeatable; default ~/git)
+#   --days <n>        a worktree untouched for fewer days is left alone (default 3)
+#   --targets         also delete cargo target dirs inside worktrees that are kept
+#                     (dirty, unmerged, recent); target dirs are always safe to rebuild
+#   --main-targets    also delete target dirs in main checkouts idle for --days or more
+#   --branches        after removing a merged worktree, delete its branch too (git branch -d)
+#   --yes             skip the confirmation prompt
+#
+# A worktree is only removed when losing it can't lose work: no uncommitted or untracked
+# changes, not locked, no process has its cwd inside it, idle for --days, and its HEAD is
+# either merged into the default branch or still held by a branch (removing a worktree never
+# deletes its branch). Detached worktrees with unmerged commits are reported and kept.
+set -euo pipefail
+
+c_grn=$'\033[32m'; c_yel=$'\033[33m'; c_red=$'\033[31m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'; c_off=$'\033[0m'
+[ -t 1 ] || { c_grn=; c_yel=; c_red=; c_dim=; c_bold=; c_off=; }
+
+die() { printf '%serror:%s %s\n' "$c_red" "$c_off" "$*" >&2; exit 1; }
+
+# GNU and BSD stat take different flags, and a Mac with coreutils has GNU stat on PATH.
+if stat -c %Y . >/dev/null 2>&1; then _mtime() { stat -c %Y "$1" 2>/dev/null || echo 0; }
+else                                 _mtime() { stat -f %m "$1" 2>/dev/null || echo 0; }
+fi
+
+human() { # KiB -> human
+  awk -v k="$1" 'BEGIN { split("K M G T", u); i = 1; while (k >= 1024 && i < 4) { k /= 1024; i++ }
+    printf (k < 10 && i > 1) ? "%.1f%s" : "%d%s", k, u[i] }'
+}
+kib() { du -sk "$1" 2>/dev/null | awk '{print $1+0}'; }
+
+# --- args ------------------------------------------------------------------
+
+cmd=scan
+case "${1:-}" in scan|clean) cmd=$1; shift;; -h|--help|help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0;; esac
+
+roots=(); days=3; do_targets=0; do_main_targets=0; do_branches=0; yes=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --root) roots+=("${2:?--root needs a dir}"); shift 2;;
+    --days) days="${2:?--days needs a number}"; shift 2;;
+    --targets) do_targets=1; shift;;
+    --main-targets) do_main_targets=1; shift;;
+    --branches) do_branches=1; shift;;
+    --yes|-y) yes=1; shift;;
+    *) die "unknown option: $1 (see janitor --help)";;
+  esac
+done
+[ ${#roots[@]} -gt 0 ] || roots=("$HOME/git")
+case "$days" in ''|*[!0-9]*) die "--days must be a whole number";; esac
+
+now=$(date +%s)
+min_age=$((days * 86400))
+
+# Every process's cwd, once. A worktree with a live shell, agent or dev server in it is in use.
+live_cwds=$(lsof -a -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | sort -u || true)
+in_use() {
+  local p=$1
+  printf '%s\n' "$live_cwds" | awk -v p="$p" 'index($0, p) == 1 && (length($0) == length(p) || substr($0, length(p) + 1, 1) == "/") { f = 1 } END { exit !f }'
+}
+
+# Cargo target dirs under a path (CACHEDIR.TAG marks a real one, not a dir that happens to be
+# called target). Prints one path per line.
+targets_in() {
+  find "$1" -maxdepth 5 -type d \( -name .git -o -name node_modules \) -prune -o \
+    -type d -name target -print -prune 2>/dev/null |
+    while IFS= read -r t; do [ -f "$t/CACHEDIR.TAG" ] && printf '%s\n' "$t"; done
+}
+
+# --- scan ------------------------------------------------------------------
+
+# Plan lines, tab-separated: action  repo  path  kib  extra
+#   action: prune | remove | targets | main-targets
+plan=$(mktemp); trap 'rm -f "$plan"' EXIT
+
+row() { # repo wt age size target verdict colour
+  printf '  %-34s %5s %7s %7s  %s%s%s\n' "$1" "$2" "$3" "$4" "$6" "$5" "$c_off"
+}
+
+repos=$(for r in "${roots[@]}"; do
+  [ -d "$r" ] || { printf '%swarning:%s no such root %s\n' "$c_yel" "$c_off" "$r" >&2; continue; }
+  find "$r" -maxdepth 3 -type d -name .git -prune 2>/dev/null
+done | sed 's|/\.git$||' | sort -u)
+
+total_remove=0; total_targets=0
+[ -n "$repos" ] || die "no git repos under ${roots[*]}"
+
+while IFS= read -r repo; do
+  name=${repo#"$HOME"/}
+  # The default branch, remote and local. Merged into either counts: solo repos often commit
+  # to local main well before pushing.
+  defaults=()
+  if d=$(git -C "$repo" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null); then defaults+=("$d"); fi
+  for b in main master; do git -C "$repo" show-ref -q --verify "refs/heads/$b" && { defaults+=("$b"); break; }; done
+
+  header_done=0
+  header() { [ $header_done = 1 ] && return; header_done=1
+    printf '\n%s%s%s\n' "$c_bold" "$name" "$c_off"
+    printf '  %s%-34s %5s %7s %7s  %s%s\n' "$c_dim" worktree age size target verdict "$c_off"; }
+
+  wt=; head=; branch=; locked=0; prunable=0; first=1
+  flush() {
+    [ -n "$wt" ] || return 0
+    if [ $first = 1 ]; then first=0; return 0; fi   # the main checkout
+    header
+    local short=${wt#"$repo"/}; [ "$short" = "$wt" ] && short=${wt#"$HOME"/}
+    [ ${#short} -gt 34 ] && short="…${short: -33}"
+    if [ $prunable = 1 ] || [ ! -d "$wt" ]; then
+      row "$short" - - - "prune (directory is gone)" "$c_grn"
+      printf 'prune\t%s\t%s\t0\t\n' "$repo" "$wt" >>"$plan"; return 0
+    fi
+    local gitdir age_s age size tsize t tlist dirty merged=0 verdict colour action=
+    gitdir=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null || echo "$wt/.git")
+    age_s=$(( now - $(printf '%s\n' "$(_mtime "$gitdir/index")" "$(_mtime "$gitdir/logs/HEAD")" "$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo 0)" | sort -n | tail -1) ))
+    age="$((age_s / 86400))d"; [ $age_s -lt 86400 ] && age="$((age_s / 3600))h"
+    size=$(kib "$wt")
+    tlist=$(targets_in "$wt"); tsize=0
+    if [ -n "$tlist" ]; then while IFS= read -r t; do tsize=$((tsize + $(kib "$t"))); done <<<"$tlist"; fi
+    dirty=$(git -C "$wt" status --porcelain --untracked-files=normal 2>/dev/null | wc -l | tr -d ' ')
+    for d in ${defaults[@]+"${defaults[@]}"}; do
+      git -C "$repo" merge-base --is-ancestor "$head" "$d" 2>/dev/null && { merged=1; break; }
+    done
+
+    if in_use "$wt"; then verdict="keep: a process is running in it"; colour=$c_yel
+    elif [ $locked = 1 ]; then verdict="keep: locked"; colour=$c_yel
+    elif [ "$dirty" -gt 0 ]; then verdict="keep: $dirty uncommitted change(s)"; colour=$c_red
+    elif [ $merged = 0 ] && [ -z "$branch" ]; then verdict="keep: detached with unmerged commits"; colour=$c_red
+    elif [ $age_s -lt $min_age ]; then verdict="keep: touched ${age} ago"; colour=$c_dim
+    else
+      action=remove; colour=$c_grn
+      if [ $merged = 1 ]; then verdict="remove (merged)"; else verdict="remove (commits kept on $branch)"; fi
+    fi
+
+    if [ "$action" = remove ]; then
+      printf 'remove\t%s\t%s\t%s\t%s\n' "$repo" "$wt" "$size" "$([ $merged = 1 ] && echo "$branch")" >>"$plan"
+      total_remove=$((total_remove + size))
+    elif [ $tsize -gt 0 ] && [ -z "${verdict##keep: a process*}" ]; then :   # never touch a live build
+    elif [ $tsize -gt 0 ]; then
+      verdict="$verdict, target clearable"
+      while IFS= read -r t; do printf 'targets\t%s\t%s\t%s\t\n' "$repo" "$t" "$(kib "$t")" >>"$plan"; done <<<"$tlist"
+      total_targets=$((total_targets + tsize))
+    fi
+    row "$short" "$age" "$(human "$size")" "$([ $tsize -gt 0 ] && human "$tsize" || echo -)" "$verdict" "$colour"
+  }
+
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) flush; wt=${line#worktree }; head=; branch=; locked=0; prunable=0;;
+      "HEAD "*) head=${line#HEAD };;
+      "branch "*) branch=${line#branch refs/heads/};;
+      locked*) locked=1;;
+      prunable*) prunable=1;;
+    esac
+  done < <(git -C "$repo" worktree list --porcelain 2>/dev/null)
+  flush
+
+  # Target dirs in the main checkout (not inside any linked worktree).
+  if [ $do_main_targets = 1 ]; then
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      git -C "$repo" worktree list --porcelain | sed -n 's/^worktree //p' | tail -n +2 |
+        while IFS= read -r w; do case "$t" in "$w"/*) exit 1;; esac; done || continue
+      newest=$(find "$t" -mindepth 1 -maxdepth 2 -type d | while IFS= read -r d; do _mtime "$d"; done | sort -n | tail -1)
+      [ $((now - ${newest:-0})) -ge $min_age ] || continue
+      header
+      s=$(kib "$t")
+      row "${t#"$repo"/}" "$(((now - ${newest:-0}) / 86400))d" "$(human "$s")" "$(human "$s")" "clear (main checkout target)" "$c_grn"
+      printf 'main-targets\t%s\t%s\t%s\t\n' "$repo" "$t" "$s" >>"$plan"
+      total_targets=$((total_targets + s))
+    done <<<"$(targets_in "$repo")"
+  fi
+done <<<"$repos"
+
+n_remove=$(grep -c '^remove' "$plan" || true)
+n_prune=$(grep -c '^prune' "$plan" || true)
+n_targets=$(grep -cE '^(targets|main-targets)' "$plan" || true)
+
+printf '\n%s%s worktree(s) to remove%s (%s), %s gone to prune' "$c_bold" "$n_remove" "$c_off" "$(human $total_remove)" "$n_prune"
+if [ "$n_targets" -gt 0 ]; then
+  if [ $do_targets = 1 ] || [ $do_main_targets = 1 ]; then printf ', %s target dir(s) to clear (%s)' "$n_targets" "$(human $total_targets)"
+  else printf ', plus %s in target dirs of kept worktrees (--targets)' "$(human $total_targets)"; fi
+fi
+printf '\n'
+
+[ "$cmd" = clean ] || { printf '%srun `janitor clean` (same options) to do it%s\n' "$c_dim" "$c_off"; exit 0; }
+
+# --- clean -----------------------------------------------------------------
+
+if [ $do_targets = 0 ]; then awk -F'\t' '$1 != "targets"' "$plan" >"$plan.tmp"; mv "$plan.tmp" "$plan"; fi
+[ -s "$plan" ] || { printf 'nothing to do\n'; exit 0; }
+
+if [ $yes = 0 ]; then
+  [ -t 0 ] || die "not a terminal; pass --yes to clean without a prompt"
+  printf 'go ahead? [y/N] '; read -r ans; case "$ans" in y|Y|yes) ;; *) printf 'nothing changed\n'; exit 0;; esac
+fi
+
+freed=0
+while IFS=$'\t' read -r action repo path size branch; do
+  case "$action" in
+    prune) : ;;  # handled once per repo below
+    remove)
+      if git -C "$repo" worktree remove "$path" 2>/dev/null; then
+        freed=$((freed + size)); printf '%sremoved%s %s\n' "$c_grn" "$c_off" "$path"
+        if [ $do_branches = 1 ] && [ -n "$branch" ]; then
+          git -C "$repo" branch -d "$branch" >/dev/null 2>&1 && printf '        deleted branch %s\n' "$branch"
+        fi
+      else
+        printf '%sskipped%s %s (git refused, left as is)\n' "$c_yel" "$c_off" "$path"
+      fi;;
+    targets|main-targets)
+      rm -rf "$path" && freed=$((freed + size)) && printf '%scleared%s %s\n' "$c_grn" "$c_off" "$path";;
+  esac
+done <"$plan"
+cut -f2 "$plan" | sort -u | while IFS= read -r repo; do git -C "$repo" worktree prune; done
+
+printf '\nfreed about %s\n' "$(human $freed)"

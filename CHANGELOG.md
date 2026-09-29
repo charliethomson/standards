@@ -49,6 +49,12 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   provisioning and the `traces_span_metrics_*` series. Indexed in `AGENTS.md`, the overview,
   the full-stack-product and library archetypes and the review skill.
 
+- **`bin/janitor` + `thmsn-janitor` skill** — sweeps `~/git` for the worktrees and cargo target
+  dirs agents leave behind. `janitor scan` is read-only and gives every linked worktree a
+  verdict; `janitor clean` removes only worktrees that are clean, unlocked, idle for `--days`,
+  have no live process in them, and whose HEAD is merged or held by a branch. `--targets`
+  clears target dirs in the worktrees it keeps, `--main-targets` idle ones in main checkouts,
+  `--branches` deletes merged branches of removed worktrees.
 - **No change-detector tests** — `docs/testing.md` gains a section banning tests whose
   assertions restate the implementation (mock every collaborator, verify the calls in order):
   they fail on every refactor and pass on every bug, so they are rewritten against behaviour or

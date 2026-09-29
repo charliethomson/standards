@@ -27,6 +27,7 @@ Consuming repos link these into their own `.claude/skills/` via
 | **`thmsn-deep-review`** | Deep whole-repo audit (reads the source, one module at a time) → single dated markdown report `reviews/review-YYYY-MM-DD.md` → optional prioritized vision tasks. Not diff-scoped. |
 | **`thmsn-jarvis`** | Turn a rough idea into a scoped program — refine it with you, research, settle the decisions, file discrete vision tasks + a program brief. Hands off to `thmsn-ultron`. (`/thmsn-jarvis we're going to work on a feature to…`) |
 | **`thmsn-ultron`** | Run a multi-task program as an orchestrating manager — read the vision backlog, sequence it, dispatch implementer sub-agents, verify, keep the tracker current. Pausable/resumable across sessions. (`/thmsn-ultron work through the open tasks for this repo`) |
+| **`thmsn-janitor`** | Find the worktrees and cargo target dirs agents left behind across `~/git`, say what's safe to delete, and clean up on your yes. Wraps [`../bin/janitor`](../bin/janitor). |
 
 ## Jarvis → Ultron
 
@@ -50,6 +51,22 @@ ultron gc <program>       # drop state for a finished program (prompts)
 ```
 
 Symlink it once: `ln -sfn "$PWD/standards/bin/ultron" ~/.local/bin/ultron`.
+
+## Janitor
+
+Subagent worktrees are rarely removed, and each Rust one grows its own `target/`.
+[`../bin/janitor`](../bin/janitor) sweeps every repo under `~/git`:
+
+```sh
+janitor scan                       # read-only: every linked worktree, its size, and a verdict
+janitor clean                      # remove what the scan marked `remove` (prompts once)
+janitor clean --targets            # also clear target dirs inside worktrees it keeps
+janitor clean --branches           # also delete merged branches of removed worktrees
+```
+
+It only removes a worktree that is clean, unlocked, idle for `--days` (default 3), has no
+process running in it, and whose HEAD is merged or still held by a branch. Symlink it once:
+`ln -sfn "$PWD/standards/bin/janitor" ~/.local/bin/janitor`.
 
 After adding or updating a skill here, consuming repos pick it up on their next
 `standards/bin/standards sync` (which re-runs the linker).
