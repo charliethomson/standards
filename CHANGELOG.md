@@ -20,6 +20,13 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **`dev.thmsn.telemetry=otlp` compose label** — a service that exports logs over OTLP sets it
+  on its prod compose service; the host docker log shipper drops labelled containers, so logs
+  land in Loki once (pre-exporter stdout such as startup panics stays in `docker logs`).
+  Documented in `docs/observability.md` (pipeline + checklist) and `docs/tracing.md` (pipeline
+  hygiene); added to `templates/deploy/compose/prod.compose.yml` and the full-stack-product
+  checklist.
+
 - **Client analytics** — new `docs/client-analytics.md`: clients batch usage events to their
   own server's `POST /api/telemetry/events` (authenticated, in the contract); the server
   validates them, stamps the existing `x-<product>-*` identity and emits one `client_event`

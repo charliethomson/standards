@@ -82,6 +82,8 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
       always-on) and tracing per [`../tracing.md`](../tracing.md): request span continues
       `traceparent`, echoes `x-<product>-trace-id` + `traceId`; every client sends the header
       contract and shows `Ref:` on errors.
+- [ ] The OTLP-exporting prod compose service carries `dev.thmsn.telemetry=otlp` (logs stored
+      once; see [`../observability.md`](../observability.md#the-pipeline)).
 - [ ] Client analytics per [`../client-analytics.md`](../client-analytics.md): every client
       emits the reserved events through one recorder, the server serves
       `POST <api base>/telemetry/events`, no third-party analytics SDK in any client.

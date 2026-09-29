@@ -65,6 +65,10 @@ Prometheus ──scrape /api/metrics──────────────�
   `parentbased_traceidratio`, and `always_off` is a parent-based ratio of 0, so a request
   arriving with a sampled parent is still sampled.
 - Telemetry env vars are bare/shared ([configuration.md](configuration.md)).
+- **Logs are stored once.** A service that exports logs over OTLP carries the
+  `dev.thmsn.telemetry=otlp` label on its prod compose service; the host's docker log shipper
+  drops labelled containers, so those logs reach Loki only via OTLP. Anything printed before
+  the exporter starts (startup panics, config errors) stays in `docker logs` only.
 
 Client usage events ride the same OTLP log path from the product server, and the collector
 routes them to ClickHouse instead of Loki: [client-analytics.md](client-analytics.md).
@@ -143,6 +147,7 @@ rendering. Add a scrape target in the homelab `monitoring/prometheus` config.
 - [ ] Tracing follows [tracing.md](tracing.md) (its own checklist).
 - [ ] Logs are structured fields; requests wrapped in spans; errors `Valuable`.
 - [ ] `tracing_unstable` rustflag set in `.cargo/config.toml`.
+- [ ] Every OTLP-exporting compose service has the `dev.thmsn.telemetry=otlp` label.
 - [ ] No bodies or query strings ever logged.
 - [ ] `/api/metrics` served as `application/openmetrics-text; version=1.0.0` (`<product>_*`),
       scraped by the homelab.

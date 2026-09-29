@@ -232,7 +232,8 @@ The collector is fleet-shared: one service at 100 % can flatten it for everyone.
 - **Loki retention only runs with the compactor's `retention_enabled`.** Without it,
   `retention_period` is decoration.
 - **Don't store logs twice.** A container that ships logs over OTLP is excluded from the
-  stdout log shipper.
+  stdout log shipper: it carries the `dev.thmsn.telemetry=otlp` compose label, and the
+  shipper drops labelled containers ([observability.md](observability.md#the-pipeline)).
 - **Grafana links the three signals:** trace → logs (by trace id), trace → metrics (span
   name RED), and log → traces (by trace id and by the correlation id). Provisioning is in
   [grafana-dashboards.md](grafana-dashboards.md#trace--log--metric-links).

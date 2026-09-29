@@ -16,6 +16,8 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       - "com.centurylinklabs.watchtower.scope={{PRODUCT}}"
+      # Exports logs over OTLP: the host log shipper skips it so Loki stores them once.
+      - "dev.thmsn.telemetry=otlp"
     environment:
       {{PRODUCT_UPPER}}_DATA_DIR: /data
       {{PRODUCT_UPPER}}_BIND: 0.0.0.0:8080
