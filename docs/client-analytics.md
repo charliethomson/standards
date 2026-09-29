@@ -46,7 +46,8 @@ An event is one thing that happened in a client, named `<domain>.<verb_or_noun>`
 
 Identity is **not** in the event. The server takes it from the request (the `x-<product>-*`
 headers and the authenticated user), so a client can't mislabel an event and the batch
-doesn't repeat it 100 times.
+doesn't repeat it 100 times. The install and session ids are UUIDv4, as the contract in
+[tracing.md](tracing.md#client--server-contract) says.
 
 ### Reserved names
 
@@ -93,21 +94,41 @@ Every client has one **event recorder** in its shared layer (web `src/telemetry/
 `<Product>Kit`, the WinUI shared core, the gpui/CLI crate). Views call
 `record(name, props)`; nothing else knows about batching or transport.
 
+**Use the shared recorders in `libanalytics`** ([lib-ecosystem.md](lib-ecosystem.md)), don't
+write one per product. They implement everything in this section; the product supplies a
+**transport** (a call through its own generated client, so the recorder never imports it)
+and its **auth state** (signed in or not, and a way to refresh).
+
+| Client | Recorder | Consumed as |
+|---|---|---|
+| Rust (gpui, CLI) | the `libanalytics` crate, `recorder` feature | git dep by tag/rev ([rust-conventions.md](rust-conventions.md)) |
+| Apple | the root `Package.swift` of `libanalytics` | SwiftPM by SSH git URL + semver tag. It's a private repo: `xcodebuild` in CI needs `-scmProvider system` so it resolves with the runner's ssh-agent |
+| Web | `@thmsn/analytics` | the internal Verdaccio (`npm.dev.thmsn.dev`), like `@thmsn/ui` |
+| WinUI | per product, in the shared core | no shared package yet |
+
 - **Buffer and batch.** Flush when 20 events are queued, every 30 s while foregrounded,
   and on background / `pagehide` / window close / process exit.
 - **Persist on native.** The queue lives in a JSON-lines file under the app's support
   directory (Apple: Application Support; WinUI: `ApplicationData.Current.LocalFolder` when
   packaged, else `%LOCALAPPDATA%\<Product>`; Rust: `libpath`'s data root), capped at
   **1 000 events, oldest dropped**. Web keeps it in memory; a lost tab is lost events.
+- **A native queue line carries the identity it was recorded under** (session id, client
+  version, install id) next to the event. A flush groups the queue by identity and sends
+  each group as its own request with that group's `x-<product>-*` headers, so events from a
+  previous launch or app version are never stamped with the current one. **Clear the queue
+  on logout**, so one account's events never go out under the next account's auth.
 - **Send only when signed in.** The endpoint is authenticated. Events recorded before
   sign-in stay queued and go with the first authenticated flush; a queue that never gets
   there ages out.
 - **Retry on network errors and 5xx** with backoff (30 s doubling to 10 min). **Drop the
-  batch on any 4xx**: a malformed batch will be malformed next time too. Drop events older
-  than 7 days before sending.
+  batch on any 4xx except 401**: a malformed or forbidden batch will fail the same way next
+  time. **On 401, refresh auth and keep the queue**: the batch was fine, the token wasn't.
+  Web stops sending while auth is failing and resumes once a request succeeds again. Drop
+  events older than 7 days before sending.
 - **Web flushes on `pagehide` with `fetch(..., { keepalive: true })`.** `sendBeacon` can't
-  set the identity or auth headers. Keep a keepalive batch under 60 KiB (the browser cap is
-  64 KiB for all in-flight keepalive requests).
+  set the identity or auth headers. **Keep every web batch under 60 KiB**, not only the
+  keepalive ones: the browser caps all in-flight keepalive requests at 64 KiB, and the
+  server rejects a body over 64 KiB anyway.
 - **iOS flushes inside `beginBackgroundTask`** when the scene goes to the background, so
   the request isn't frozen mid-flight.
 - **The CLI flushes synchronously at exit** with a 1 s timeout and doesn't persist: a
@@ -119,10 +140,11 @@ Every client has one **event recorder** in its shared layer (web `src/telemetry/
   A thing that happens more than about once a second is a count on a later event, not an
   event.
 
-## Server: `POST /api/telemetry/events`
+## Server: `POST <api base>/telemetry/events`
 
-Every full-stack product serves it, in its OpenAPI contract (so the generated clients have
-it) and behind the product's normal auth.
+Every full-stack product serves it **under its own API base** (with the standard mount map,
+`/api/v1/telemetry/events`; [service-architecture.md](service-architecture.md)), in its
+OpenAPI contract (so the generated clients have it) and behind the product's normal auth.
 
 ```jsonc
 // request
@@ -135,7 +157,8 @@ it) and behind the product's normal auth.
 ```
 
 - **Whole-batch limits → 400:** body > 64 KiB, > 100 events, or not JSON of this shape.
-  Clients drop a 400.
+  The 400 body is a **fixed string**, never the framework's parse error (which can quote
+  the request back). Clients drop a 400.
 - **Per-event validation → dropped, never an error.** A bad name, a prop that breaks the
   rules above, a `ts` more than 7 days old or more than 5 minutes in the future: that
   event is dropped and counted, the rest are accepted. The response is 202 either way, so
@@ -160,7 +183,10 @@ it) and behind the product's normal auth.
 - **The route is a hot endpoint** ([tracing.md](tracing.md#span-shape)): its request span
   is DEBUG and doesn't export. A dropped event is counted, not logged:
   `<product>_client_events_dropped_total{reason}` with `reason` one of `name`, `props`,
-  `ts`, `batch`. Accepted volume is read from ClickHouse, not duplicated into Prometheus.
+  `ts`, `batch`, `disabled`, every one pre-initialised to 0. Any 4xx other than 401/403
+  that the body-cap / parse layer returns counts once as `reason="batch"` (the whole batch
+  is lost; its events were never parsed). Accepted volume is read from ClickHouse, not
+  duplicated into Prometheus.
 - **Kill switch:** `<PRODUCT>_CLIENT_EVENTS=false` makes the handler answer 202 with
   everything counted as dropped (`reason="disabled"`), so clients drain their queues instead
   of retrying.
@@ -187,8 +213,14 @@ tracing::info!(
 );
 ```
 
-The handler is the same in every product. Copy it until the second product adopts it, then
-move it into a shared `lib*` crate ([lib-ecosystem.md](lib-ecosystem.md)).
+**The handler lives in `libanalytics`** (private,
+`ssh://git@github.com/charliethomson/libanalytics.git`; [lib-ecosystem.md](lib-ecosystem.md)):
+the wire types, the limits and per-event validation, the emit above, the 64 KiB body-cap
+transform and the fixed 400 body. A product only **mounts the route** in its own API,
+**supplies the identity** (its validated `x-<product>-*` headers) **and the authenticated
+user**, and **records the drop metric** from the per-reason counts the handler returns (the
+body-cap transform takes a callback for its `batch` rejections). Don't copy the handler into
+a product.
 
 ## Pipeline & storage
 
@@ -238,16 +270,20 @@ to Tempo), web vitals p75 by metric, hangs by screen. Product dashboards
 
 - [ ] No third-party analytics or crash SDK in any client; events leave only for the
       product's own server.
-- [ ] One event recorder per client in its shared layer; views call `record(name, props)`.
+- [ ] One event recorder per client in its shared layer, from `libanalytics` (Rust / Swift /
+      `@thmsn/analytics`) where one exists; views call `record(name, props)`.
 - [ ] Every client emits the reserved events (`app.*`, `screen.view`, `error.client`, the
       `perf.*` that apply; `cli.command` for a CLI).
 - [ ] Event names `<domain>.<name>`, stable; props flat enums/counts/durations/bools, no
       free text, URLs, titles or messages; `screen` is a route template.
 - [ ] Clients batch (20 events / 30 s / on background), persist on native (≤ 1 000,
-      oldest dropped), retry 5xx and network errors with backoff, drop on 4xx, send only
-      when signed in; web flushes with `fetch` `keepalive`.
-- [ ] Server serves `POST /api/telemetry/events` in the contract, behind auth: batch
-      limits → 400, bad events dropped and counted, 202 otherwise; DEBUG request span.
+      oldest dropped, each line with its identity, flushed per identity, cleared on
+      logout), retry 5xx and network errors with backoff, drop on any 4xx except 401,
+      refresh and keep the queue on 401, send only when signed in; web batches ≤ 60 KiB
+      and flushes with `fetch` `keepalive`.
+- [ ] Server serves `POST <api base>/telemetry/events` via `libanalytics`, in the contract,
+      behind auth: batch limits → 400 with a fixed body, bad events dropped and counted,
+      202 otherwise; DEBUG request span.
 - [ ] One `client_event` INFO log per event with `event.source = "client"` and exactly the
       attribute set above; no `client.address`; `<PRODUCT>_CLIENT_EVENTS` kill switch.
 - [ ] Collector routes client events to ClickHouse only; `client_events` view; 400 d TTL;

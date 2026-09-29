@@ -23,6 +23,7 @@ signals, subprocesses), check whether a `lib*` already covers it. They're consum
 | **libwhich** | Binary discovery in `PATH` | `which(names)`, `is_valid_executable()` |
 | **libring** | Fixed-size ring buffer for bounded history | `RingBuffer::new(cap)`, `.push()`, `.to_vec()` (opt. serde) |
 | **libfs** | Tokio async filesystem with optional tracing | `PathResult<T>` over `AnyError` |
+| **libanalytics** | **Private** (`ssh://git@github.com/charliethomson/libanalytics.git`). [Client analytics](client-analytics.md): the server's `telemetry/events` handler, plus the client event recorders as a Rust crate (`recorder` feature), a root Swift package (SSH git URL + semver tags) and a TS package `@thmsn/analytics` (internal Verdaccio) | handler returns per-reason drop counts; recorders take a product-supplied transport + auth state |
 
 `libpath` + `libproduct` always travel together (paths are keyed by the product name).
 `libbuildinfo` backs `libproduct`'s descriptor and `liblog`'s `service.build_info`.

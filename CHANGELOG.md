@@ -167,6 +167,22 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Changed
 
+- **Client analytics, settled by the first adoption** — `docs/client-analytics.md`: the ingest
+  route is `POST <api base>/telemetry/events`, under the product's API base (`/api/v1/...`),
+  still in the contract and behind normal auth. The handler lives in the private
+  `libanalytics` (products mount the route, supply identity + the auth user, and record the
+  drop metric from the per-reason counts it returns) instead of "copy it until the second
+  product"; the 400 body is a fixed string, and any non-401/403 4xx from the body-cap/parse
+  layer counts as `reason="batch"`. Clients drop a batch on any 4xx **except 401**, which
+  refreshes auth and keeps the queue (web pauses sending while auth fails); native queue lines
+  carry the identity they were recorded under and flush in per-identity groups, and the native
+  queue is cleared on logout; the 60 KiB cap applies to every web batch. The one-recorder rule
+  points at `libanalytics`' Rust (`recorder` feature), Swift (SSH git URL + semver tags;
+  `-scmProvider system` in CI) and TS (`@thmsn/analytics` on Verdaccio) recorders, with the
+  product supplying the transport and auth state; WinUI stays per product. Install/session
+  ids are UUIDv4, matching tracing. `lib-ecosystem.md` lists `libanalytics`; the route path is
+  updated in tracing, the glossary and the full-stack-product archetype.
+
 - **Public ids may live on models and rows** — `docs/public-ids.md` said `core`/`db`/`engine`
   never learn an entity has a public id, while the same doc has `db` mint it at insert and own
   the resolver. Now: models and row structs may carry `public_id`, exposed event/audit rows may

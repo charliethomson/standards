@@ -170,7 +170,7 @@ IDs, counts, durations, route templates and status codes are fine.
 ## Client ↔ server contract
 
 Clients don't export spans. (Usage events are separate: they go to the product server's
-`POST /api/telemetry/events` and are stamped with the same identity, see
+`POST <api base>/telemetry/events` and are stamped with the same identity, see
 [client-analytics.md](client-analytics.md).) On every request whose headers they control,
 they send:
 
