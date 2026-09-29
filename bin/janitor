@@ -122,7 +122,9 @@ while IFS= read -r repo; do
     size=$(kib "$wt")
     tlist=$(targets_in "$wt"); tsize=0
     if [ -n "$tlist" ]; then while IFS= read -r t; do tsize=$((tsize + $(kib "$t"))); done <<<"$tlist"; fi
-    dirty=$(git -C "$wt" status --porcelain --untracked-files=normal 2>/dev/null | wc -l | tr -d ' ')
+    # --no-optional-locks: a plain status rewrites the index, which would reset the age we just read.
+    # Status also reports modified or untracked content inside submodules.
+    dirty=$(git -C "$wt" --no-optional-locks status --porcelain --untracked-files=normal 2>/dev/null | wc -l | tr -d ' ')
     for d in ${defaults[@]+"${defaults[@]}"}; do
       git -C "$repo" merge-base --is-ancestor "$head" "$d" 2>/dev/null && { merged=1; break; }
     done
@@ -205,7 +207,16 @@ while IFS=$'\t' read -r action repo path size branch; do
   case "$action" in
     prune) : ;;  # handled once per repo below
     remove)
-      if git -C "$repo" worktree remove "$path" 2>/dev/null; then
+      # git refuses any worktree containing submodules without --force. The scan already checked
+      # it's clean (submodules included), so re-check right before forcing.
+      force=()
+      if [ -f "$path/.gitmodules" ]; then
+        if [ -n "$(git -C "$path" --no-optional-locks status --porcelain --untracked-files=normal 2>/dev/null)" ]; then
+          printf '%sskipped%s %s (changed since the scan)\n' "$c_yel" "$c_off" "$path"; continue
+        fi
+        force=(--force)
+      fi
+      if git -C "$repo" worktree remove ${force[@]+"${force[@]}"} "$path" 2>/dev/null; then
         freed=$((freed + size)); printf '%sremoved%s %s\n' "$c_grn" "$c_off" "$path"
         if [ $do_branches = 1 ] && [ -n "$branch" ]; then
           git -C "$repo" branch -d "$branch" >/dev/null 2>&1 && printf '        deleted branch %s\n' "$branch"
