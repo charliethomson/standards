@@ -41,6 +41,7 @@ spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](doc
 - **CI** — self-hosted runners (managed by agentutil) for Linux/macOS builds.
 - **Testing** — aim for >80% coverage on services; do not unit-test UIs. A test that only
   mirrors the implementation (mock everything, verify the calls) is deleted, not maintained.
+  **Tests never make sound**: every audio sink no-ops under test, Playwright runs `--mute-audio`.
 - **Branding** — a self-contained, code-as-source-of-truth generator in the repo.
 - **Platform UX** — native per OS, designed for the target OS, not ported across.
 - **Shortcuts** — repeated operational questions get one-command answers in the repo's

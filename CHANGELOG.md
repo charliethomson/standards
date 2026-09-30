@@ -20,6 +20,13 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Added
 
+- **Tests are silent** — new section in `docs/testing.md`: no test run plays sound through the
+  speakers. Every audio sink goes through one gate that no-ops under test (Apple
+  `TestEnvironment.isSilent`, covering XCTest, swift-testing, `swift test`, `xcodebuild test`
+  and `THMSN_SILENT=1` for UI tests), Playwright launches with `--mute-audio`, Windows gates in
+  `<Product>Core`. Added to the testing checklist, `AGENTS.md` and the review skill (a new
+  ungated sink is always ❌).
+
 - **`dev.thmsn.telemetry=otlp` compose label** — a service that exports logs over OTLP sets it
   on its prod compose service; the host docker log shipper drops labelled containers, so logs
   land in Loki once (pre-exporter stdout such as startup panics stays in `docker logs`).

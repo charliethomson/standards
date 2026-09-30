@@ -46,6 +46,64 @@ coverage. No hard coverage gate — the 80% floor is for services. An optional
 `scripts/cov.sh` (tarpaulin, HTML/Lcov) is fine for spot-checks. See
 [archetypes/library.md](archetypes/library.md).
 
+## Tests are silent
+
+**No test run ever plays sound through the machine's speakers.** Agents run suites
+constantly, in the background, on the developer's own Mac, and an app that plays UI cues
+(send/complete/error tones, notification chimes, media) will beep at them every few seconds
+all day from a process with no window to trace it to. macOS has no per-process mute, so the
+only fix is in the code. This is a hard rule, not a nicety.
+
+Anything that can produce audio (`AVAudioPlayer`, `AVAudioEngine`, `AVPlayer`, `NSSound`,
+`AudioServicesPlaySystemSound`, `AVSpeechSynthesizer`, `MediaPlayer` on Windows, `Audio` /
+`AudioContext` / `<audio>` on web) goes through **one** gate in the client that no-ops under
+test. Don't mute per test; gate the sink so a new test can't forget.
+
+### Apple
+
+Put the check in `<Product>Kit` and call it at the top of every playback entry point:
+
+```swift
+public enum TestEnvironment {
+    /// True in any test process: XCTest or swift-testing, `swift test` or `xcodebuild test`,
+    /// macOS or simulator host app, and in UI-test targets that set `THMSN_SILENT=1`.
+    public static let isSilent: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        return env["THMSN_SILENT"] == "1"
+            || env["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+            || Bundle.allBundles.contains { $0.bundlePath.hasSuffix(".xctest") }
+            || ["xctest", "swiftpm-testing-helper"].contains(ProcessInfo.processInfo.processName)
+    }()
+}
+
+public func play(_ cue: Cue) {
+    guard !TestEnvironment.isSilent else { return }
+    // ...
+}
+```
+
+The process-name check is what catches swift-testing under `swift test`: it runs in
+`swiftpm-testing-helper`, where the `.xctest` bundle check comes back false. Keep every
+clause, each covers a runner the others miss. A **UI test** drives a separately launched app that loads
+no test framework, so it must opt in: `app.launchEnvironment["THMSN_SILENT"] = "1"` in every
+`XCUIApplication` setup.
+
+### Web
+
+- **Playwright** launches Chromium muted, in `playwright.config.ts`, for every project:
+  `use: { launchOptions: { args: ["--mute-audio"] } }`. A Firefox project also sets
+  `firefoxUserPrefs: { "media.volume_scale": "0.0" }`.
+- **Vitest** on `jsdom` has no working `HTMLMediaElement.play` or `AudioContext`, so it's
+  silent already. Don't polyfill real audio into it.
+- The app's cue module still exposes a way to disable itself (a setting, an env-driven
+  default) so a dev-server run under an agent can be silenced too.
+
+### Windows
+
+Same shape as Apple: one gate in `<Product>Core`, true when running under the test host
+(`AppDomain.CurrentDomain.GetAssemblies()` contains `xunit`) or `THMSN_SILENT=1`.
+
 ## No change-detector tests
 
 **A test that fails when the implementation changes, rather than when the behaviour changes,
@@ -178,6 +236,8 @@ The distinction is whether the thing pinned is a **contract** (drift is a bug) o
 - [ ] Web: Vitest unit + Playwright e2e against a mocked server; lint max-warnings 0.
 - [ ] Native: core unit tests (protocol/dedupe/reconnect/VMs); no view unit tests.
 - [ ] Every generated client has a drift check in CI.
+- [ ] Tests are silent: every audio sink is behind one test gate (`TestEnvironment.isSilent` on
+      Apple), UI tests set `THMSN_SILENT=1`, Playwright launches with `--mute-audio`.
 - [ ] Libraries test the logic surface inline; no coverage gate.
 - [ ] No test asserts only that collaborators were called; assertions are on outputs and state.
 - [ ] Mocks stub I/O edges only; pure orchestration is integration-tested or excluded as wiring.

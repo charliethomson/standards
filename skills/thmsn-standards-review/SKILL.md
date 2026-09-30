@@ -31,6 +31,7 @@ Only load the standards a change actually touches:
 | identifiers (`dev.thmsn.*`, `product_name!`, bundle ids) | identifiers |
 | `branding/**` | branding |
 | test files, `tarpaulin.toml` | testing |
+| audio playback code, `playwright.config.*`, `XCUIApplication` setup | testing (tests are silent) |
 
 Read each relevant `standards/docs/<standard>.md` **Checklist**.
 
@@ -48,7 +49,8 @@ Call out new identifiers that aren't `dev.thmsn.<product>.<component>`, workflow
 component-first naming, hand-rolled `std::env::var` instead of `libconfig`, logging of bodies/
 query strings, missing codegen-drift or coverage on a changed surface, new tests whose only
 assertions are that mocks were called (change detectors — see testing.md), and refactors that
-mechanically patch existing tests instead of rewriting or deleting them, etc.
+mechanically patch existing tests instead of rewriting or deleting them, any new audio playback
+that isn't behind the test-silence gate (❌, always — see testing.md "Tests are silent"), etc.
 
 If the diff is clean, say so plainly.
 
