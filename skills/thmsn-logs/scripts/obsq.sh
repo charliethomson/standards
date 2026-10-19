@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # obsq — query a product's logs, metrics and traces in the homelab Grafana
 # (Loki / Prometheus / Tempo) through the datasource proxy, with curl + jq.
-# See ../SKILL.md for the cookbook. Requires: curl, jq, GNU date (gdate on macOS).
+# See the thmsn-logs skill for the cookbook. Requires: curl, jq, GNU date (gdate on macOS).
 #
 # Usage:
 #   obsq.sh logs    '<logql>'  [since] [until] [limit]   # log lines: time [LEVEL] [scope] body
@@ -23,7 +23,7 @@
 # since/until/at are GNU-date exprs ('30 minutes ago', '2026-06-10T05:00:00Z') or
 # epoch seconds. Defaults: since='1 hour ago', until=now, limit=100, at=now.
 #
-# Per-repo specialisation lives in <repo>/.standards.d/thmsn-logs/ (see ../SKILL.md):
+# Per-repo specialisation lives in <repo>/.standards.d/thmsn-logs/ (see the thmsn-logs skill):
 #   config      KEY=VALUE, sourced: SERVICES, SELECTOR, GRAFANA_URL, token source, UIDs
 #   queries/    <name>.logql | <name>.promql recipes; a repo recipe shadows a fleet one
 #   commands/   executables that become extra subcommands, run with the resolved env
@@ -59,14 +59,15 @@ if [ -z "$SELECTOR" ]; then
 fi
 FIRST_SERVICE="${SERVICES%% *}"; FIRST_SERVICE="${FIRST_SERVICE:-${PRODUCT:+dev.thmsn.$PRODUCT.server}}"
 
-# The read-only service-account token: the env var, else the standards checkout's
-# gitignored mcp/.env (standards/mcp/README.md), the one this skill came from first,
-# then a sibling ~/git/standards. The first file that has the key wins.
+# The read-only service-account token: the env var, else the overlay's GRAFANA_ENV_FILE,
+# else the homelab checkout's gitignored mcp/.env (the file the Grafana MCP server reads).
+# The last path is legacy: the env file the old standards checkout carried, kept until
+# every machine has moved off it. The first file that has the key wins.
 TOKEN="${!GRAFANA_TOKEN_VAR:-}"
 TOKEN_FROM="\$$GRAFANA_TOKEN_VAR"
 if [ -z "$TOKEN" ]; then
-  for f in ${GRAFANA_ENV_FILE:+"$GRAFANA_ENV_FILE"} "$SKILL_DIR/../../mcp/.env" \
-           "$REPO_ROOT/standards/mcp/.env" "$HOME/git/standards/mcp/.env"; do
+  for f in ${GRAFANA_ENV_FILE:+"$GRAFANA_ENV_FILE"} "$HOME/git/homelab/mcp/.env" \
+           "$HOME/git/standards/mcp/.env"; do
     [ -f "$f" ] || continue
     TOKEN="$(grep -E "^$GRAFANA_TOKEN_VAR=" "$f" | cut -d= -f2- || true)"
     [ -n "$TOKEN" ] && { TOKEN_FROM="$f"; break; }
@@ -79,7 +80,7 @@ TEMPO="$GRAFANA_URL/api/datasources/proxy/uid/$TEMPO_UID/api"
 export OBSQ_REPO="$REPO_ROOT" OBSQ_SELECTOR="$SELECTOR" OBSQ_SERVICE="$FIRST_SERVICE" \
        OBSQ_LOKI="$LOKI" OBSQ_PROM="$PROM" OBSQ_TEMPO="$TEMPO" OBSQ_SCRIPT="${BASH_SOURCE[0]}"
 
-need_token() { [ -n "$TOKEN" ] || die "no Grafana token: set $GRAFANA_TOKEN_VAR, or put it in standards/mcp/.env (cp standards/mcp/.env.example standards/mcp/.env)"; }
+need_token() { [ -n "$TOKEN" ] || die "no Grafana token: set $GRAFANA_TOKEN_VAR, or put it in ~/git/homelab/mcp/.env (cp mcp/.env.example mcp/.env there), or point GRAFANA_ENV_FILE at a file that has it"; }
 need_selector() { [ -n "$SELECTOR" ] || die "no selector: set SERVICES in $OVERLAY/config (obsq.sh init) or PRODUCT in .standards.conf"; }
 
 # --- helpers ------------------------------------------------------------------------

@@ -1,30 +1,34 @@
 ---
 name: thmsn-standards
-description: Audit the current repo against the shared engineering standards (the standards/ submodule) and report — or fix — the findings. Use when asked to check/audit/enforce "the standards", verify a repo follows them, or fix standards violations. Example: "/thmsn-standards scan this repo and fix all findings".
+description: Audit the current repo against the shared engineering standards (served by the standards MCP server) and report, or fix, the findings. Use when asked to check/audit/enforce "the standards", verify a repo follows them, or fix standards violations. Example: "/thmsn-standards scan this repo and fix all findings".
 ---
 
 # thmsn-standards — audit & fix
 
-Audit this repo against the standards vendored at `standards/`, then report findings and
-(if asked) fix them. The standards docs are the source of truth — **drive the audit from each
-applicable doc's `## Checklist` section**, not from memory, so this stays correct as the
-standards evolve.
+Audit this repo against the fleet standards, then report findings and (if asked) fix them.
+The standards are served by the `standards` MCP server (https://standards.thmsn.dev); they are
+the source of truth. **Drive the audit from each applicable standard's checklist**, fetched
+from the server, not from memory, so this stays correct as the standards evolve.
 
 ## 1. Establish scope
 
-- Read `.standards.conf` at the repo root → `ARCHETYPE`, `PRODUCT`, `PRODUCT_UPPER`, `LIB`.
+- Read `.standards.conf` at the repo root → `ARCHETYPE`, `PRODUCT`, `PRODUCT_UPPER`, `LIB`
+  (the `Standards:` line in `AGENTS.md` carries the archetype and product too).
   If it's missing, the repo isn't wired up: tell the user to run
-  `standards/bin/standards install --product <slug> --archetype <type>` first, and offer to
-  infer the archetype (`full-stack-product` / `library` / `orchestration` / `cli-tool`).
-- Read `standards/docs/archetypes/<ARCHETYPE>.md` → its **"Standards that apply"** table.
+  `standards init --product <slug> --archetype <type>` first, and offer to
+  infer the archetype (`full-stack-product` / `library` / `orchestration` / `cli-tool` /
+  `vendored-app`).
+- `get_doc("archetypes/<ARCHETYPE>")` → its **"Standards that apply"** table.
   That table is the authoritative list of which standards to audit and how hard each applies
-  (some are marked N/A for this archetype — skip those).
+  (some are marked N/A for this archetype; skip those).
 
 ## 2. Load the rules
 
-For each applicable standard, read `standards/docs/<standard>.md` — focus on its `## Checklist`
-(the concrete, verifiable items) and skim the body for the intended implementation. Also apply
-the archetype doc's own checklist.
+For each applicable standard, call `get_checklist("<standard>", "<ARCHETYPE>")`: it returns
+the standard's checklist items, the archetype's own items, and how the standard applies here
+(an N/A result carries the reason). Use `get_doc("<standard>")` when you need the body for the
+intended implementation, or `get_doc("<standard>", section)` for one section. Unsure which
+standard covers something? `search("<topic>")`.
 
 ## 3. Audit
 
@@ -69,8 +73,9 @@ End with a summary count and a prioritized fix list (mechanical fixes first, jud
 If the user wants findings fixed, apply them in two tiers:
 
 - **Auto-fix (mechanical, low-risk)** — do these directly:
-  copy a missing template from `standards/templates/` into place and fill placeholders
-  (`{{PRODUCT}}`→`$PRODUCT`, `{{PRODUCT_UPPER}}`→`$PRODUCT_UPPER`); add a missing
+  write a missing template into place with `get_template("<path>", vars)` (path relative to
+  the templates root, e.g. `rust/build.rs`; pass `{"PRODUCT": …, "PRODUCT_UPPER": …}` and the
+  server fills the placeholders and reports any it couldn't); add a missing
   `VERSIONING.md`/`tarpaulin.toml`/`config.rs`/workflow; rename workflows to the component-first
   scheme; fix an identifier string; add a `.cargo/config.toml` flag. Re-verify after each.
 - **Confirm first (judgment / large / destructive)** — propose a concrete diff and wait:
@@ -78,7 +83,7 @@ If the user wants findings fixed, apply them in two tiers:
   deletes or moves significant code, or anything where the standard offers a choice.
 
 Never hand-edit a `*.generated.*` file or the generated root `AGENTS.md` (beyond its
-"repo-specific overrides" section). Pull templates from `standards/templates/`; don't reinvent.
+"repo-specific overrides" section). Pull templates with `get_template`; don't reinvent.
 
 After fixing, re-run the audit on the touched areas, summarize what changed vs. what still needs
 the user, and leave the changes staged (don't commit unless asked).

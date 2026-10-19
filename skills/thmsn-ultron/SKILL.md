@@ -28,7 +28,7 @@ Before dispatching anything, know three things. Ask only what you can't determin
 |---|---|
 | **The backlog** | vision is the source of truth. A program is a label across projects (`vision issues list --label <l> --all`) or a parent within one (`--project <SLUG> --parent <REF>`); repeat `--state` (`backlog`, `todo`, `in_progress`, `in_review`) to skip what's closed. Then `vision issues get <REF>` per task — it returns `relations` and `children`, which is how you find the blocking chains. `vision issues comments <REF>` reads a task's history back, so a task someone already worked tells you where it got to; `vision issues events <REF>` is the full timeline when the comments don't explain a state change. |
 | **The scope** | Which repos. Read each one's `.standards.conf` (`PRODUCT`) and `AGENTS.md`/`CLAUDE.md`. Sub-agents can reach any sibling under `~/git` regardless of where you're rooted. |
-| **The context** | The docs a competent implementer would need — design notes, runbooks, the relevant `standards/docs/*.md`. Read them yourself now; you'll be quoting them into briefs. |
+| **The context** | The docs a competent implementer would need — design notes, runbooks, the relevant standards (`get_checklist` / `get_doc` on the `standards` MCP server). Read them yourself now; you'll be quoting them into briefs. |
 
 If the user names no tracker and the work is more than a handful of steps, **file the tasks
 first** — a program without a backlog has nowhere to record evidence.
@@ -58,7 +58,7 @@ without being told where it is. Take the first that applies, lowercased and hyph
 
 Record it on the first line of `PROGRAM.md` so there's never ambiguity about which is which.
 Programs started while the tracker was Linear sit under the old `<team-key>-<label>` slug
-(`thm-auth-remediation`) — `ultron ls` before concluding a program has no state.
+(`thm-auth-remediation`) — `standards ultron ls` before concluding a program has no state.
 
 ```
 SYSTEM CONTEXT   — how the pieces actually fit; the invariants an implementer would otherwise guess at
@@ -76,7 +76,7 @@ Keep each task's state current as you go (`queued` / `dispatched` / `landed` / `
 ledger is what lets a fresh Ultron resume this program cold — see §8.
 
 Structure the brief however the program needs — a plan section and a separate dispatch log is a
-good shape, and prose around it is welcome. Two constraints only, so `ultron status` can read it:
+good shape, and prose around it is welcome. Two constraints only, so `standards ultron status` can read it:
 
 - **State lives in a per-task row** — a markdown table row whose first cell is the task id, or a
   list item starting with it. The *last* such row wins, so a dispatch-log row supersedes the
@@ -161,7 +161,7 @@ Give the worker this, verbatim:
 - Use `isolation: "worktree"` when parallel agents touch the same repo — otherwise they fight over
   the working tree. Journals live outside the repo precisely so they survive the worktree being
   cleaned up.
-- Per [workflow](standards/docs/workflow.md) the fleet default is **commit straight to `main`**.
+- Per [workflow](https://standards.thmsn.dev/d/workflow) the fleet default is **commit straight to `main`**.
   Branch only for genuinely risky work, and decide that once, for the program, in the brief — not
   per agent.
 - Don't dispatch a task you haven't read. Re-stating a workitem title is not a brief.
@@ -213,7 +213,7 @@ Outside the repos on purpose: no dirty working tree, nothing in the diff, and it
 worktree being deleted. XDG state, not config or cache — it persists across restarts but is
 reconstructible, and nothing precious lives here. The precious half is in vision.
 
-`ultron status <program>` prints this without spending a token; reach for it before asking an
+`standards ultron status <program>` prints this without spending a token; reach for it before asking an
 agent where things stand.
 
 **On "pause"** — the user is usually protecting a usage budget, so stop *spending*, not just stop:

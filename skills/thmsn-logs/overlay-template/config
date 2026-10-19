@@ -1,5 +1,5 @@
 # thmsn-logs: this repo's specialisation of the shared log/metric/trace skill.
-# Sourced by standards/skills/thmsn-logs/scripts/obsq.sh after .standards.conf, so
+# Sourced by the thmsn-logs skill's scripts/obsq.sh after .standards.conf, so
 # anything here wins. KEY=VALUE only; no secrets (the token comes from the env file).
 
 # The OTLP service.name of every service this repo ships, space separated. {{sel}}
@@ -12,6 +12,6 @@ SERVICES="dev.thmsn.<product>.server"
 
 # Only when this product's telemetry goes somewhere other than the homelab Grafana.
 # GRAFANA_URL="https://grafana.dev.thmsn.dev"
-# GRAFANA_ENV_FILE="/path/to/.env"   # default: standards/mcp/.env, then ~/git/standards/mcp/.env
+# GRAFANA_ENV_FILE="/path/to/.env"   # default: ~/git/homelab/mcp/.env
 # GRAFANA_TOKEN_VAR="GRAFANA_SERVICE_ACCOUNT_TOKEN"
 # LOKI_UID="loki"; PROM_UID="prometheus"; TEMPO_UID="tempo"

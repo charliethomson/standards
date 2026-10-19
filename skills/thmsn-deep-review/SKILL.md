@@ -22,7 +22,9 @@ prioritized fixes) followed by the per-module sections, and — if asked — a l
 tasks created. The parallelism is what makes a whole-repo audit tractable; a single markdown
 file keeps it portable, diffable, and committable.
 
-Bundled asset: [`assets/review.template.md`](assets/review.template.md) — the exact document
+Bundled asset: `assets/review.template.md`, served by the `standards` MCP server. Fetch it with
+`get_skill_asset("thmsn-deep-review", "assets/review.template.md")` (it is also in the asset
+list `get_skill("thmsn-deep-review")` returns). It is the exact document
 skeleton (front-matter summary, scorecard table, architecture, cross-cutting themes, "what to
 fix first", per-module sections, tasks-created list, methodology). Fill it in; don't reinvent
 the shape.
@@ -88,12 +90,14 @@ Each prompt must contain:
 6. **Also return a one-line scorecard row**: `| <module> | <lang> | <LOC> | <grade> | c/h/m/l/n | <top risk> |`.
 7. "Actually READ the source — do not guess. Cite `path/file:line`. Don't ask me questions — make judgement calls."
 
-Feed agents any relevant repo docs (`SECURITY.md`, `PLAN.md`, parity docs, `standards/docs/*`)
-and known gotchas so they don't re-derive them.
+Feed agents any relevant repo docs (`SECURITY.md`, `PLAN.md`, parity docs) and known gotchas so
+they don't re-derive them. For the fleet standards, fetch the relevant checklists yourself
+(`get_checklist("<standard>", "<ARCHETYPE>")` on the `standards` MCP server) and quote them into
+the prompts, or tell each agent to call `get_checklist`/`get_doc` itself.
 
 ## Phase 2 — Compose `reviews/review-YYYY-MM-DD.md`
 
-Assemble the returned sections into the bundled template. Write these parts yourself from the
+Assemble the returned sections into the bundled template (`get_skill_asset`, above). Write these parts yourself from the
 agents' summaries:
 
 - **Header + totals** — overall grade, module count, total findings, per-severity counts.
@@ -156,7 +160,7 @@ is untrustworthy.
 
 - **The report is a single file: `reviews/review-YYYY-MM-DD.md`.** Dated so snapshots coexist;
   commit them as a history if you want (ask first). Don't emit per-module files or HTML.
-- **Don't commit** the report or the tasks unless asked (repo *or* the standards submodule).
+- **Don't commit** the report or the tasks unless asked.
 - **Generated code is noted, not line-audited.** Say so in the methodology footer.
 - **Verify before claiming done** — every `file:line` an agent cites should be real (spot-check
   a few), and internal section links should resolve. Don't overstate: if a module was skimmed,

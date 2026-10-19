@@ -33,7 +33,9 @@ Only load the standards a change actually touches:
 | test files, `tarpaulin.toml` | testing |
 | audio playback code, `playwright.config.*`, `XCUIApplication` setup | testing (tests are silent) |
 
-Read each relevant `standards/docs/<standard>.md` **Checklist**.
+For each relevant standard, call `get_checklist("<standard>", "<ARCHETYPE>")` on the
+`standards` MCP server (archetype from `.standards.conf` or the `Standards:` line in
+`AGENTS.md`). Skip a standard the result marks N/A for this archetype.
 
 ## 3. Review
 
@@ -41,16 +43,16 @@ For each touched standard, judge the **diff** (not the surrounding file) against
 Report concisely, worst-first:
 
 ```
-❌ <file:line> — <what the change violates> → <fix> (see standards/docs/<x>.md)
+❌ <file:line> — <what the change violates> → <fix> (see https://standards.thmsn.dev/d/<x>)
 ⚠️ <file:line> — <smell / partial>
 ```
 
 Call out new identifiers that aren't `dev.thmsn.<product>.<component>`, workflows not following
 component-first naming, hand-rolled `std::env::var` instead of `libconfig`, logging of bodies/
 query strings, missing codegen-drift or coverage on a changed surface, new tests whose only
-assertions are that mocks were called (change detectors — see testing.md), and refactors that
+assertions are that mocks were called (change detectors, see https://standards.thmsn.dev/d/testing#no-change-detector-tests), and refactors that
 mechanically patch existing tests instead of rewriting or deleting them, any new audio playback
-that isn't behind the test-silence gate (❌, always — see testing.md "Tests are silent"), etc.
+that isn't behind the test-silence gate (❌, always — see https://standards.thmsn.dev/d/testing#tests-are-silent), etc.
 
 If the diff is clean, say so plainly.
 

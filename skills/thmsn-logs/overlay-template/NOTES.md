@@ -1,6 +1,6 @@
 # <product> logs: what the shared skill doesn't know
 
-Read by an agent after `standards/skills/thmsn-logs/SKILL.md`. Keep it to what is
+Read by an agent after the `/thmsn-logs` skill. Keep it to what is
 particular to this repo; the fleet conventions are in the skill.
 
 ## Services

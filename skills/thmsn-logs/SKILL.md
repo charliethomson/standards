@@ -6,17 +6,37 @@ description: Query a deployed product's logs, metrics and traces in the homelab 
 # Query a product's observability (Grafana / Loki / Prometheus / Tempo)
 
 Every fleet service ships logs and traces over OTLP and exposes Prometheus metrics
-([`docs/observability.md`](../../docs/observability.md), [`docs/tracing.md`](../../docs/tracing.md)).
+([observability](https://standards.thmsn.dev/d/observability), [tracing](https://standards.thmsn.dev/d/tracing)).
 All of it lands in the homelab Grafana at `https://grafana.dev.thmsn.dev`. Query it through
 the bundled helper, which talks to Grafana's datasource proxy with a **read-only**
 service-account token, so it needs no ssh and can't change anything.
+
+## Get the helper
+
+The helper and the fleet recipes are this skill's assets, served by the `standards` MCP
+server alongside this body: `scripts/obsq.sh`, `queries/*`, and `overlay-template/*` (the
+asset list `get_skill("thmsn-logs")` returned). The script finds its recipes and the overlay
+template relative to itself, so materialise the whole asset tree into one directory, keeping
+the paths. Fetch it fresh each session, since a stale copy is how a fixed bug comes back:
+
+```bash
+D=~/.cache/thmsn/standards/skills/thmsn-logs
+for p in <every asset path from get_skill>; do
+  curl -fsS --create-dirs -o "$D/$p" "https://standards.thmsn.dev/api/v1/skills/thmsn-logs/assets/$p"
+done
+chmod +x "$D/scripts/obsq.sh"
+```
+
+If the REST mirror is unreachable but MCP works, fetch each one with
+`get_skill_asset("thmsn-logs", "<path>")` and write it to the same place. If neither works,
+say so and stop.
 
 ## Start here
 
 Run from the repo root (the script finds the repo with `git`, so any subdirectory works):
 
 ```bash
-S=standards/skills/thmsn-logs/scripts/obsq.sh
+S=~/.cache/thmsn/standards/skills/thmsn-logs/scripts/obsq.sh
 $S env                   # which services, which selector, is the token found
 $S recipes               # named queries: this repo's first, then the fleet's
 cat .standards.d/thmsn-logs/NOTES.md   # this repo's fields, gotchas and known noise
@@ -82,7 +102,7 @@ seconds. Needs `curl`, `jq` and GNU date (`gdate` from coreutils on macOS).
 2. **DEBUG and TRACE never reach Loki or Tempo.** The OTLP bridges filter at INFO
    (`LIBLOG_LOG_FILTER` / `LIBLOG_OTEL_FILTER` change it without a rebuild), so a missing
    debug line proves nothing.
-3. **Expected outcomes are INFO** (tracing.md): 4xx and not-found are not WARN. A clean
+3. **Expected outcomes are INFO** ([tracing](https://standards.thmsn.dev/d/tracing)): 4xx and not-found are not WARN. A clean
    `problems` is not a clean service; check `http-failures` too.
 4. **Retention is 7 days.** Anything older is gone from Loki; a product's database or Prometheus
    (kept longer) may still have it.
@@ -129,8 +149,9 @@ the code it describes. `obsq.sh` reads it on every run.
 
 **When you learn something about this repo's logs, write it into the overlay**: a field,
 a gap, a message that turned out to be noise, a query you had to work out. A query you
-ran twice is a recipe. Something every product would want belongs in this skill instead
-(`thmsn-standards-contribute`).
+ran twice is a recipe. Something every product would want belongs in this skill instead:
+change `skills/thmsn-logs/` in the charliethomson/standards repo, genericized, and every
+repo picks it up from the server.
 
 Raw access, if the helper is in the way: `https://grafana.dev.thmsn.dev/api/datasources/proxy/uid/<uid>/…`
 with `Authorization: Bearer <token>`; Loki `loki` (`/loki/api/v1`), Prometheus `prometheus`
@@ -138,6 +159,5 @@ with `Authorization: Bearer <token>`; Loki `loki` (`/loki/api/v1`), Prometheus `
 
 **The token** is a read-only Grafana service-account token, `GRAFANA_SERVICE_ACCOUNT_TOKEN`.
 The helper takes the env var, else the first of: the overlay's `GRAFANA_ENV_FILE`, the
-standards checkout's gitignored `mcp/.env` (the same file the Grafana MCP server reads,
-[`mcp/README.md`](../../mcp/README.md)), `<repo>/standards/mcp/.env`,
-`~/git/standards/mcp/.env`. `$S env` says which it used.
+homelab checkout's gitignored `~/git/homelab/mcp/.env` (the same file the Grafana MCP server
+reads), and a legacy env file left by the old standards checkout. `$S env` says which it used.

@@ -6,18 +6,15 @@ description: Find and clean up the git worktrees and cargo target dirs that agen
 # thmsn-janitor — clean up after agents
 
 Subagents run in their own worktrees, and each one that builds Rust grows its own `target/`.
-They're rarely removed, so they pile up across every repo in `~/git`. `bin/janitor` finds them
-and decides what's safe to delete. This skill runs it and gets the user's go-ahead.
+They're rarely removed, so they pile up across every repo in `~/git`. `standards janitor` (a
+subcommand of the per-machine `standards` cli) finds them and decides what's safe to delete.
+This skill runs it and gets the user's go-ahead. If `standards` isn't on `PATH`, say so and
+stop; don't hand-roll the sweep.
 
-## 1. Find the script
-
-First of: `janitor` on `PATH`, `standards/bin/janitor` in the current repo, or
-`~/git/standards/bin/janitor`.
-
-## 2. Scan
+## 1. Scan
 
 ```sh
-janitor scan
+standards janitor scan
 ```
 
 Read-only. It walks every repo under `~/git` (`--root` to change, repeatable) and prints each
@@ -34,17 +31,17 @@ Kept worktrees say why. If they have a target dir, `--targets` can clear just th
 target dir is always safe to rebuild. `--main-targets` also offers target dirs in main
 checkouts that have been idle for `--days`.
 
-## 3. Report and ask
+## 2. Report and ask
 
 Give the user the totals and anything surprising: the biggest wins, and kept worktrees with
 uncommitted changes or detached unmerged commits, since those may be abandoned work they'd
 want to look at. Don't paste the whole table back unless they ask.
 
-Then ask which clean to run. Never run `janitor clean` without an explicit yes in chat, and
+Then ask which clean to run. Never run `standards janitor clean` without an explicit yes in chat, and
 pass the same options the scan used so the plan matches what they saw:
 
 ```sh
-janitor clean --yes [--targets] [--main-targets] [--branches] [--days N]
+standards janitor clean --yes [--targets] [--main-targets] [--branches] [--days N]
 ```
 
 `--branches` also deletes a removed worktree's branch, only when it's merged (`git branch -d`).
