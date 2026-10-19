@@ -1,0 +1,16 @@
+01	STD-11	Normalize archetype standards tables to one linked row per standard
+02	STD-12	Rust workspace + pure standards-core content model
+03	STD-13	Spike: rmcp streamable HTTP mounted under poem
+04	STD-14	standards-db embed allowlist + standards-engine search/checklists
+05	STD-15	standards-api skeleton: REST mirror, manifest, standard mounts
+06	STD-16	standards-api MCP endpoint at /mcp (tools, prompts, instructions)
+07	STD-17	standards-api rendered docs site at / and /d/{id}
+08	STD-18	Dockerfile, compose, Caddy, Komodo stack, Woodpecker pipelines
+09	STD-19	Go live at standards.thmsn.dev (DNS, secrets, tag v0.1)
+10	STD-20	standards cli skeleton: init, new, self-update
+11	STD-21	standards doctor: user + repo checks with --fix/--quiet/--ci
+12	STD-22	Port bin/janitor to standards janitor
+13	STD-23	Port bin/ultron to standards ultron
+14	STD-24	Rewrite shared skills as fetched bodies; drop sync/contribute
+15	STD-25	Rewrite consumption docs + templates; add migration runbook
+16	LIBID-2	Pilot: cut this machine and libid over to hosted standards

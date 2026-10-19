@@ -100,6 +100,11 @@ pub struct Env {
     pub config: EnvConfig,
     /// `$PATH`, where `doctor` looks for `claude` (and what it hands the child).
     pub path: Option<OsString>,
+    /// `$XDG_STATE_HOME`, when set and non-empty (ultron's state lives under it).
+    pub xdg_state_home: Option<PathBuf>,
+    /// Whether stdout is a terminal: `ultron` colours its output and `watch` takes over the
+    /// screen only then.
+    pub stdout_tty: bool,
 }
 
 impl Env {
@@ -115,6 +120,8 @@ impl Env {
             platform: Platform::current(),
             config: EnvConfig::load()?,
             path: std::env::var_os("PATH"),
+            xdg_state_home: var("XDG_STATE_HOME").filter(|p| !p.as_os_str().is_empty()),
+            stdout_tty: std::io::IsTerminal::is_terminal(&std::io::stdout()),
         })
     }
 
@@ -149,6 +156,18 @@ impl Env {
             .join("thmsn")
             .join("standards")
     }
+
+    /// `${XDG_STATE_HOME:-~/.local/state}/thmsn/ultron`, built as `bin/ultron` builds it
+    /// (string concatenation, a relative `XDG_STATE_HOME` honoured), so the paths `ultron`
+    /// prints match the script's byte for byte.
+    #[must_use]
+    pub fn ultron_state_dir(&self) -> String {
+        let base = self.xdg_state_home.as_ref().map_or_else(
+            || format!("{}/.local/state", self.home.display()),
+            |p| p.display().to_string(),
+        );
+        format!("{base}/thmsn/ultron")
+    }
 }
 
 #[cfg(test)]
@@ -165,6 +184,8 @@ mod tests {
             platform: Platform::current(),
             config: EnvConfig::default(),
             path: None,
+            xdg_state_home: None,
+            stdout_tty: false,
         }
     }
 
@@ -190,6 +211,14 @@ mod tests {
         assert_eq!(e.cache_dir(), PathBuf::from("/h/.cache/thmsn/standards"));
         e.xdg_cache_home = Some(PathBuf::from("/x"));
         assert_eq!(e.cache_dir(), PathBuf::from("/x/thmsn/standards"));
+    }
+
+    #[test]
+    fn ultron_state_dir_honours_any_non_empty_xdg_state_home() {
+        let mut e = env();
+        assert_eq!(e.ultron_state_dir(), "/h/.local/state/thmsn/ultron");
+        e.xdg_state_home = Some(PathBuf::from("rel/"));
+        assert_eq!(e.ultron_state_dir(), "rel//thmsn/ultron");
     }
 
     #[test]

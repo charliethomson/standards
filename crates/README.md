@@ -119,8 +119,20 @@ standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron
   manifest cache (refreshed at most hourly, 1s budget), skips `mcp.reachable` and the
   registry, never fixes, prints one line when a check warns or fails, and exits 0 whatever
   happens. Exit 3 when a selected check needs the manifest and the server is unreachable.
-- **`ultron`** prints "not implemented yet" and exits 1. It owns its clap `Args` and `run`
-  in its own file (`ultron.rs`), so filling it in touches nothing else.
+- **`ultron [ls|status|watch|log|gc|help]`** is `bin/ultron` (deprecated, kept until the
+  fleet sweep) ported byte for byte: a read-only view of the programs under
+  `${XDG_STATE_HOME:-~/.local/state}/thmsn/ultron/<slug>/`. It parses its own arguments so the
+  script's aliases (`list`, `st`, `w`, `cat`), messages and exit 1 survive, so global flags
+  go before `ultron` (`standards --json ultron status`). `--json` is the one addition.
+  `backlog.rs` holds the script's awk/grep as pure functions over bytes (C-locale semantics;
+  the STATE line is cut at 60 bytes like GNU `cut -c`); `watch` uses the alternate screen and
+  redraws when the file/mtime fingerprint changes, or prints once when stdout is not a
+  terminal or `--json` is set. The clock, stdin (`gc`'s prompt) and sleeping sit behind
+  `ultron/host.rs` so tests script them. **Golden tests:** `tests/fixtures/ultron/` holds four
+  real programs, their mtimes (`mtimes.tsv`), the capture clock (`now`) and `bin/ultron`'s
+  output over them (`golden/`, captured with `date +%s` pinned to `now`, paths shown as
+  `@STATE@`; `capture.sh` regenerates them). If the two ever disagree, recapture from the
+  script, never from the port.
 - Templates are rendered by the server (`/api/v1/templates/{path}?KEY=V`). `init` and `new`
   render everything before writing, so an unreachable server or a bad archetype writes
   nothing.

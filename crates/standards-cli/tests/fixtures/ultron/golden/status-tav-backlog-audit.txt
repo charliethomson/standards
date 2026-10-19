@@ -1,0 +1,6 @@
+tav-backlog-audit  @STATE@/thmsn/ultron/tav-backlog-audit
+! no PROGRAM.md — this program has no brief
+
+no backlog lines in PROGRAM.md
+
+! journals with no backlog entry: TAV-102 TAV-103 TAV-104 TAV-105 TAV-105t TAV-106 TAV-107 TAV-108 TAV-109 TAV-119 TAV-38 TAV-39 TAV-40 TAV-41-embedding-spike TAV-41 TAV-42 TAV-43-role TAV-43 TAV-51 TAV-62-verify TAV-62 TAV-88 TAV-89 TAV-90 TAV-91 result-a result-b

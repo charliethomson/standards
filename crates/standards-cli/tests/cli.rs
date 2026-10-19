@@ -35,32 +35,6 @@ fn help_and_version_exit_zero_usage_errors_exit_two() {
 }
 
 #[test]
-fn unimplemented_subcommands_fail_with_one() {
-    let s = Scratch::new();
-    {
-        let (cmd, rest) = ("ultron", &["watch"][..]);
-        let mut args = vec![cmd];
-        args.extend(rest);
-        let r = run(&s.env, &args);
-        assert_eq!(r.code, 1, "{cmd}");
-        assert_eq!(r.err, format!("error: {cmd}: not implemented yet\n"));
-
-        let mut args = vec!["--json", cmd];
-        args.extend(rest);
-        let r = run(&s.env, &args);
-        assert_eq!(r.code, 1);
-        let v = r.json();
-        assert_eq!(v["status"], "error");
-        assert_eq!(
-            v["error"]["$type"],
-            "dev.thmsn.standards.cli.command.error.not_implemented"
-        );
-        assert_eq!(v["error"]["exit_code"], 1);
-        assert_eq!(r.err, "");
-    }
-}
-
-#[test]
 fn janitor_with_no_repos_under_the_default_root_fails() {
     let s = Scratch::new();
     let root = s.env.home.join("git");
@@ -77,6 +51,42 @@ fn janitor_with_no_repos_under_the_default_root_fails() {
         v["error"]["$type"],
         "dev.thmsn.standards.cli.command.error.failed"
     );
+}
+
+#[test]
+fn ultron_reads_the_xdg_state_dir_and_takes_json_before_the_command() {
+    let s = Scratch::new();
+    let state = s.path().join("state/thmsn/ultron");
+    std::fs::create_dir_all(state.join("prog")).unwrap();
+    std::fs::write(
+        state.join("prog/PROGRAM.md"),
+        "- AB-1 landed\n- AB-2 blocked\n",
+    )
+    .unwrap();
+
+    let r = run(&s.env, &["ultron"]);
+    assert_eq!(r.code, 0, "{}", r.err);
+    assert!(r.out.starts_with("PROGRAM "), "{}", r.out);
+    assert!(r.out.contains("\nprog  "));
+
+    let r = run(&s.env, &["ultron", "--help"]);
+    assert_eq!(r.code, 0);
+    assert!(r.out.starts_with("ultron \u{2014} read-only view"));
+
+    for args in [
+        &["--json", "ultron", "status", "prog"][..],
+        &["ultron", "--json", "st", "prog"],
+    ] {
+        let r = run(&s.env, args);
+        assert_eq!(r.code, 0, "{args:?}");
+        let v = r.json();
+        assert_eq!(v["status"], "ok");
+        assert_eq!(v["data"]["waiting"], serde_json::json!(["AB-2"]));
+    }
+
+    let r = run(&s.env, &["ultron", "log", "AB-9"]);
+    assert_eq!(r.code, 1);
+    assert_eq!(r.err, "error: no journal for AB-9\n");
 }
 
 #[test]

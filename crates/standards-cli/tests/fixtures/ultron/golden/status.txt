@@ -1,0 +1,23 @@
+standards-hosted  @STATE@/thmsn/ultron/standards-hosted
+
+TASK         STATE           PLAN   JOURNAL  NOW
+STD-11       landed         10/10   10h ago  DONE. Vision state not moved (ultron verifies).
+STD-13       landed           9/9   10h ago  DONE. Finishing comment posted on STD-13 (body: std13-final.
+STD-24       landed           9/9   10h ago  DONE (3bc9273 on main, finishing comment posted)
+STD-12       landed           8/8   10h ago  DONE. fb1764d on origin/main; finishing comment posted. Visi
+STD-25       landed           9/9   10h ago  step 4 (other docs). NOTE: cargo test -p standards-core (CAR
+STD-14       landed           8/8   10h ago  DONE. 5be470e pushed to origin/main; finishing comment poste
+STD-15       landed           9/9   10h ago  DONE. landed 5fcd55e on origin/main; finish comment posted o
+STD-16       landed           8/8   10h ago  DONE. Finishing comment posted. Landed 65085a1 on origin/mai
+STD-17       landed         11/11    7m ago  DONE: d50f983 on origin/main, target/ deleted, finishing vis
+STD-20       landed         12/12    5m ago  DONE: landed 74be252 on origin/main; vision finish comment p
+STD-21       dispatched      1/10    1m ago  step 2 starting
+STD-22       dispatched      1/10    1m ago  on step 2
+STD-23       dispatched       0/8    2m ago  step 1 in progress. branch std-23 from origin/main 74be252 i
+STD-18       dispatched       4/8  just now  RESUMED. Steps 3+4 verified (compose via caddy :8103: health
+STD-19       queued 🔒                    -  
+LIBID-2      queued 🔒                    -  
+
+! journals with no backlog entry: SPECS
+
+waiting on you: STD-19 LIBID-2 

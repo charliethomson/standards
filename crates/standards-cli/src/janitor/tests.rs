@@ -134,6 +134,8 @@ impl Fixture {
                 platform: Platform::current(),
                 config: EnvConfig::default(),
                 path: None,
+                xdg_state_home: None,
+                stdout_tty: false,
             },
         }
     }

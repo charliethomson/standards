@@ -84,6 +84,8 @@ impl Scratch {
             },
             config: EnvConfig::default(),
             path: None,
+            xdg_state_home: Some(dir.path().join("state")),
+            stdout_tty: false,
         };
         Self { dir, env }
     }

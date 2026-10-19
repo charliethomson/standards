@@ -1,0 +1,28 @@
+stash  @STATE@/thmsn/ultron/stash
+
+TASK         STATE           PLAN   JOURNAL  NOW
+STASH-1      landed                       -  
+STASH-2      landed                       -  
+STASH-3      blocked 🔒                   -  
+STASH-10     landed         15/15   28d ago  ALL FIVE GATES PASSED ON THE FIRST PASS — no code fixes we
+STASH-4      landed                       -  
+STASH-9      landed 🔒      18/18   28d ago  COMPLETE. Commit 088a7b2 on main; finishing comment PWYTRR9R
+STASH-5      blocked 🔒     14/15   28d ago  Done and pushed as e8665d7 on main. Only step 14 (the vision
+STASH-6      landed           9/9   25d ago  DONE. Commit 331dfb5 on worktree-agent-a5bc62b21e0fec6a7. Vi
+STASH-7      landed         10/11   25d ago  steps 1+2 DONE (storage open_exact; thumbs crate lib/still/c
+STASH-8      queued 🔒                    -  
+STASH-12     landed         12/12   28d ago  Steps 1-3 done. Findings: gateway has config_files=["Caddyfi
+STASH-13     blocked 🔒                   -  
+STASH-11     landed         12/12   28d ago  DONE.** Commit 7fe0216 is on origin/main. All six gates gree
+STASH-14     landed                       -  
+STASH-18     landed                       -  
+STASH-17     landed                       -  
+HOMELAB-9    landed                       -  
+HOMELAB-10   blocked 🔒                   -  
+HOMELAB-11   blocked 🔒                   -  
+HOMELAB-12   landed                       -  
+STASH-19     landed           5/5   25d ago  quick-xml: no newer poem/poem-openapi of any major; poem-ope
+
+! journals with no backlog entry: HOMELAB-cutover
+
+waiting on you: STASH-3 STASH-5 STASH-8 STASH-13 HOMELAB-10 HOMELAB-11 

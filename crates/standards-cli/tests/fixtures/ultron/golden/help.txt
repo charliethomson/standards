@@ -1,0 +1,10 @@
+ultron — read-only view of in-flight Ultron programs.
+
+  ultron ls                  list programs: task counts, what's blocked, last activity
+  ultron status [<program>]  per-task table for a program (default: the only/most recent one)
+  ultron watch [<program>]   live status, redrawn when the state changes (-n <seconds>)
+  ultron log <TASK-ID>       print a task's journal
+  ultron gc [<program>]      remove state for a fully-landed program (prompts)
+
+Reads the same state Ultron writes, so checking where a program stands costs no tokens.
+vision is the durable record; everything here is reconstructible scratch.

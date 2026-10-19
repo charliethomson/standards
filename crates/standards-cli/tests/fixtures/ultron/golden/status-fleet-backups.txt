@@ -1,0 +1,70 @@
+fleet-backups  @STATE@/thmsn/ultron/fleet-backups
+
+TASK         STATE           PLAN   JOURNAL  NOW
+LD-1         queued                       -  
+LD-2         queued                       -  
+LD-3         queued                       -  
+LD-4         queued                       -  
+LD-5         queued                       -  
+LD-6         queued                       -  
+LD-7         queued                       -  
+LD-8         queued                       -  
+LD-9         queued                       -  
+LD-10        queued                       -  
+LD-11        queued                       -  
+LD-12        queued                       -  
+LD-13        queued                       -  
+LD-14        queued                       -  
+LD-15        queued                       -  
+LD-16        queued                       -  
+LD-17        queued                       -  
+LD-18        queued 🔒                    -  
+LD-19        queued                       -  
+LD-20        queued                       -  
+LD-21        queued                       -  
+LD-22        queued                       -  
+LD-23        queued                       -  
+LD-24        queued                       -  
+LD-25        queued                       -  
+LD-26        queued                       -  
+LD-27        queued                       -  
+LD-28        queued                       -  
+LD-29        queued                       -  
+LD-30        queued                       -  
+STASH-20     landed         14/14    6d ago  DONE. Commit 33ffd02; finishing comment posted on STASH-20. 
+STASH-21     landed           8/8    6d ago  DONE. Nothing half-applied.
+STASH-22     landed         10/10    6d ago  DONE. Finishing comment posted on STASH-22. Nothing half-app
+STASH-23     landed         10/10    6d ago  DONE. Finishing comment posted on STASH-23. Nothing half-app
+STASH-24     landed         10/10    6d ago  DONE. Commit 7547631; finishing comment posted. Nothing half
+STASH-25     landed         10/10    6d ago  Resumed after ENOSPC. WIP commit f909b86 'wip STASH-25' on t
+STASH-26     landed         13/13    6d ago  DONE (follow-ups too). Commits 57af26f (rebased c3be43e) + 3
+STASH-27     landed           9/9    6d ago  DONE: committed 2cae629, finishing comment posted on STASH-2
+STASH-28     landed         11/11    6d ago  DONE. Commit 1cc5812; vision finishing comment posted. Throw
+STASH-29     blocked                      -  
+STASH-30     landed         10/10    6d ago  DONE. Commits f1051ce (clippy 1.99 lint fixes) and 18b5fd6 (
+STASH-31     landed         12/12    6d ago  DONE
+STASH-32     landed           8/8    6d ago  DONE: committed 659ce4e; finishing comment posted on STASH-3
+STASH-33     landed           9/9    6d ago  DONE. Commit 6f1c614; finishing comment posted on STASH-33.
+STASH-34     landed         11/11    6d ago  DONE. Commit f959486; finishing comment posted on STASH-34.
+STASH-35     landed         10/10    6d ago  step 3 (metrics.rs). Decisions: fail-only; removed product d
+STASH-36     landed         11/11    6d ago  step 6 done: 15 tests in server/api/src/routes/backups/tests
+STASH-37     landed         10/10    6d ago  step 3 done (also ago() in lib/format.ts, drillBackup in api
+STASH-38     landed         11/11    6d ago  step 10. Everything committed (c9e15a9 on worktree-agent-ace
+STASH-39     queued 🔒                    -  
+HOMELAB-17   landed 🔒        6/6    6d ago  agent part done; finishing comment posted. Human part pendin
+HOMELAB-18   blocked 🔒       4/4    6d ago  agent part done; finishing comment posted. Human part pendin
+HOMELAB-19   blocked 🔒       9/9    6d ago  DONE. Commit e7cb5ea on homelab main, unpushed; finish comme
+VIS-71       queued 🔒                    -  
+VIS-72       queued 🔒                    -  
+TAV-130      queued 🔒                    -  
+DASH-6       queued 🔒                    -  
+TAV-131      queued 🔒                    -  
+STASH-40     landed                       -  
+STASH-42     landed           7/7    6d ago  DONE. finish comment posted.
+STASH-43     landed           8/8    6d ago  DONE. finish comment posted.
+STASH-44     landed                       -  
+STASH-45     landed                       -  
+
+! journals with no backlog entry: rollout section sidecar
+
+waiting on you: LD-18 STASH-29 STASH-39 HOMELAB-18 HOMELAB-19 VIS-71 VIS-72 TAV-130 DASH-6 TAV-131 

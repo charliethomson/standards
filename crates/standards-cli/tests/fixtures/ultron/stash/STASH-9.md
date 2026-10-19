@@ -1,0 +1,138 @@
+# STASH-9 — the web client has no way to sign in
+
+Worktree: /Users/charlesthomson/git/stash/.claude/worktrees/agent-a33e84bc88e320925
+Branch: main (commit straight to main, no PR)
+
+## PLAN
+
+- [x]  1. Read brief + `vision issues comments STASH-9` (4th comment = design). Read stash
+         server/api, stash-db, DESIGN.md, vision auth.rs/refresh_cookie.rs/throttle.rs/
+         integration.rs, standards auth-integration.md + refresh-tokens.md.
+- [x]  2. Post opening comment on STASH-9 with the plan AND the one design deviation
+         (see DEVIATION below) so a human can object early.
+- [x]  3. stash-db: `0002_session.sql` migration + `Db::open()` (create_if_missing) +
+         `session` module (mint / get / rotate / delete / purge). First real use of the crate.
+- [x]  4. api/auth.rs: add `login`, `refresh`, `logout` relaying to the SDK with the existing
+         re-dial; extend `fake::FakeAuth` to drive them in tests.
+- [x]  5. api/session_cookie.rs: the opaque `stash_session` cookie — attributes + read/set/clear.
+- [x]  6. api/sessions.rs: the store on top of stash-db — mint, resolve (JWT -> me()), lazy
+         rotate under a single-flight lock, delete.
+- [x]  7. api/principal.rs: hand-written `ApiExtractor` for `Auth` accepting
+         `Authorization: Bearer` OR the `stash_session` cookie, one credential per request so
+         error precedence (401 vs 502) is not masked. Both schemes in the contract (OR).
+- [x]  8. api/throttle.rs: token bucket keyed on poem `RealIp` (gateway overwrites X-Real-IP —
+         load-bearing, say so in a comment). Two budgets: login, session.
+- [x]  9. api/routes/session.rs: `POST /login`, `POST /session/refresh`,
+         `POST /session/logout`, `GET /me`. Wire state + main.rs (open the Db).
+- [x] 10. Tests: cookie attributes, cookie download works, rotation on expiry, revocation,
+         throttle + Retry-After, login public/rejected, logout idempotent, bearer still works.
+- [x] 11. apps/web: real login screen, cookie session, `/me` bootstrap, drop the pasted token;
+         `api/keys.ts` gets the new key. No `@thmsn/ui`.
+- [x] 12. Regenerate `api/openapi.json` + web codegen.
+- [x] 13. DESIGN.md: the auth story + reword the mount-map "no `/api/login`" line.
+         AGENTS.md + README.md: drop "no sign-in flow" from known gaps.
+- [x] 14. `/thmsn-standards-review` on the diff.
+- [x] 15. Comment on STASH-5 (M2 mutations need an Origin/Referer check — SameSite=Lax).
+- [x] 16. All gates: fmt, clippy, test, contract drift (rust + npm codegen:check), coverage >= 80.
+- [x] 17. `git pull --rebase origin main` (STASH-11 is pushing concurrently), re-run gates,
+         regenerate contract/codegen if the rebase moved either, commit + push.
+- [x] 18. Finishing comment on STASH-9 with evidence.
+
+## STATE
+
+COMPLETE. Commit 088a7b2 on main; finishing comment PWYTRR9RKTR on STASH-9;
+STASH-5 note E82WM5YFB2P. Nothing left.
+
+Pushed: commit 088a7b2 on main (rebased twice — onto STASH-11's /api/metrics
+work and onto 4310407's nest_no_strip fix).
+
+All gates green on the pushed tree (see VERIFY). Standards review found and fixed
+five things in my own diff (Db::open -> Db::connect per the data-persistence
+checklist, slow-statement logging, thiserror on the two new error enums,
+STASH_LOGIN_PER_MINUTE / STASH_SESSION_PER_MINUTE instead of hardcoded budgets,
+cobertura.xml gitignored).
+
+## DEVIATION FROM THE 4TH COMMENT (decided, flagged, not silent)
+
+The 4th comment specifies BOTH (a) an `HttpOnly; Secure; SameSite=Strict` **refresh** cookie
+holding auth's rotating refresh token, page-JS-driven, and (b) an opaque `stash_session`
+cookie whose row lets the header-less routes resolve a subject through `me()`.
+
+Those two are not jointly implementable. One `login` yields exactly ONE refresh token and
+rotation is single-use: if the browser holds it and page JS rotates it, the server's copy
+dies, and vice versa. And the session row cannot resolve `me()` without *some* token — the
+pinned auth-sdk (rev 9930ec5) has no "user by id" call, only `me(jwt)`. A row holding only a
+short-lived JWT is functionally "put the access JWT in a cookie", which the comment rejects
+by name because a download resumed hours later then fails.
+
+So: ONE cookie. `stash_session` (opaque, `Path=/api/v1`, `HttpOnly; Secure; SameSite=Lax`,
+`Max-Age` 30d) backed by a row holding the subject, the access JWT and the rotating refresh
+token. stash rotates server-side, lazily, when `me()` rejects the stored JWT. Page JS gets no
+token at all — strictly better than the comment's posture (nothing reachable from JS), all
+three stated goals met (resume works with no JS in the loop; `me()` stays the live authority
+so revocation works; the refresh token is not reachable by page JS — it is not in the browser
+at all). Native/CLI callers keep the body flow: `POST /login` without `X-Client: web` returns
+`{token, refresh_token}` and `POST /session/refresh` rotates it.
+
+## TOUCHED
+
+- server/db/migrations/0002_session.sql  (new)
+- server/db/src/lib.rs                   (Db::open/open_with, create_if_missing, WAL)
+- server/db/src/session.rs               (new — Tokens/Session, CAS rotate, purge)
+- server/db/Cargo.toml                   (tempfile dev-dep)
+- server/Cargo.toml                      (+getrandom 0.3, +hex 0.4 workspace deps)
+- server/api/Cargo.toml                  (+getrandom, +hex)
+- server/api/src/auth.rs                 (login/refresh/logout, SessionError, with_redial!
+                                          macro, fake grown: accounts, rotation, outage)
+- server/api/src/session_cookie.rs       (new)
+- server/api/src/sessions.rs             (new)
+- server/api/src/throttle.rs             (new)
+- server/api/src/principal.rs            (rewritten: hand-written ApiExtractor, bearer OR cookie)
+- server/api/src/routes/session.rs       (new: login/refresh/logout/me + 20 tests)
+- server/api/src/routes.rs               (Tag::Session, pub SessionApi, harness swap in tests)
+- server/api/src/state.rs                (+sessions, +throttle)
+- server/api/src/main.rs                 (Db open at boot, purge, two-API service)
+- server/api/src/testkit.rs              (new: the shared route harness)
+- api/openapi.json                       (regenerated: +/login, +/session/refresh,
+                                          +/session/logout, +/me; both schemes as OR)
+- apps/web/src/auth.ts                   (rewritten: whoAmI/signIn/signOut, no state)
+- apps/web/src/api/client.ts             (no bearer interceptor; credentials same-origin)
+- apps/web/src/api/keys.ts               (+qk.me)
+- apps/web/src/App.tsx                   (pending/error/null/signed-in; sign out)
+- apps/web/src/components/SignIn.tsx     (new)
+- apps/web/src/components/TokenGate.tsx  (DELETED)
+- apps/web/src/api/schema.d.ts           (regenerated)
+- DESIGN.md                              ("Signing in" section; mount-map line reworded;
+                                          stash-db row; web-client note)
+- AGENTS.md                              (status, gaps, new "How a browser signs in")
+- README.md                              (banner, diagram, gaps, coverage)
+- deploy/compose/prod.compose.yml        (comment: /data now holds non-rebuildable state)
+- .gitignore                             (cobertura.xml, tarpaulin-report.*)
+- server/api/src/app.rs                  (rebase: two-API contract, four route_names,
+                                          one shared test state builder)
+- server/api/src/state.rs                (rebase: AppState::new takes `Parts`)
+
+Commit: 088a7b2 "api, web, docs: sign in, on an opaque session cookie" -> main.
+
+## VERIFY
+
+From .woodpecker/rust.ci.yml and web.ci.yml, run in the worktree:
+
+    cd server && cargo fmt --all -- --check
+    cd server && cargo clippy --workspace --all-targets -- -D warnings
+    cd server && cargo test --workspace
+    cd server && cargo run -q --bin stash-api -- openapi > ../api/openapi.json && git diff --exit-code -- ../api/openapi.json
+    cd apps/web && npm run codegen:check && npm run typecheck && npm run build
+    cd server && cargo tarpaulin --engine llvm --out Xml   # fail-under 80
+
+Last result, on the pushed tree (088a7b2):
+  cargo fmt --all -- --check            clean
+  cargo clippy ... -D warnings          clean
+  cargo test --workspace                163 passed, 0 failed
+  contract drift (rust)                 clean
+  npm run codegen:check / typecheck / build   clean
+  cargo tarpaulin --engine llvm         91.57% (977/1067), floor 80
+
+NOT verified: anything against the real auth service. No AUTH_ADMIN_KEY locally and
+no offline auth mode by design, so every test is against the in-process fake
+(`auth::fake::FakeAuth`). No browser has run this.

@@ -11,6 +11,10 @@
 # vision is the durable record; everything here is reconstructible scratch.
 set -euo pipefail
 
+# DEPRECATED: use `standards ultron` (crates/standards-cli), which has the same commands, state
+# dir and output. This script stays, unchanged, until the fleet sweep moves every machine to the
+# cli. It sits below the header block on purpose: `ultron --help` prints that block.
+
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/thmsn/ultron"
 
 c_grn=$'\033[32m'; c_yel=$'\033[33m'; c_red=$'\033[31m'; c_dim=$'\033[2m'; c_bold=$'\033[1m'; c_off=$'\033[0m'

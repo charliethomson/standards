@@ -112,6 +112,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   nothing, prints one line only when something needs attention and always exits 0; `--ci`
   runs repo scope only; `--only ID..`, `--repo PATH`, `--json`.
 
+- **`standards ultron`** (`crates/standards-cli/src/ultron.rs`, `ultron/`): the port of
+  `bin/ultron`, same state dir (`${XDG_STATE_HOME:-~/.local/state}/thmsn/ultron`), commands
+  (`ls`, `status`, `watch`, `log`, `gc`, `help` and their aliases), errors and byte-identical
+  output; golden tests compare it with the script over four real programs. `--json` (before
+  `ultron`) is new: one object per command. Two script bugs are not carried over: `gc` said
+  every program was "not finished" (its landed count never matched), and `log` dropped a
+  journal's last line when it had no trailing newline. `bin/ultron` stays, marked deprecated,
+  until the fleet sweep.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.
