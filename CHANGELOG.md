@@ -45,6 +45,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   with the row's reason); docs and sections with absolute links; template listing and
   rendering; skills and their nested assets; the manifest.
 
+- **`standards-api`** (`crates/standards-api/`, binary `standards-server`): the server
+  skeleton. A public, read-only REST mirror at `/api/v1` (docs, checklists, templates rendered
+  server-side, skills and nested assets, search, manifest) with its contract committed as
+  `api/openapi.json` and a drift test; `/manifest.json`, raw templates at `/t/{path}`, Scalar
+  at `/api/docs`, `/health`, `/version` (full build info), `/api/metrics` (`standards_*`),
+  and `/install` (302 to the registry). Content responses carry `ETag: "<commit>"` with a
+  five-minute max-age. Config is env only (`STANDARDS_BIND`, `STANDARDS_ALLOWED_HOSTS`). MCP
+  and the HTML site mount next.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.

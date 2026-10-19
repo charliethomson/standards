@@ -2,7 +2,12 @@
 resolver = "3"
 # Server: core -> db -> engine -> api (docs/service-architecture.md); the cli also
 # depends on core. Members land with their tasks.
-members = ["crates/standards-core", "crates/standards-db", "crates/standards-engine"]
+members = [
+    "crates/standards-core",
+    "crates/standards-db",
+    "crates/standards-engine",
+    "crates/standards-api",
+]
 
 [workspace.package]
 version = "0.0.0"          # placeholder: the real version is derived (docs/versioning.md)
@@ -21,6 +26,13 @@ panic              = { level = "warn", priority = 1 }   # surface panics; allow 
 [workspace.dependencies]
 # ── the lib* ecosystem (docs/lib-ecosystem.md) ──
 libbuildinfo = { git = "https://github.com/charliethomson/libbuildinfo" }
+libconfig    = { git = "https://github.com/charliethomson/libconfig" }
+libpath      = { git = "https://github.com/charliethomson/libpath" }
+# libproduct is a member crate of the libpath repo.
+libproduct   = { git = "https://github.com/charliethomson/libpath" }
+libsignal    = { git = "https://github.com/charliethomson/libsignal" }
+# SSH: the liblog repo is private (.cargo/config.toml routes git through the CLI).
+liblog       = { git = "ssh://git@github.com/charliethomson/liblog.git" }
 
 # ── internal crates (dependencies point inward only) ──
 standards-core   = { path = "crates/standards-core" }
@@ -36,3 +48,11 @@ serde_json     = "1"
 sha2           = "0.10"
 hex            = "0.4"
 thiserror      = "2"
+tokio          = { version = "1", features = ["full"] }
+# The process-wide shutdown token libsignal cancels on a signal.
+tokio-util     = { version = "0.7", default-features = false }
+poem           = "3.1"
+poem-openapi   = { version = "5", features = ["scalar"] }
+prometheus-client = "0.25"
+# `valuable`: structured error fields (needs the tracing_unstable cfg, .cargo/config.toml).
+tracing        = { version = "0.1", features = ["valuable"] }

@@ -1,0 +1,853 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "standards",
+    "description": "Fleet engineering standards, read-only. Content is fixed per commit; responses carry `ETag: \"<commit>\"`.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Checklists",
+      "description": "A standard's checklist as it applies to one archetype."
+    },
+    {
+      "name": "Docs",
+      "description": "Rendered standards and archetypes as markdown."
+    },
+    {
+      "name": "Manifest",
+      "description": "What the cli syncs against."
+    },
+    {
+      "name": "Search",
+      "description": "Full-text search over docs, sections, checklist items and skills."
+    },
+    {
+      "name": "Skills",
+      "description": "Shared skills and their assets."
+    },
+    {
+      "name": "Templates",
+      "description": "Files under `templates/`, rendered server-side."
+    }
+  ],
+  "paths": {
+    "/docs": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "List docs",
+        "description": "Every doc under `docs/`, archetypes included, with whether it has a checklist.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "listDocs"
+      }
+    },
+    "/docs/{id}": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "Get a doc",
+        "description": "The doc's markdown with links made absolute, and its outline. `id` is the path under\n`docs/` without `.md`; send a slash in it percent-encoded\n(`archetypes%2Fcli-tool`) or raw.",
+        "parameters": [
+          {
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/Doc"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such doc, archetype, template, skill or asset.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getDoc"
+      }
+    },
+    "/checklist": {
+      "get": {
+        "tags": [
+          "Checklists"
+        ],
+        "summary": "Get a checklist",
+        "description": "The standard's checklist plus the archetype's own, with how the archetype says the\nstandard applies. A standard marked N/A is a 200 with `applicability:\nnot_applicable`, the reason in `note`, and no items.",
+        "parameters": [
+          {
+            "name": "standard",
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "description": "The standard's doc id (`versioning`).",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          },
+          {
+            "name": "archetype",
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "description": "The archetype's name (`cli-tool`).",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/Checklist"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such doc, archetype, template, skill or asset.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getChecklist"
+      }
+    },
+    "/templates": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "List templates",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "listTemplates"
+      }
+    },
+    "/templates/{path}": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Render a template",
+        "description": "Every query parameter `KEY=VALUE` fills `{{KEY}}`; placeholders with no value stay\nin the body and are listed in `unfilled`. `path` is relative to `templates/`\n(`rust%2Fbuild.rs`, or with a raw slash). The raw file is at `/t/{path}`.",
+        "parameters": [
+          {
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedTemplate"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such doc, archetype, template, skill or asset.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "renderTemplate"
+      }
+    },
+    "/skills": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "List skills",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SkillSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "listSkills"
+      }
+    },
+    "/skills/{name}": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "Get a skill",
+        "description": "The `SKILL.md` body as written, its assets with their hashes, and the two hashes the\nmanifest carries.",
+        "parameters": [
+          {
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such doc, archetype, template, skill or asset.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getSkill"
+      }
+    },
+    "/skills/{name}/assets/{path}": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "Get a skill asset",
+        "description": "The file's bytes. `path` is relative to the skill directory with nesting kept\n(`scripts%2Fobsq.sh`, or with a raw slash).",
+        "parameters": [
+          {
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          },
+          {
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such skill or asset.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getSkillAsset"
+      }
+    },
+    "/search": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search",
+        "description": "The best hits for `q` over doc titles and intros, sections, checklist items and\nskills, best first.",
+        "parameters": [
+          {
+            "name": "q",
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "description": "The query.",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          },
+          {
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "format": "uint64",
+              "maximum": 50.0,
+              "minimum": 1.0
+            },
+            "in": "query",
+            "description": "How many hits, at most 50.",
+            "required": false,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHit"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "search"
+      }
+    },
+    "/manifest": {
+      "get": {
+        "tags": [
+          "Manifest"
+        ],
+        "summary": "Get the manifest",
+        "description": "The same document as `/manifest.json`: commit, versions, archetypes, and each skill\nwith its description and content hashes.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifest"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManifest"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Applicability": {
+        "type": "string",
+        "description": "How a standard applies to an archetype.",
+        "enum": [
+          "applies",
+          "defining",
+          "adapted",
+          "optional",
+          "not_applicable"
+        ]
+      },
+      "AssetInfo": {
+        "type": "object",
+        "title": "AssetInfo",
+        "description": "A file bundled with a skill.",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative to the skill directory (`scripts/obsq.sh`)."
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "Checklist": {
+        "type": "object",
+        "title": "Checklist",
+        "description": "The checklist for one standard in one archetype.",
+        "required": [
+          "standard",
+          "archetype",
+          "applicability",
+          "listed",
+          "standard_items",
+          "archetype_items"
+        ],
+        "properties": {
+          "standard": {
+            "type": "string",
+            "description": "The standard's doc id."
+          },
+          "archetype": {
+            "type": "string",
+            "description": "The archetype's name (`cli-tool`)."
+          },
+          "applicability": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "listed": {
+            "type": "boolean",
+            "description": "Whether the archetype's table has a row for this standard."
+          },
+          "note": {
+            "type": "string",
+            "description": "The row's \"How it applies here\" cell; for `not_applicable`, the reason."
+          },
+          "standard_items": {
+            "type": "array",
+            "description": "The standard's own checklist. Empty when it does not apply.",
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            }
+          },
+          "archetype_items": {
+            "type": "array",
+            "description": "The archetype doc's checklist. Empty when the standard does not apply.",
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            }
+          }
+        }
+      },
+      "ChecklistItem": {
+        "type": "object",
+        "title": "ChecklistItem",
+        "description": "One checklist item: markdown on one line, links absolute.",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "Doc": {
+        "type": "object",
+        "title": "Doc",
+        "description": "A whole doc, its links absolute.",
+        "required": [
+          "id",
+          "title",
+          "markdown",
+          "sections"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Section"
+            }
+          }
+        }
+      },
+      "DocSummary": {
+        "type": "object",
+        "title": "DocSummary",
+        "description": "A doc in a listing.",
+        "required": [
+          "id",
+          "title",
+          "has_checklist"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Path under `docs/` without `.md` (`versioning`, `archetypes/cli-tool`)."
+          },
+          "title": {
+            "type": "string"
+          },
+          "has_checklist": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "title": "ErrorBody",
+        "description": "The error body every client reads.",
+        "required": [
+          "message",
+          "$type"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "For a person."
+          },
+          "$type": {
+            "type": "string",
+            "description": "Stable error key (`dev.thmsn.standards.server.content.error.unknown_doc`)."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "The request's trace id, when traces are exported."
+          }
+        }
+      },
+      "HitKind": {
+        "type": "string",
+        "description": "What a search hit points at.",
+        "enum": [
+          "doc",
+          "skill"
+        ]
+      },
+      "Manifest": {
+        "type": "object",
+        "title": "Manifest",
+        "description": "What the cli syncs against; also served at `/manifest.json`.",
+        "required": [
+          "schema",
+          "commit",
+          "server_version",
+          "min_cli_version",
+          "cli_install_url",
+          "archetypes",
+          "skills"
+        ],
+        "properties": {
+          "schema": {
+            "type": "integer",
+            "format": "uint32"
+          },
+          "commit": {
+            "type": "string",
+            "description": "The commit the content was embedded from."
+          },
+          "server_version": {
+            "type": "string"
+          },
+          "min_cli_version": {
+            "type": "string",
+            "description": "The oldest cli this server supports."
+          },
+          "cli_install_url": {
+            "type": "string"
+          },
+          "archetypes": {
+            "type": "array",
+            "description": "Archetype names, sorted.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "description": "Sorted by name.",
+            "items": {
+              "$ref": "#/components/schemas/SkillEntry"
+            }
+          }
+        }
+      },
+      "RenderedTemplate": {
+        "type": "object",
+        "title": "RenderedTemplate",
+        "description": "A rendered template.",
+        "required": [
+          "path",
+          "body",
+          "unfilled"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "unfilled": {
+            "type": "array",
+            "description": "Placeholders left in `body` because no value was given, sorted.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SearchHit": {
+        "type": "object",
+        "title": "SearchHit",
+        "description": "One search result.",
+        "required": [
+          "kind",
+          "doc",
+          "title",
+          "snippet",
+          "score"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/HitKind"
+          },
+          "doc": {
+            "type": "string",
+            "description": "The doc id, or the skill name for a skill hit."
+          },
+          "anchor": {
+            "type": "string",
+            "description": "The section anchor; absent for a whole doc or a skill."
+          },
+          "title": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "format": "float",
+            "description": "Higher is better; comparable within one query only."
+          }
+        }
+      },
+      "Section": {
+        "type": "object",
+        "title": "Section",
+        "description": "A heading in a doc's outline.",
+        "required": [
+          "level",
+          "title",
+          "anchor"
+        ],
+        "properties": {
+          "level": {
+            "type": "integer",
+            "format": "uint8"
+          },
+          "title": {
+            "type": "string"
+          },
+          "anchor": {
+            "type": "string"
+          }
+        }
+      },
+      "Skill": {
+        "type": "object",
+        "title": "Skill",
+        "description": "A whole skill.",
+        "required": [
+          "name",
+          "description",
+          "body",
+          "assets",
+          "description_sha256",
+          "content_sha256"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "`SKILL.md` after the frontmatter, as written."
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetInfo"
+            }
+          },
+          "description_sha256": {
+            "type": "string"
+          },
+          "content_sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "SkillEntry": {
+        "type": "object",
+        "title": "SkillEntry",
+        "description": "One skill as the cli's stub writer needs it.",
+        "required": [
+          "name",
+          "description",
+          "description_sha256",
+          "content_sha256",
+          "assets"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "description_sha256": {
+            "type": "string"
+          },
+          "content_sha256": {
+            "type": "string"
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SkillSummary": {
+        "type": "object",
+        "title": "SkillSummary",
+        "description": "A skill in a listing.",
+        "required": [
+          "name",
+          "description",
+          "assets"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assets": {
+            "type": "array",
+            "description": "Asset paths relative to the skill directory, sorted.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TemplateSummary": {
+        "type": "object",
+        "title": "TemplateSummary",
+        "description": "A template in a listing.",
+        "required": [
+          "path",
+          "placeholders"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative to `templates/` (`rust/build.rs`)."
+          },
+          "placeholders": {
+            "type": "array",
+            "description": "Every `{{KEY}}` in the template.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

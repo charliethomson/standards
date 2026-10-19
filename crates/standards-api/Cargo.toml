@@ -1,0 +1,42 @@
+[package]
+name = "standards-api"
+description = "The standards server: REST mirror, manifest and the fleet's standard mounts over the embedded content."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+# The shipped binary is `standards-server`; the identifier it registers is
+# dev.thmsn.standards.server (docs/identifiers.md). The layer is `api`.
+[[bin]]
+name = "standards-server"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+# api is the binary: it composes every layer and owns all HTTP. The only crate
+# that knows about poem.
+[dependencies]
+standards-core   = { workspace = true }
+standards-db     = { workspace = true }
+standards-engine = { workspace = true }
+
+libconfig  = { workspace = true }
+liblog     = { workspace = true }
+libpath    = { workspace = true }
+libproduct = { workspace = true }
+libsignal  = { workspace = true }
+
+poem              = { workspace = true }
+poem-openapi      = { workspace = true }
+prometheus-client = { workspace = true }
+serde             = { workspace = true }
+serde_json        = { workspace = true }
+tokio             = { workspace = true }
+tokio-util        = { workspace = true }
+tracing           = { workspace = true }
+
+[dev-dependencies]
+poem = { workspace = true, features = ["test"] }
