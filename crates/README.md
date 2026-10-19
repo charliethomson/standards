@@ -52,10 +52,54 @@ Properties worth knowing before you change anything:
 | [`standards-core`](standards-core/) | Content model and parsers: `Bundle`, `Doc`, `Checklist`, `Archetype`, `Skill`, `Template`, `Manifest`, `StandardsConf`, link rewriting, `MIN_CLI_VERSION`. |
 | [`standards-db`](standards-db/) | The served files embedded at build time (rust-embed, one folder per served dir, plus `CHANGELOG.md`), re-checked with `is_served`; `files()`, `commit()`, and `bundle()`, which parses once and hands out an `Arc<Bundle>`. |
 | [`standards-engine`](standards-engine/) | `Engine` over an `Arc<Bundle>`: `search`, `checklist(standard, archetype)`, `doc` / `doc_section` with absolute links, `templates` / `render_template`, `skills` / `skill` / `skill_asset`, `manifest`. Typed errors for unknown names; N/A is a value. |
-
 | [`standards-api`](standards-api/) | The server binary `standards-server` (`dev.thmsn.standards.server`): `app()` is the whole mount map; REST mirror (`rest.rs`), wire types (`dto.rs`), engine errors as keyed 404s (`error.rs`), ETag caching (`caching.rs`), slash-holding path parameters (`paths.rs`), the request layer and metrics, env config. MCP at `/mcp` (`mcp.rs`); `web.rs` (+ `web/`) is the rendered site. |
+| [`standards-cli`](standards-cli/) | The `standards` binary (`dev.thmsn.standards.cli`), a client of the REST mirror. Depends on `standards-core` only (the server crates are dev-dependencies for its tests). |
 
-`standards-cli` joins the workspace when it is built.
+### The cli
+
+```
+standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron>
+```
+
+- **`init [--product] [--archetype] [--lib] [--upper]`** writes `.standards.conf`,
+  `AGENTS.md`, `SHORTCUTS.md` and `README.md` at the root of the git repo it runs in: the
+  port of `bin/standards install` without the skill symlinks and `.mcp.json`. Identity comes
+  from the flags, else an existing `.standards.conf`, else the directory name and
+  `full-stack-product`. It never overwrites a file (`.standards.conf` included, which
+  `bin/standards` did overwrite), so rerunning it backfills.
+- **`new <archetype> <product> [--lib] [--upper] [DIR]`** makes `DIR` (default
+  `./<product>`, absent or empty), runs `git init -b main`, writes `init`'s files plus a
+  small per-archetype set: `VERSIONING.md` for full-stack-product, library and cli-tool,
+  `branding/build.py` for full-stack-product, `build.rs` for cli-tool, nothing else for
+  orchestration and vendored-app. The rest is the `thmsn-standards-init` skill's job. The
+  table is in `scaffold.rs`.
+- **`self-update [--check]`** asks the registry
+  (`STANDARDS_REGISTRY_URL`, default `https://apps.dev.thmsn.dev`) to resolve
+  `dev.thmsn.standards`/`cli` for this os/arch, compares with the running version, downloads
+  the artifact, checks size and sha256, takes `standards` out of the `.tar.gz`, and renames a
+  temp file over the running exe. Registry reads need a bearer: `REGISTRY_TOKEN`, the same
+  variable the registry's installer reads.
+- **`doctor`, `janitor`, `ultron`** print "not implemented yet" and exit 1. Each owns its
+  clap `Args` and `run` in its own file (`doctor.rs`, `janitor.rs`, `ultron.rs`), so filling
+  one in touches nothing else.
+- Templates are rendered by the server (`/api/v1/templates/{path}?KEY=V`). `init` and `new`
+  render everything before writing, so an unreachable server or a bad archetype writes
+  nothing.
+- **Exit codes:** 0 ok or warn, 1 fail, 2 usage, 3 the server or registry was needed and
+  unreachable. `--json` prints one object, `{"status", "data"}` or
+  `{"status": "error", "error": {"message", "$type", "exit_code"}}`.
+- **Config** is env only: `STANDARDS_HOST` (under `--host`, default
+  `https://standards.thmsn.dev`), `STANDARDS_REGISTRY_URL`, `REGISTRY_TOKEN`.
+- **The manifest cache** (`cache.rs`) is
+  `${XDG_CACHE_HOME:-~/.cache}/thmsn/standards/manifest.json`, keyed by host, refreshed at
+  most hourly, falling back to the stale copy when the refresh fails; `doctor --quiet` uses
+  it with a 1s budget.
+- Tests run the real server app in-process on an ephemeral port and a fake registry beside
+  it; the "current exe" is always a temp file, and nothing touches the real `$HOME`.
+
+```sh
+cargo run -q -p standards-cli -- --host http://127.0.0.1:8080 init --archetype library
+```
 
 ### The server's routes
 
@@ -160,7 +204,8 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 ## Status
 
 `standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
-MCP at `/mcp`, the HTML site and the standard mounts) exist. The cli is not built yet,
+MCP at `/mcp`, the HTML site and the standard mounts) exist, and `standards-cli` with
+`init`, `new` and `self-update`. The cli's `doctor`, `janitor` and `ultron` are not built yet,
 and nothing is deployed.
 
 Conventions for this code: the "This repo's own code" section of [`AGENTS.md`](../AGENTS.md).

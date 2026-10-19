@@ -70,6 +70,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   `/api/v1/search`. Light and dark follow the system; no inline script (CSP
   `script-src 'self'`).
 
+- **`standards-cli`** (`crates/standards-cli/`, binary `standards`): the cli skeleton.
+  `standards [--host URL] [--json] [-v]` with `init` (the port of `bin/standards install`
+  without skill symlinks or `.mcp.json`, templates rendered by the server, never overwriting
+  a file), `new <archetype> <product> [DIR]` (an empty dir, `git init`, init's files plus a
+  small per-archetype set), and `self-update [--check]` (resolve from the registry,
+  sha256-checked download, atomic swap of the running binary). `doctor`, `janitor` and
+  `ultron` are stubs in their own modules. Exit codes 0/1/2/3 (3 = server unreachable); a
+  manifest cache at `~/.cache/thmsn/standards/manifest.json` for `doctor --quiet`.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.
