@@ -5,11 +5,9 @@ Thumbs.db
 .idea/
 .vscode/
 
-# MCP servers
-# secrets (copy from mcp/.env.example)
-mcp/.env
-# 67M third-party binary; get it via mcp/grafana/install.sh
-mcp/grafana/mcp-grafana
-
 # Rust workspace build output
 /target/
+
+# mcp/ moved to the homelab repo. Old checkouts still hold mcp/.env (secrets) and the
+# mcp-grafana binary; keep them out of git.
+/mcp/
