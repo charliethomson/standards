@@ -1,0 +1,8 @@
+# Coverage config for `cargo tarpaulin` (templates/rust/tarpaulin.toml). The 80% floor is
+# the fleet standard for services (docs/testing.md), and this repo holds it for the server
+# and cli crates alike (L24). Coverage counts lines executed, not behaviour verified: never
+# lift the number with mock-verify tests.
+[default]
+workspace = true
+timeout = "180s"
+fail-under = 80

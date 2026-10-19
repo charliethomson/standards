@@ -1,0 +1,9 @@
+# liblog records structured fields via `valuable`, which is still gated behind a
+# tracing cfg flag (docs/rust-conventions.md, docs/observability.md).
+[build]
+rustflags = ["--cfg", "tracing_unstable"]
+
+# Private lib* crates are fetched over SSH; libgit2's ssh-agent auth is
+# unreliable, so route git through the CLI (matches what CI sets).
+[net]
+git-fetch-with-cli = true

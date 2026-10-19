@@ -77,3 +77,30 @@ Don't stash a command line in a string variable. Write the command out, or use a
 (`cmd=(cargo test --workspace); "${cmd[@]}"`), or a function. Same for lists of args or
 files: `files="a b c"; rm $files` is one argument in zsh, so use `files=(a b c)` instead.
 `${=var}` forces splitting if you really need it.
+
+---
+
+## This repo's own code
+
+Everything above is for repos that consume these standards. This section is for changes to
+the Rust workspace in this repo ([`crates/`](crates/README.md)): the server behind
+https://standards.thmsn.dev and the `standards` cli. It follows these standards like any
+other fleet repo, with these choices recorded:
+
+- **Archetypes.** The server crates (`standards-core`, `-db`, `-engine`, `-api`) are a
+  [full-stack product](docs/archetypes/full-stack-product.md) with these rows **N/A**:
+  data & persistence (the content is embedded at build time; there is no database),
+  auth integration and refresh tokens (public, read-only, no accounts), client analytics,
+  platform UX and the web client (the site is server-rendered docs with no client app), and
+  branding. The cli (`standards-cli`) is a [CLI tool](docs/archetypes/cli-tool.md).
+- **Identifiers.** `dev.thmsn.standards.server` and `dev.thmsn.standards.cli`; env prefix
+  `STANDARDS_`.
+- **Layers.** `core → db → engine → api` ([service architecture](docs/service-architecture.md));
+  the cli depends on `core`, never on the server crates. `standards-core` does no I/O.
+- **Served content.** Only `docs/**`, `skills/**`, `templates/**` and `CHANGELOG.md`, decided
+  by `standards_core::is_served`. Never `bin/`, `mcp/`, `prompts/`, `NOTES.md` or dotfiles.
+- **Versioning.** Derived ([versioning](docs/versioning.md)); content identity is the commit
+  the server embeds. `MIN_CLI_VERSION` in `standards-core` is bumped by hand when the
+  manifest or REST shape changes in a way an older cli would misread.
+- **Tests** read this repo's real content from disk and hand it to core as bytes; when a doc
+  edit breaks one (a lost checklist, a broken link), fix the doc.

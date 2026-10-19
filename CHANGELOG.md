@@ -1,8 +1,11 @@
 # Changelog
 
-Notable changes to the **standards** repo. This is a docs/reference repo vendored as a
-submodule, so entries are human-facing and *not* tied to the derived version scheme in
-[`docs/versioning.md`](docs/versioning.md) (that governs product/binary builds, not this repo).
+Notable changes to the **standards** repo: the docs, skills and templates, and the Rust
+workspace in [`crates/`](crates/README.md) that serves them at https://standards.thmsn.dev and
+ships the `standards` cli. Builds follow the derived versioning in
+[`docs/versioning.md`](docs/versioning.md): `MAJOR.MINOR.<commit count>`, with the `vMAJOR.MINOR`
+tag as the only manual knob (the first, `v0.1`, is cut at go-live). Content identity is the
+commit the server embeds; entries here are human-facing.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
@@ -25,6 +28,14 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   parent-based and honours `sampled=0`).
 
 ### Added
+
+- **Rust workspace + `standards-core`** (`Cargo.toml`, `crates/standards-core/`): the pure
+  content model the hosted server and the `standards` cli share. Parses docs (title, sections
+  with GitHub anchors, trailing `## Checklist`), archetype tables (one row per standard,
+  applicability from the bold marker), skills (frontmatter, assets, description and content
+  sha256), templates (strict `{{KEY}}` rendering that reports unfilled keys), the manifest,
+  `.standards.conf`, the served allowlist, and absolute link rewriting. Zero I/O; tests run
+  over this repo's real content.
 
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never

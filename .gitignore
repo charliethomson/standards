@@ -10,3 +10,6 @@ Thumbs.db
 mcp/.env
 # 67M third-party binary; get it via mcp/grafana/install.sh
 mcp/grafana/mcp-grafana
+
+# Rust workspace build output
+/target/

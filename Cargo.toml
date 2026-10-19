@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+# Server: core -> db -> engine -> api (docs/service-architecture.md); the cli also
+# depends on core. Members land with their tasks; only core exists so far.
+members = ["crates/standards-core"]
+
+[workspace.package]
+version = "0.0.0"          # placeholder: the real version is derived (docs/versioning.md)
+edition = "2024"
+license = "UNLICENSED"
+publish = false
+repository = "https://github.com/charliethomson/standards"
+
+[workspace.lints.clippy]
+pedantic           = { level = "warn", priority = 0 }
+# Allowlist (with the reason each is tolerated):
+missing_errors_doc = { level = "allow", priority = 1 } # serializable error enums document themselves
+implicit_hasher    = { level = "allow", priority = 1 } # generic hashers add noise without value
+panic              = { level = "warn", priority = 1 }   # surface panics; allow case-by-case
+
+[workspace.dependencies]
+# ── the lib* ecosystem (docs/lib-ecosystem.md) ──
+libbuildinfo = { git = "https://github.com/charliethomson/libbuildinfo" }
+
+# ── internal crates (dependencies point inward only) ──
+standards-core = { path = "crates/standards-core" }
+
+# ── third-party ──
+pulldown-cmark = { version = "0.13", default-features = false }
+regex          = "1"
+serde          = { version = "1", features = ["derive"] }
+serde_json     = "1"
+sha2           = "0.10"
+hex            = "0.4"
+thiserror      = "2"

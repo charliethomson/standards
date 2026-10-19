@@ -1,0 +1,26 @@
+[package]
+name = "standards-core"
+description = "Pure content model for the standards repo: docs, archetypes, skills, templates, manifest. Zero I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+libbuildinfo   = { workspace = true }
+pulldown-cmark = { workspace = true }
+regex          = { workspace = true }
+serde          = { workspace = true }
+sha2           = { workspace = true }
+hex            = { workspace = true }
+thiserror      = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[build-dependencies]
+libbuildinfo = { workspace = true }
