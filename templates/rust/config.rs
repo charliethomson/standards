@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 // Defaults are hardcoded HERE, not in a committed TOML.
 const DEFAULT_BIND: &str = "127.0.0.1:8080"; // loopback locally; Docker sets {{PRODUCT_UPPER}}_BIND=0.0.0.0:8080
 // A NAME, not an IP: the TLS leg verifies the certificate's hostname.
-const DEFAULT_AUTH_TCP_ADDR: &str = "tcp.auth.dev.thmsn.dev:7070";
+const DEFAULT_AUTH_TCP_ADDR: &str = "<auth-tcp-host>:<auth-tcp-port>"; // the central auth service's TCP endpoint
 
 // Fleet-shared, UNPREFIXED env vars every service reads. AUTH_TCP_* deliberately does NOT
 // belong here: those are this service's own fields and take the {{PRODUCT_UPPER}}_ prefix.

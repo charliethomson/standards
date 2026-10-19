@@ -42,7 +42,7 @@ WORKDIR /app
 COPY --from=build /build/target/release/{{BIN}} /usr/local/bin/{{PRODUCT}}-{{BIN}}
 
 # Data dir (SQLite db, assets) lives on a mounted volume. Never the secret key:
-# the backup sidecar snapshots this volume (docs/backups.md, docs/security.md).
+# the backup sidecar snapshots this volume (https://standards.thmsn.dev/d/backups, https://standards.thmsn.dev/d/security).
 ENV {{PRODUCT_UPPER}}_DATA_DIR=/data
 ENV {{PRODUCT_UPPER}}_BIND=0.0.0.0:8080
 VOLUME ["/data"]

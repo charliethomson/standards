@@ -67,7 +67,7 @@ homelab/
 
 ## Naming
 
-`<service>.<host>.thmsn.dev` — e.g. `sonarr.dev.thmsn.dev`, `fs.thmsn.dev`,
+`<service>.<host>.thmsn.dev` — e.g. `grafana.dev.thmsn.dev`,
 `agentutil.dev.thmsn.dev`. Off-network resolution is intentionally NXDOMAIN (no public A
 records); access is via the tailnet.
 

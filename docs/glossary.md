@@ -70,7 +70,7 @@ actually building.
 - **Komodo / Periphery** — the GitOps deployment control plane (Komodo Core) and its
   per-host agents (Periphery) that reconcile docker-compose stacks from git.
 - **homelab** — the infra-as-code repo that deploys the whole fleet; the **`dev` box** is its
-  primary host (`192.168.0.193`).
+  primary host.
 - **`stash-backup`** — the backup sidecar every stateful stack runs, built from the stash repo;
   writes snapshots to the NAS, which stash audits and restore-drills. See [backups.md](backups.md).
 - **Watchtower** — auto-updates running containers when a new `:main` image is pushed to GHCR.

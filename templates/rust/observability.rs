@@ -16,7 +16,7 @@ fn production() -> bool {
         .is_ok_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
 }
 
-/// Always-on: the collector tail-samples (docs/tracing.md). `SAMPLE_RATE` pins a
+/// Always-on: the collector tail-samples (https://standards.thmsn.dev/d/tracing). `SAMPLE_RATE` pins a
 /// parent-based ratio for local work; `OTEL_TRACES_SAMPLER` overrides both inside liblog.
 fn sampling() -> liblog::Sampling {
     match std::env::var("SAMPLE_RATE").ok().and_then(|s| s.parse().ok()) {

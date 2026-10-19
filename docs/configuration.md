@@ -82,7 +82,7 @@ boots.
 ## Conventions
 
 - **Hardcode sensible defaults in code**, not in committed config files
-  (`DEFAULT_AUTH_TCP_ADDR = "tcp.auth.dev.thmsn.dev:7070"`, cache TTLs, ports). The TOML file is
+  (`DEFAULT_AUTH_TCP_ADDR = "<auth-tcp-host>:<auth-tcp-port>"`, cache TTLs, ports). The TOML file is
   for overrides, not for carrying the baseline. Default the auth address to a **name, not a LAN
   IP** — the TLS leg verifies the certificate's hostname
   ([auth-integration.md](auth-integration.md)).
