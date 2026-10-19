@@ -53,7 +53,7 @@ Properties worth knowing before you change anything:
 | [`standards-db`](standards-db/) | The served files embedded at build time (rust-embed, one folder per served dir, plus `CHANGELOG.md`), re-checked with `is_served`; `files()`, `commit()`, and `bundle()`, which parses once and hands out an `Arc<Bundle>`. |
 | [`standards-engine`](standards-engine/) | `Engine` over an `Arc<Bundle>`: `search`, `checklist(standard, archetype)`, `doc` / `doc_section` with absolute links, `templates` / `render_template`, `skills` / `skill` / `skill_asset`, `manifest`. Typed errors for unknown names; N/A is a value. |
 
-| [`standards-api`](standards-api/) | The server binary `standards-server` (`dev.thmsn.standards.server`): `app()` is the whole mount map; REST mirror (`rest.rs`), wire types (`dto.rs`), engine errors as keyed 404s (`error.rs`), ETag caching (`caching.rs`), slash-holding path parameters (`paths.rs`), the request layer and metrics, env config. MCP at `/mcp` (`mcp.rs`); `web.rs` is the mount point for the HTML site. |
+| [`standards-api`](standards-api/) | The server binary `standards-server` (`dev.thmsn.standards.server`): `app()` is the whole mount map; REST mirror (`rest.rs`), wire types (`dto.rs`), engine errors as keyed 404s (`error.rs`), ETag caching (`caching.rs`), slash-holding path parameters (`paths.rs`), the request layer and metrics, env config. MCP at `/mcp` (`mcp.rs`); `web.rs` (+ `web/`) is the rendered site. |
 
 `standards-cli` joins the workspace when it is built.
 
@@ -72,7 +72,16 @@ Properties worth knowing before you change anything:
 | `GET /health`, `/version`, `/api/metrics` | liveness; derived version, commit and full libbuildinfo; OpenMetrics |
 | `GET /install` | 302 to `https://apps.dev.thmsn.dev/install/dev.thmsn.standards` |
 | `POST /mcp` | MCP, streamable HTTP (`mcp.rs`; see below) |
-| `/`, `/d/{id}` | the HTML site (STD-17, `web.rs`) |
+| `GET /`, `/d/{id}` | the rendered site (`web.rs`): the index (archetypes with their standards tables, every doc by the overview's groups) and one doc with a heading TOC; links made root-relative so it works on any host |
+| `GET /search?q` | search results rendered server-side, so search works without JS; the query is never logged |
+| `GET /static/{site.css,search.js}` | the site's stylesheet and the live-search script, compiled in |
+
+- **The site has no inline script or style.** Every page and asset carries
+  `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; ...` plus
+  `nosniff`, `no-referrer` and `X-Frame-Options: DENY`. Pages are rendered once at startup
+  (the content cannot change while the process runs) and cached like the REST mirror. The
+  smoke test in `web/tests.rs` checks every doc answers 200 and every `/d/` link it renders
+  resolves; the markup itself is not unit-tested (docs/testing.md).
 
 - **Ids and paths with slashes are one parameter.** `{id}`, the template `{path}` and the
   asset `{path}` may hold slashes (`archetypes/cli-tool`, `rust/build.rs`,
@@ -151,7 +160,7 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 ## Status
 
 `standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
-MCP at `/mcp` and the standard mounts) exist. The HTML site and the cli are not built yet,
+MCP at `/mcp`, the HTML site and the standard mounts) exist. The cli is not built yet,
 and nothing is deployed.
 
 Conventions for this code: the "This repo's own code" section of [`AGENTS.md`](../AGENTS.md).

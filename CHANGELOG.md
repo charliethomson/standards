@@ -62,6 +62,14 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   an unknown name is a tool error that lists what exists. One prompt per skill (optional
   `args`), and the server `instructions` that tell agents when to call which tool.
 
+- **The rendered docs site** (`crates/standards-api/src/web.rs`): `/` lists the archetypes,
+  each with its standards table and applicability badges, then every doc as the overview
+  groups them. `/d/{id}` renders a doc with a heading TOC, self-linking anchors, wide tables
+  and code that scroll in their own box, and checklists as a distinct card. Links work on any
+  host. `/search?q=` renders results without JS; a small script adds live results from
+  `/api/v1/search`. Light and dark follow the system; no inline script (CSP
+  `script-src 'self'`).
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.

@@ -148,6 +148,10 @@ fn api_operation(operation: Option<&'static str>, path: &str) -> &'static str {
         "/install" => "install",
         "/mcp" => "mcp",
         raw if raw.starts_with("/t/") => "raw_template",
+        "/" => "web_index",
+        "/search" => "web_search",
+        doc if doc.starts_with("/d/") => "web_doc",
+        asset if asset.starts_with("/static/") => "web_static",
         _ => "unmatched",
     }
 }
@@ -285,7 +289,8 @@ pub async fn serve<E: Endpoint<Output = Response>>(
             .error_type
             .clone()
             .unwrap_or_else(|| format!("http.{}", status.as_u16()));
-        if !is_json(&response) {
+        // The site's own error pages (web.rs) stay HTML.
+        if !is_json(&response) && !is_html(&response) {
             to_json_error(&mut response, &kind, trace_id.as_deref()).await;
         }
         kind
@@ -360,6 +365,14 @@ pub async fn serve<E: Endpoint<Output = Response>>(
         completed!(tracing::Level::INFO);
     }
     Ok(response)
+}
+
+fn is_html(response: &Response) -> bool {
+    response
+        .headers()
+        .get(poem::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("text/html"))
 }
 
 fn is_json(response: &Response) -> bool {
