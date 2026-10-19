@@ -1,0 +1,4 @@
+# desc: p95 request duration (ms) by operation, from `duration_ms` on `http completed`
+# kind: series
+# range: 1h
+quantile_over_time(0.95, {{sel}} | api_operation != `` | unwrap duration_ms [{{range}}]) by (api_operation)

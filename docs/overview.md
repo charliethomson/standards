@@ -62,6 +62,7 @@ libraries/CLIs too):
 |---|---|---|
 | Service architecture | [service-architecture.md](service-architecture.md) | Workspace layered `core→db→engine→api`; poem-openapi; 10s graceful drain. |
 | Data & persistence | [data-persistence.md](data-persistence.md) | sqlx + SQLite, `.sql` migrations, typed `Id<T>` (UUIDv7). |
+| Backups | [backups.md](backups.md) | `stash-backup` sidecar per stateful stack → `Secure/Application Backups/<product>` on the NAS; stash audits and drills them; keys never under `/data`. |
 | Public short ids | [public-ids.md](public-ids.md) | Stored 11-char Crockford-Base32 alias; URLs use it, UUID stays internal. |
 | API contracts | [contracts.md](contracts.md) | Server emits OpenAPI/AsyncAPI; clients generated + drift-checked. |
 | Error handling | [error-handling.md](error-handling.md) | Domain `Error`→HTTP; `liberror`+`thiserror`+`valuable` trinity. |
@@ -71,6 +72,7 @@ libraries/CLIs too):
 | Observability | [observability.md](observability.md) | `liblog`/OTLP; `/api/metrics`; log ids/timings, never bodies. |
 | Tracing | [tracing.md](tracing.md) | Always-on export, collector tail-samples; spans finish inside 60 s; `traceparent` + `x-<product>-*` from clients, trace id echoed as `Ref:`. |
 | Client analytics | [client-analytics.md](client-analytics.md) | Clients batch usage events to their own server, which re-emits them as OTLP logs routed to ClickHouse; no third-party analytics SDKs, no user content in props. |
+| Alerting | [alerting.md](alerting.md) | Grafana-provisioned rules as code; alert on repetition and severity, never a retry's substring; liveness at minimum. |
 | Grafana dashboards | [grafana-dashboards.md](grafana-dashboards.md) | Committed `<name>.dashboard.json`; queries key off fleet identifiers. |
 | Security | [security.md](security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | Web & client arch | [web-architecture.md](web-architecture.md) | TanStack Query (server) + Zustand (UI); generated client; `@thmsn/ui` on Tailwind v4; shared Kit. |

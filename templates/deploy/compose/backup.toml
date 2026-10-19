@@ -1,0 +1,18 @@
+# What the `backup` sidecar snapshots (standards/docs/backups.md). Mounted at
+# /etc/stash-backup/config.toml. Only what is listed is backed up: never list a
+# key file. Schedule (hourly at :07) and retention (48 hourly, 30 daily) default
+# in code; override with [schedule] / [retention] only for a reason.
+product = "{{PRODUCT}}"
+
+[[sqlite]]
+path = "/data/{{PRODUCT}}.db"
+# counts = ["<table>"]            # logged each run; stash trends them
+
+# Every row that names a file on disk gets a check, and the tree a mirror:
+# [[sqlite.require_files]]
+# mirror = "<name>"
+# query = "SELECT <file name>, <sha256> FROM <table>"
+#
+# [[files]]
+# name = "<name>"
+# path = "/data/<dir>"

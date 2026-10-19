@@ -82,13 +82,16 @@ Provision the links on the datasources so every signal is one click from the oth
   - name: Tempo
     uid: tempo
     jsonData:
-      tracesToLogsV2:                     # span → its logs, same service, ±5m
+      tracesToLogsV2:                     # span → the trace's logs, every service, ±5m
         datasourceUid: loki
         spanStartTimeShift: "-5m"
         spanEndTimeShift: "5m"
         filterByTraceID: true
         customQuery: true
-        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__trace.traceId}"'
+        # Match on the trace id alone. `service.name` is a resource attribute, which
+        # `__span.tags` doesn't carry, so a service_name selector built from it comes out
+        # empty and the link finds nothing. Loki needs one non-empty matcher; `.+` is it.
+        query: '{service_name=~".+"} | trace_id="$${__trace.traceId}"'
       tracesToMetrics:                    # span → RED for its span name
         datasourceUid: prometheus
         queries:
@@ -140,9 +143,20 @@ The house layout on Grafana's 24-column grid:
 
 ## Delivery
 
-Today: **author in the UI → export JSON → commit → the file is the record.** The
-running dashboard is redeployed by editing/importing that JSON. Datasources are
-provisioned; dashboards are not, so importing is currently a manual UI step.
+**Author in the UI → copy the JSON Model → commit → the file is the record.** Grafana
+provisions every dashboard from a file (`allowUiUpdates: false`), so the repo wins:
+
+- **A product deployed on the monitoring host** keeps its dashboard at
+  `deploy/monitoring/grafana/<product>-overview.dashboard.json`. The homelab monitoring stack
+  bind-mounts that directory from the stack's Komodo checkout, and Grafana re-reads it every
+  ~10 s, so a product deploy updates its own dashboard. The homelab owns one bind-mount line
+  per product.
+- **A product deployed elsewhere** keeps the file in its repo and a byte-for-byte mirror in
+  the homelab repo, with a `scripts/monitoring-mirror.sh check|sync` that fails on drift
+  (or a CI step that POSTs it to Grafana's `/api/dashboards/db`).
+
+Alert rules follow the same ownership, except that Grafana reads them only at boot:
+[alerting.md](alerting.md).
 
 **Export clean, or every save is a noisy diff.** Copy from the dashboard's **JSON Model**
 tab (Settings → JSON Model), *not* "Export for sharing externally" — the latter injects

@@ -5,9 +5,10 @@
 **Services export every span; the collector decides what to keep.** A span is one unit of
 work that finishes, named for what it is, carrying the correlation ids as attributes, and
 marked ERROR only when someone should look. A trace completes inside the collector's 60 s
-decision window. Clients propagate `traceparent` and identify themselves with
-`x-<product>-*` headers; the server echoes the trace id so a user-visible `Ref:` finds the
-trace.
+decision window. Every request leaves exactly one completion log line, errors included.
+Clients propagate `traceparent` and identify themselves with `x-<product>-*` headers; the
+server adopts a client's trace id (and continues a service's trace), and echoes it so a
+user-visible `Ref:` finds the trace.
 
 This is the tracing layer on top of [observability.md](observability.md) (bootstrap, the
 pipeline, privacy basics). Reading traces back is
@@ -67,9 +68,30 @@ those failures in a real service.
     ~11 000-span trace, ~94 % of that service's spans.
 
   Count items on the parent (`entries`, `bytes`, `attempts`) instead.
+- **A span that waits for something that may never come is closed at 55 s** with
+  `outcome = "timeout"` (first frame, first signal, a session that never starts), so it
+  still lands inside the decision window.
+- **An exported span accounts for its own duration.** Every awaited phase that can be slow
+  gets an INFO child, and waits on shared resources are recorded as fields, so a slow span
+  splits into queueing and work: `acquire_ms` (a pool connection), `lock_wait_ms`,
+  `permit_wait_ms` (a semaphore), `send_wait_ms` (a full channel), `queue_wait_ms` (time on
+  a queue before pickup). A driver with no spans of its own (sqlx) shows up only as an
+  unexplained gap otherwise.
+- **Boot is a short root.** Startup I/O (connect, migrate, first load) runs under one
+  `<service>.startup` root (`parent: None`); work spawned during boot starts its own roots
+  rather than collecting under the boot trace for minutes.
+- **A connection or stream gets a connect span and one summary event at close.** The
+  connect span covers the handshake/subscribe only; the close emits one INFO event
+  (`sse.disconnected`, `ws.closed`) from a drop guard with `duration_ms`, counts
+  (`events_sent`, `bytes_sent`, `lagged`) and the correlation ids **written out
+  explicitly**, because a drop guard runs outside any span.
+- **A cache hit is DEBUG; the miss is INFO.** The miss is the real round trip.
 - **Crossing a boundary carries the context.** In-process (channel, actor, command queue):
-  capture the caller's `Span` / `SpanContext` on the message and parent or link to it on the
-  other side. Across HTTP: `traceparent`. Across a custom RPC: an optional `traceparent` field
+  carry a `Span` only when the receiver's work is bounded by the caller's (a command the
+  caller awaits); the receiver becomes its child and records `queue_wait_ms`. Otherwise
+  carry a `SpanContext` and start a root linked to it. **Never store a `Span`, or a clone of
+  one, in anything that outlives the unit**: a held clone keeps the span open and the trace
+  unfinished. Across HTTP: `traceparent`. Across a custom RPC: an optional `traceparent` field
   on the envelope, outside any oneof, so old peers ignore it and new peers without one start
   a root.
 - **Never hold `span.enter()` across `.await`**; use `.instrument(span)`. A spawned task either
@@ -77,7 +99,11 @@ those failures in a real service.
   `.instrument(Span::current())` on a long-lived spawn: it inherits a parent by accident and
   keeps it open.
 - **Hot, cheap endpoints are DEBUG:** health, metrics, media segments, ingest. Their request
-  span exists for local debugging and doesn't export.
+  span exists for local debugging and doesn't export. Exception: a route a *service* calls
+  with an exported CLIENT span must export at the same level as that span, or the
+  service-graph edge never pairs. Both sides follow one level rule; when the server can't
+  tell from the route (one ingest route, many event kinds), the caller names the kind in a
+  header and both sides key off it.
 
 ## Names
 
@@ -88,8 +114,20 @@ those failures in a real service.
 - **HTTP server root:** span name `http.request`, `otel.name = "{METHOD} {route template}"`
   (`GET /api/orders/:id`; just `{METHOD}` when unmatched), `otel.kind = "server"`. Handler
   children: `api.<resource>.<op>` (`api.orders.create`).
-- **Outbound calls:** `otel.kind = "client"`, named for the peer: `auth.me`, `s3.get`,
-  `db.<op>`, `payments.charge`.
+- **Outbound calls: one CLIENT span per wire call**, opened with liblog's `client_span!`,
+  named for the peer (`s3.get`, `db.query`, `openrouter.chat`, `payments.charge`) and
+  carrying `peer.service` (or `db.system` + `db.namespace`) plus `server.address` and
+  `server.port`. Grafana's service graph draws an edge only from a CLIENT span whose direct
+  child is an exported SERVER span, or from one with those peer attributes; everything else
+  exports as INTERNAL and draws nothing.
+  - A span wrapping several calls (a transaction, a retry loop) is INTERNAL; each call
+    inside it is its own CLIENT span.
+  - If an SDK opens its own CLIENT span (an auth SDK's `auth.rpc.me`), your wrapper
+    (`auth.me`) is INTERNAL. CLIENT under CLIENT draws an `unknown` node.
+  - Calling another fleet service: `client_span!` + `inject_span` on the request, and the
+    peer's `server_span!` becomes its child. `peer.service` is the peer's `service.name`.
+  - An outbound HTTP span ends at the response headers. A body read that can be slow is a
+    sibling span (`http.response.body`, `http.response.body.size`).
 - **Log messages that a dashboard or alert matches are part of the contract.** Renaming one
   updates the dashboard and the alert in the same commit.
 
@@ -103,23 +141,51 @@ those failures in a real service.
 | DEBUG | sub-steps inside a unit; per-item events; hot endpoints | no |
 | TRACE | per line / frame / tick | no |
 
+**WARN means recovered.** A retry that may still fail is DEBUG (or a field on the span)
+until the outcome is known; the give-up is the one ERROR. Something left broken until a
+person intervenes is ERROR, not WARN.
+
 **Expected outcomes are INFO or DEBUG, never WARN or ERROR:** not found, 4xx, a private or
 missing upstream resource, end of stream, a declined credential. A WARN nobody acts on
 trains everyone to ignore WARN.
 
 The export filter defaults to `info` with noisy dependencies capped (liblog's
-`NOISY_TARGETS`: `h2`, `hyper`, `hyper_util`, `tonic`, `tower`, `reqwest`, `rustls`,
-`sqlx`, `opentelemetry*`, `chromiumoxide`), overridable per layer from env without a rebuild
-([observability.md](observability.md#filters)).
+`NOISY_TARGETS`), overridable per layer from env without a rebuild. The list and the
+override trap are in [observability.md](observability.md#filters).
 
 ## Errors
 
-- A failed span sets `otel.status_code = "ERROR"` and `error.type` (a stable kind, not the
-  message). A 5xx response is an error; **a 4xx is not**.
-- **One error log per failure.** Inner layers return errors; the boundary that decides the
-  outcome logs and marks the span. `#[instrument(err)]` on every layer logs the same failure
-  once per layer.
-- A panic is a logged 500: put the panic catcher *inside* the request-logging layer.
+- **Marking and logging are separate duties.** A span that fails sets `otel.status_code =
+  "ERROR"` and `error.type` where it fails, and logs nothing. The boundary that decides the
+  outcome logs it, **once**. `#[instrument(err)]` on every layer logs the same failure once
+  per layer.
+- `error.type` is a stable kind (an error key, `http.502`, `timeout`), never the message: a
+  message can carry row values or upstream content. One spelling everywhere, `error.type`,
+  on the span and on the event.
+- **For a request, the one log is the completion event.** A 5xx's error mapper records
+  `error.type` and a sanitised detail onto the request span (through the request-scoped
+  handle, see Attributes) and returns; the request layer's `http completed` line goes out at
+  ERROR carrying them. A 4xx is not an error: the completion line stays INFO with its
+  `error.type` so it can still be counted.
+- **Clients get fixed text, logs get the detail.** A 5xx body says what kind of thing failed
+  in words chosen for the client, never `err.to_string()` of a storage or upstream error
+  (SQL, paths, upstream bodies). [error-handling.md](error-handling.md) has the mapper.
+- **Library crates don't log the errors they return.** The caller decides the level. A
+  vendored API client that WARNs on every non-2xx before returning `Err` produces two lines
+  per failure; it records on its CLIENT span instead. Never `.ok()` / `let _ =` an error
+  without logging it at the level the caller would choose.
+- **A retried call records what the next failure needs:** `attempts`, `first_attempt_ms` and
+  `first_error` (the `error.type`) on its span, and times the recovery (re-dial, handshake)
+  as a child. An unexplained stall usually explains itself on the next occurrence.
+- **Panics are logged.** In a request: put the panic catcher *inside* the request layer, so a
+  panic is a 500 with a completion line and a trace id. Everywhere else: install a panic hook
+  at startup that logs one ERROR (`error.type = "panic"`, the location, never the payload if
+  it can hold user data), so a background task's panic isn't only on stderr.
+- **A fatal error after telemetry is up is logged before `main` returns** (`error.type`,
+  `"refusing to boot"`), then the guard is flushed. Returning `Err` from `main` reaches
+  stderr only, which is `docker logs` only.
+- A failed subprocess logs a short, sanitised stderr tail (the last few lines, URLs
+  replaced with `<url>`) on its exit event, not the whole stream.
 - Recording a `&dyn Error` field makes `tracing-opentelemetry` copy the whole source chain
   into `exception.message`. If any source can hold upstream content (a body, a URL), record
   `error.type` plus a sanitised message instead.
@@ -133,8 +199,24 @@ The export filter defaults to `info` with noisy dependencies capped (liblog's
   another; if `attempt` and `run_id` both exist, each means exactly one thing. Adding a field
   whose name is already taken for a different meaning gets a new name (`layer_reason`, not a
   second `reason`).
-- **`outcome` on every unit-of-work span** (`ok`, `not_found`, `uploaded`, `failed`, …).
-  `duration_ms` on any end span whose total isn't its own duration.
+- **`outcome` on every unit-of-work span**, from one vocabulary: `ok`, `failed`,
+  `timeout`, `cancelled`, `not_found`, plus domain outcomes (`uploaded`, `skipped`,
+  `requeued`) named once and reused. Never `success`/`error` in one place and `ok`/`failed`
+  in another. `duration_ms` on any end span whose total isn't its own duration; durations
+  are always `_ms`, never `_secs`.
+- **Declare every field you fill later as `field::Empty`** when the span is created;
+  `record()` of an undeclared field is silently dropped. Request-level fields learned deep
+  in a handler (`enduser.id`, `error.type`) are recorded through a **request-scoped handle**
+  to the request span (a task-local set by the request layer), not `Span::current()`, which
+  by then is some child.
+- **The completion event has a fixed field set.** Every `http completed` line carries the
+  same keys, with empty values where they don't apply (`error.type = ""` on a 200), so the
+  JSON file and the console always show them. In Loki, structured metadata **drops empty
+  values and turns dots into underscores**: `error.type` is queried as `error_type`,
+  `enduser.id` as `enduser_id`, and a 200 simply has no `error_type`
+  (`| error_type != ""` finds the failures).
+- **Fields you filter or aggregate on are flat.** A `Valuable` struct reaches Loki as one
+  opaque blob; log the enum's kind as its own field (`result_kind`, `reason`) next to it.
 - **Standard HTTP set (≤ 16):** `otel.kind`, `otel.name`, `otel.status_code`, `error.type`,
   `http.request.method`, `http.route`, `url.path`, `http.response.status_code`,
   `client.address`, `enduser.id`, `session.id`, `client.app`, `client.version`,
@@ -147,6 +229,8 @@ The export filter defaults to `info` with noisy dependencies capped (liblog's
   strings, on span fields and span events alike, so TraceQL can't compare them
   (`span.duration_ms > 1000` quietly matches nothing). Convert at the call site:
   `duration_ms = i64::try_from(d.as_millis()).unwrap_or(i64::MAX)`. Ids stay strings.
+  (Log records through liblog's OTLP appender keep a `u64` as an integer, so Loki filters
+  work either way; the rule is for Tempo, and following it everywhere is simplest.)
 - **Cap attributes.** liblog sets `max_attributes_per_span(32)`; a span that hits it is
   carrying things that belong on child spans or events.
 - **Security-relevant changes emit an audit event** (`audit = true`, `action`, `enduser.id`,
@@ -192,11 +276,25 @@ they send:
   redirect, so the rule has two halves: **the server never redirects an identity-bearing
   request cross-host**, and a client that handles redirects itself drops `traceparent` and
   `x-<product>-*` on a cross-host hop the way it drops `Authorization`.
-- **The server** continues the inbound trace, records the headers and `enduser.id` on the
-  request span, and echoes the trace id in **`x-<product>-trace-id`** on every response that
-  has one (its own id, or the caller's when nothing is exported). The header is listed in
+- **The server adopts a client's trace and continues a service's.** An app or browser never
+  exports the span its `traceparent` names, so parenting on it leaves every client trace in
+  Tempo as `<root span not yet received>`, with blank service and name columns, and root-based
+  searches (`rootServiceName`, `rootName`) miss the request entirely. For those callers the
+  request span keeps the inbound trace id with no parent:
+  `liblog::adopt_client_trace(&span, &cx)`, which records `client.span_id` and links the
+  client's span. A caller that is a fleet service exports its
+  CLIENT span, so there the request span is its child (`liblog::server_span!`) and the
+  service-graph edge forms. Extract and adopt before the span is entered, read, or has
+  children; they capture the trace id at that moment.
+- **The server** records the headers and `enduser.id` on the request span, and echoes the
+  trace id in **`x-<product>-trace-id`** on every response that has one (its own, or the
+  caller's when no span exporter is installed, as in local development). The header is listed in
   CORS `expose_headers`, and the outermost layer stamps it so error and panic responses get
   it too. JSON error bodies carry the same id as **`traceId`**.
+- **Every request that can show a `Ref:` exports its completion line.** Tempo can't search
+  by trace-id prefix and tail sampling drops most healthy traces, so a `Ref:` resolves
+  through Loki's `trace_id` metadata on that line. A request path that skips the completion
+  line on error can't be found from a bug report.
 - **Clients show `Ref: <first 8 hex>`** on errors, with copy-the-full-id, and log the full id
   locally. A terminal client (a CLI) prints the full 32-hex id instead: the user copies text
   out of a terminal anyway, and the full id needs no prefix lookup. The trace id on an error is the header echo, then the body's `traceId`, then the id
@@ -204,6 +302,11 @@ they send:
 - **Loads that can't carry headers** (`<video>`, `<img>`, `EventSource`, `AVPlayer`, HLS
   segments) are traced through the signing/mint call that precedes them. A reconnecting
   stream client that can set headers sends a fresh `traceparent` per connection attempt.
+  High-frequency sub-requests a client does control (HLS segments through a custom loader)
+  send the identity headers but no `traceparent`: a trace per segment is noise.
+- The identity headers go to the product's own origin and nowhere else, including the
+  fleet's other services (the app registry): they are the product's identity, and another
+  origin has no use for them.
 
 ## Pipeline hygiene
 
@@ -234,6 +337,12 @@ The collector is fleet-shared: one service at 100 % can flatten it for everyone.
 - **Don't store logs twice.** A container that ships logs over OTLP is excluded from the
   stdout log shipper: it carries the `dev.thmsn.telemetry=otlp` compose label, and the
   shipper drops labelled containers ([observability.md](observability.md#the-pipeline)).
+- **Size the batch exporter for always-on.** A service exporting every span needs room for a
+  burst: `OTEL_BSP_MAX_QUEUE_SIZE=8192` (the default 2048 drops spans on a busy restart).
+- **Know the trace store's limits.** Tempo caps a trace at 5 MB (a trace past it is
+  truncated, usually one with a per-item span leak) and refuses a search window over
+  168 h. Service-graph pairing loss shows as
+  `otelcol_connector_servicegraph_expired_edges`.
 - **Grafana links the three signals:** trace → logs (by trace id), trace → metrics (span
   name RED), and log → traces (by trace id and by the correlation id). Provisioning is in
   [grafana-dashboards.md](grafana-dashboards.md#trace--log--metric-links).
@@ -244,18 +353,34 @@ The collector is fleet-shared: one service at 100 % can flatten it for everyone.
 - [ ] Collector tail-samples (errors / HTTP > 1 s / > 10 s / `sampling.keep` / 5 %); span
       metrics before sampling; traces 7 d, logs 7 d (longer per product when justified).
 - [ ] No span outlives 60 s: long work is linked short roots per phase, end span carries
-      `duration_ms`; no loop/supervisor/connection spans; per-item work DEBUG.
+      `duration_ms`; unbounded waits closed at 55 s (`outcome=timeout`); no
+      loop/supervisor/connection spans (connections: connect span + close summary event);
+      per-item work and cache hits DEBUG; boot under `<service>.startup`.
+- [ ] Slow spans account for their time: phases as children, `*_wait_ms` / `acquire_ms`.
+- [ ] Context across queues: `Span` only when the receiver is bounded by the caller,
+      otherwise a linked root; no stored `Span` clones.
 - [ ] No `span.enter()` across `.await`; long-lived spawns start a new root.
 - [ ] Span names explicit `<component>.<unit>[.<phase>]`, no ids; `http.request` with
-      `otel.name = "{METHOD} {route}"`; handlers `api.<resource>.<op>`; client spans named
-      for the peer.
-- [ ] Expected outcomes INFO/DEBUG; 5xx → ERROR + `error.type`, 4xx not; one log per failure.
-- [ ] Correlation ids on spans **and** events; one name per concept; `outcome` on units;
-      `skip_all` default; numeric fields as `i64`/`f64`.
+      `otel.name = "{METHOD} {route}"`; handlers `api.<resource>.<op>`.
+- [ ] One `client_span!` per wire call with `peer.service`/`db.system` + `server.address`;
+      wrappers INTERNAL; fleet peers paired with `inject_span` / `server_span!`.
+- [ ] Every request leaves one `http completed` line with a fixed field set, errors
+      included; 5xx → ERROR + `error.type` recorded by the mapper, 4xx INFO; no second log.
+- [ ] WARN only for recovered; retries DEBUG until the outcome; expected outcomes INFO/DEBUG.
+- [ ] Failed spans marked where they fail, logged once at the boundary; libraries don't log
+      returned errors; no silent `.ok()`; panic catcher inside the request layer and a
+      panic hook; fatal boot errors logged before `main` returns.
+- [ ] 5xx bodies carry fixed client text, never storage/upstream detail.
+- [ ] Correlation ids on spans **and** events; one name per concept; `outcome` from the
+      shared vocabulary; durations `_ms`; late fields declared `Empty`; filterable fields
+      flat; `skip_all` default; numeric fields as `i64`/`f64`.
 - [ ] No bodies, query strings, tokens, signed URLs (incl. error `Display` →
       `without_url()`), argv or free text on spans/logs.
-- [ ] Clients send `traceparent` + `x-<product>-*` to the own origin only; server echoes
-      `x-<product>-trace-id` (CORS-exposed) and `traceId` in error bodies; clients show `Ref:`.
+- [ ] Clients send `traceparent` + `x-<product>-*` to the own origin only; server adopts
+      client traces (`adopt_client_trace`) and continues service traces (`server_span!`);
+      echoes `x-<product>-trace-id` (CORS-exposed) and `traceId` in error bodies; clients
+      show `Ref:`.
+- [ ] `OTEL_BSP_MAX_QUEUE_SIZE=8192` on always-on services.
 - [ ] Collector: `memory_limiter` first, pinned images, self-metrics scraped + alerted
       (refused/failed export, Tempo blocklist errors); span-metrics labels cleaned.
 - [ ] Grafana trace ↔ log ↔ metric links provisioned.

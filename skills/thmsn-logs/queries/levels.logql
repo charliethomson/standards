@@ -1,0 +1,4 @@
+# desc: line count by service and level over the range
+# kind: series
+# range: 1h
+sum by (service_name, severity_text) (count_over_time({{sel}} [{{range}}]))

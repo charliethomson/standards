@@ -34,6 +34,35 @@ ln -sfn ../../standards/skills/<skill-name> .claude/skills/<skill-name>
 This standardizes the skills location on `.claude/skills/` (Claude Code's native
 convention). Don't use `.agents/skills/`.
 
+## Specialising a shared skill: `.standards.d/<skill>/`
+
+A shared skill is identical in every repo, but some need to know things only the repo
+does: its service names, the fields its logs carry, the queries worth keeping. That goes
+in the consuming repo, never in the skill, under **`.standards.d/<skill-name>/`**:
+
+```
+<repo>/.standards.d/
+└── <skill-name>/
+    ├── config        # KEY=VALUE, read by the skill's scripts after .standards.conf
+    ├── NOTES.md      # repo-specific knowledge the skill's SKILL.md tells agents to read
+    └── ...           # whatever else the skill defines (recipes, extra commands)
+```
+
+- `.standards.conf` stays the repo's identity (product, archetype), read by the
+  `standards` tooling. `.standards.d/` is per-skill and holds behaviour: config, notes,
+  and files the skill's scripts load, so a repo can add to a skill without forking it.
+- **The skill owns the contract.** Its `SKILL.md` says which files it reads from its
+  directory and what each may contain; a skill with nothing to specialise reads nothing.
+  A skill with a scaffold ships it (`thmsn-logs`: `obsq.sh init`).
+- Commit it. It is the repo's knowledge, reviewed like code, and it outlives the session
+  that learned it.
+- No secrets: name the env var or env file a value comes from.
+- Something every repo would want belongs in the skill, not in each overlay
+  (`thmsn-standards-contribute`).
+
+First user: [`thmsn-logs`](../skills/thmsn-logs/SKILL.md) (`SERVICES`, recipes in
+`queries/`, extra subcommands in `commands/`, the repo's log notes in `NOTES.md`).
+
 ## MCP servers
 
 Canonical source: [`../mcp/`](../mcp/), one directory per server.

@@ -1,0 +1,3 @@
+# desc: Prometheus scrape health for {{1}} (the scrape job name)
+# kind: prom
+up{job="{{1}}"}

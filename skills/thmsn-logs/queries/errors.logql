@@ -1,0 +1,5 @@
+# desc: the ERROR lines themselves, newest last
+# kind: logs
+# range: 1h
+# limit: 200
+{{sel}} | severity_text=`ERROR`

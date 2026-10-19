@@ -27,6 +27,7 @@ Consuming repos link these into their own `.claude/skills/` via
 | **`thmsn-deep-review`** | Deep whole-repo audit (reads the source, one module at a time) → single dated markdown report `reviews/review-YYYY-MM-DD.md` → optional prioritized vision tasks. Not diff-scoped. |
 | **`thmsn-jarvis`** | Turn a rough idea into a scoped program — refine it with you, research, settle the decisions, file discrete vision tasks + a program brief. Hands off to `thmsn-ultron`. (`/thmsn-jarvis we're going to work on a feature to…`) |
 | **`thmsn-ultron`** | Run a multi-task program as an orchestrating manager — read the vision backlog, sequence it, dispatch implementer sub-agents, verify, keep the tracker current. Pausable/resumable across sessions. (`/thmsn-ultron work through the open tasks for this repo`) |
+| **`thmsn-logs`** | Query the product's logs, metrics and traces in the homelab Grafana (Loki/Prometheus/Tempo) through `scripts/obsq.sh`: error sweeps, trace lookup by `Ref:`, latency, what's live. Specialised per repo in `.standards.d/thmsn-logs/` (services, recipes, extra commands, notes). |
 | **`thmsn-janitor`** | Find the worktrees and cargo target dirs agents left behind across `~/git`, say what's safe to delete, and clean up on your yes. Wraps [`../bin/janitor`](../bin/janitor). |
 
 ## Jarvis → Ultron

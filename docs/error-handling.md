@@ -29,11 +29,14 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 ```
 
-Map to HTTP **in the `api` crate only**:
+Map to HTTP **in the `api` crate only**. The mapper picks the status, records the failure
+on the request span, and returns a JSON body with **fixed client text**: a storage or
+upstream error's `Display` carries SQL, paths and upstream bodies, which belong in the log
+and never in a response.
 
 ```rust
-pub fn to_poem(err: Error) -> poem::Error {
-    let status = match &err {
+pub fn to_poem(err: &Error) -> poem::Error {
+    let status = match err {
         Error::NotFound { .. } => StatusCode::NOT_FOUND,
         Error::Invalid(_)      => StatusCode::BAD_REQUEST,
         Error::Conflict(_)     => StatusCode::CONFLICT,
@@ -41,12 +44,30 @@ pub fn to_poem(err: Error) -> poem::Error {
         Error::Upstream(_)     => StatusCode::BAD_GATEWAY,
         Error::Storage(_) | Error::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
-    poem::Error::from_string(err.to_string(), status)
+    let message = match err {
+        Error::Upstream(_) => "an upstream service failed".to_owned(),
+        Error::Storage(_) | Error::Other(_) => "internal error".to_owned(),
+        client => client.to_string(), // written for the caller
+    };
+    // Onto the request span, through the request layer's task-local handle: the
+    // layer's one `http completed` line carries it (ERROR for a 5xx). No log
+    // here, or a 5xx logs twice.
+    request::record_error(err.key(), status.is_server_error().then(|| err.to_string()));
+    poem::Error::from_response(request::error_response(status, err.key(), &message))
 }
 ```
 
-Handlers: `state.db.list_x().await.map_err(to_poem)?`. Template:
-[`templates/rust/error.rs`](../templates/rust/error.rs).
+`Invalid` and `Conflict` messages are written for the client, so they pass through; a
+variant whose text isn't, doesn't. The detail recorded for a 5xx is still sanitised: no
+bodies, no URLs with tokens ([tracing.md](tracing.md#privacy)).
+
+Handlers: `state.db.list_x().await.map_err(|e| to_poem(&e))?`. Templates:
+[`templates/rust/error.rs`](../templates/rust/error.rs) and the request layer it records into,
+[`templates/rust/request_layer.rs`](../templates/rust/request_layer.rs).
+
+**Error bodies are JSON:** `{"message": "...", "$type": "<error key or kind>", "traceId":
+"<32 hex>"}`, the same id the `x-<product>-trace-id` header carries. Clients show `message`
+and `Ref: <traceId[..8]>` ([tracing.md](tracing.md#client--server-contract)).
 
 ## Serializable errors: the trinity
 
@@ -127,6 +148,8 @@ concerns.
 
 - [ ] `core` defines a categorised `Error` enum + a `Result<T>` alias.
 - [ ] `to_poem` (HTTP mapping) lives in `api` only; domain code is HTTP-agnostic.
+- [ ] Error bodies are JSON `{message, $type, traceId}` with fixed client text for 5xx;
+      the mapper records `error.type` on the request span and does not log.
 - [ ] Serializable errors derive `thiserror` + `serde` (`tag="$type"`, `content="context"`,
       `rename_all`/`rename_all_fields = "camelCase"`) + `valuable`.
 - [ ] **Every** serializable variant has a reverse-DNS error key via `#[serde(rename = …)]`:

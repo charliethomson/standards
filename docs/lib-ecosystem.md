@@ -22,6 +22,7 @@ signals, subprocesses), check whether a `lib*` already covers it. They're consum
 | **libcmd** | Async subprocess exec with streaming + cancellation | `run(cmd, args, token) -> CommandMonitor` |
 | **libwhich** | Binary discovery in `PATH` | `which(names)`, `is_valid_executable()` |
 | **libring** | Fixed-size ring buffer for bounded history | `RingBuffer::new(cap)`, `.push()`, `.to_vec()` (opt. serde) |
+| **libci** | The fleet's kiln recipes: version scheme, release registry, GHCR images, private npm, audit gate, secret names, service-repo pipelines. **Only for a repo's `.kiln/` crate**, never app code; it depends on kiln | `version::Version::derive(ctx)`, `registry::AppRegistry`, `templates::{RustCi, ImageBuild, WebCi, BrandingCi}`; one feature per module |
 | **libfs** | Tokio async filesystem with optional tracing | `PathResult<T>` over `AnyError` |
 | **libanalytics** | **Private** (`ssh://git@github.com/charliethomson/libanalytics.git`). [Client analytics](client-analytics.md): the server's `telemetry/events` handler, plus the client event recorders as a Rust crate (`recorder` feature), a root Swift package (SSH git URL + semver tags) and a TS package `@thmsn/analytics` (internal Verdaccio) | handler returns per-reason drop counts; recorders take a product-supplied transport + auth state |
 

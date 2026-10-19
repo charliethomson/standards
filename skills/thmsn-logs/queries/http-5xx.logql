@@ -1,0 +1,5 @@
+# desc: the 5xx `http completed` lines, with their trace ids in `meta`
+# kind: logs
+# range: 24h
+# limit: 200
+{{sel}} | status=~`5..`

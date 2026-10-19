@@ -71,6 +71,8 @@ actually building.
   per-host agents (Periphery) that reconcile docker-compose stacks from git.
 - **homelab** — the infra-as-code repo that deploys the whole fleet; the **`dev` box** is its
   primary host (`192.168.0.193`).
+- **`stash-backup`** — the backup sidecar every stateful stack runs, built from the stash repo;
+  writes snapshots to the NAS, which stash audits and restore-drills. See [backups.md](backups.md).
 - **Watchtower** — auto-updates running containers when a new `:main` image is pushed to GHCR.
 - **Caddy gateway** — the homelab reverse proxy that terminates TLS (Cloudflare DNS-01) and
   fronts each stack at `<product>.dev.thmsn.dev`. See [deployment.md](deployment.md).

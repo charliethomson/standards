@@ -47,9 +47,16 @@ CI enforces it: `cargo clippy --workspace --all-targets -- -D warnings`
   libsomeproduct   = { git = "ssh://git@github.com/charliethomson/libsomeproduct.git", default-features = false,
                 features = ["tiktok", "twitch"] }
   ```
-- **HTTPS for public** repos, **SSH for private** ones. CI loads the deploy key with
-  `webfactory/ssh-agent` and sets `CARGO_NET_GIT_FETCH_WITH_CLI=true`
-  ([self-hosted-agents.md](self-hosted-agents.md)).
+- **HTTPS for public** repos, **SSH for private** ones. CI loads the `ssh_key` deploy key into
+  an `ssh-agent` and sets `CARGO_NET_GIT_FETCH_WITH_CLI=true`
+  ([ci-cd.md](ci-cd.md#private-dependencies)).
+- **kiln and `libci` are both private.** A repo's `.kiln/Cargo.toml` takes both over SSH, so
+  the `.kiln/` build needs the deploy key and `git-fetch-with-cli` like any other private dep;
+  on a CI agent the repo's `checkout_key` provides it:
+  ```toml
+  kiln  = { git = "ssh://git@github.com/charliethomson/kiln.git" }                              # private → SSH
+  libci = { git = "ssh://git@github.com/charliethomson/libci.git", features = ["templates"] }  # private → SSH
+  ```
 - **Feature-gate optional weight** (platform backends, `buildinfo`, WAF bypass) so consumers
   opt in.
 
@@ -66,5 +73,6 @@ CI enforces it: `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] Edition 2024; `[lints] workspace = true` in every member.
 - [ ] Workspace clippy `pedantic = warn` with the standard allowlist; CI runs `-D warnings`.
 - [ ] `.cargo/config.toml` sets `tracing_unstable` and `git-fetch-with-cli` where needed.
-- [ ] Deps are git (HTTPS public / SSH private), feature-gated where optional.
+- [ ] Deps are git (HTTPS public / SSH private), feature-gated where optional — including
+      `.kiln/`: kiln and `libci` over `ssh://`.
 - [ ] Cross-cutting concerns pulled from `lib*`, not reimplemented.

@@ -11,7 +11,14 @@ file per deliverable surface, and split into two families:
 - **`*.build.yml` / `*.release.yml`** — delivery. Build images/artifacts and publish them,
   but **only on `main`** (PRs build to catch breakage, they don't push).
 
-Shared shell used by more than one pipeline lives in **`scripts/ci/`**, not inlined in YAML.
+Pipelines are moving to **kiln**: Rust in the repo's **`.kiln/`** crate, which generates
+the `.woodpecker/` files. Woodpecker stays the executor either way. A ported repo follows
+[Pipelines as code: kiln](#pipelines-as-code-kiln) first; the YAML guidance in the rest of
+this doc is the **pre-kiln path** for repos not yet ported, and still explains what the
+generated files do.
+
+Pre-kiln, shared shell used by more than one pipeline lives in **`scripts/ci/`**, not inlined
+in YAML.
 
 CI is also the **source of truth for the version** ([versioning.md](versioning.md)): it
 computes `RELEASE_VERSION` once and threads it into every build.
@@ -53,6 +60,49 @@ is a GitHub feature with no Woodpecker equivalent:
 
 [`templates/github-workflows/`](../templates/github-workflows/) is kept for the repos still on
 Actions. **Do not scaffold from it.** This document is the reference for a new repo.
+
+## Pipelines as code: kiln
+
+> **The newest section here, and not yet exercised.** [`libci`](https://github.com/charliethomson/libci)
+> has no consumer yet. The rules below are what it implements; confirm them on the first port.
+
+[kiln](https://github.com/charliethomson/kiln) pipelines are Rust in a standalone `.kiln/`
+crate. `cargo run --manifest-path .kiln/Cargo.toml -- emit woodpecker` writes
+`.woodpecker/*.yml` from it; the files are committed, headed "Do not edit — regenerate", and
+Woodpecker runs them unchanged. Gate them on drift (kiln's own `repo.checks` pipeline has the
+job; it is not templated), because `emit` overwrites but never deletes, and an orphaned
+workflow keeps running. There are three layers, each with a different owner:
+
+| Layer | What | Import | Lives in |
+|---|---|---|---|
+| **kiln core** | `Pipeline`, `Job`, `Ctx`, triggers, `secrets!` | `kiln::prelude` | kiln (private) |
+| **generic recipes** | cargo, buildx, bun/npm, git drift, Apple, Windows — ecosystem-generic only | `kiln::recipes::*` | kiln |
+| **fleet recipes** | the version scheme, `apps.dev.thmsn.dev`, `ghcr.io/charliethomson`, `npm.dev.thmsn.dev`, the audit gate, the fleet's secret names, the service-repo templates | `libci::*` | [`libci`](https://github.com/charliethomson/libci) |
+
+The split is kiln's rule, not taste: a bundled recipe must make sense to someone with no
+connection to this fleet. Anything naming one of our hosts goes in `libci`. Dependency
+URLs (kiln and `libci`, both over SSH) are in [rust-conventions.md](rust-conventions.md).
+
+- **Service repos use `libci::templates`**, not copies. `BrandingCi`, `RustCi`,
+  `ImageBuild` (`server.build` / `web.build`) and `WebCi` replace the `branding.ci`, `rust.ci`,
+  `server.build`, `web.build` and `web.ci` YAML and the `scripts/ci/*.sh` behind them. What
+  varied between repos is a parameter; a fix lands once and arrives with `cargo update`. A
+  service repo's whole `.kiln/src/main.rs` is a registration list — see the
+  [crate README](https://github.com/charliethomson/libci#readme). Every template's path filter includes `.kiln/**`.
+- **Not templated yet:** `audit.ci`, the Apple/Windows/CLI release pipelines, and pipelines
+  needing a service container (a database for repository tests). Write those as the repo's own
+  kiln pipelines on top of `libci::{audit, registry, version}`, or keep the pre-kiln YAML.
+- **The repo needs Woodpecker's _trusted_ (volumes) flag.** Generated workflows mount cache
+  volumes under `/var/lib/woodpecker-cache/<repo>/kiln/` and, for image builds, the Docker
+  socket. On an untrusted repo Woodpecker **refuses the whole workflow** — not just the cache —
+  and the generated file's header says so.
+- **Pull requests get no secrets unless the job opts in** with `.allow_on_pull_request()`.
+  `.kiln/` runs from the PR branch, so the opt-in has to be a visible line in review. Only
+  **read-only fetch credentials** take it: `ssh_key` in `rust.ci` and image PR builds,
+  `thmsn_npm_token` in `web.ci`. Nothing release-shaped does — which is why `ImageBuild`
+  returns two pipelines, `<name>` (push/manual, holds `ghcr_token`) and `<name>-pr` (build only).
+- **Declare secrets once.** `Repo::secrets` replaces rather than accumulates, so pass a single
+  `libci::secrets::declare(&[…])` of every group the repo uses plus its own table.
 
 ## Layout and naming
 
@@ -233,16 +283,18 @@ Use `ssh://` URLs for private repos and HTTPS for public ones
 - **Services → GHCR.** `server.build.yml` / `web.build.yml` build the image and push
   `ghcr.io/<owner>/<product>-{api,web}:main`, gated on the event not being a `pull_request`.
   `RELEASE_VERSION` is passed as a `--build-arg`. A Dockerfile that fetches private crates via
-  `RUN --mount=type=ssh` needs `--ssh default` on the build. Put the build itself in a shared
-  `scripts/ci/docker-build.sh` rather than duplicating it per pipeline.
+  `RUN --mount=type=ssh` needs `--ssh default` on the build. On kiln this is
+  `libci::templates::ImageBuild` over `libci::images::GhcrImage`; pre-kiln, put the
+  build in a shared `scripts/ci/docker-build.sh` rather than duplicating it per pipeline.
 - **Keep the build context as narrow as the Dockerfile allows.** Use the repo root only when
   the build genuinely reads `.git` (e.g. `libbuildinfo` deriving the version itself); a
   Dockerfile taking `RELEASE_VERSION` as a build-arg does not.
 - **Client apps → registry.** `{ios,macos,windows,cli}.release.yml` build signed/notarized
   artifacts and publish to `apps.dev.thmsn.dev`. See
-  [registry-publishing.md](registry-publishing.md) — the publish composite action documented
-  there is **GitHub-Actions-only**; a Woodpecker repo calls the registry API from a
-  `scripts/ci/publish.sh` instead.
+  [registry-publishing.md](registry-publishing.md). On kiln, publish with
+  `libci::registry::AppRegistry`; the composite action documented there is
+  **GitHub-Actions-only**, and a pre-kiln Woodpecker repo's `scripts/ci/publish.sh` is not to be
+  copied further.
 - **Do not keep a release trigger the pipeline cannot honour.** If the publish path is not
   ported yet, make the pipeline `event: manual` and say so in the file. A tag firing a release
   that fails is bad; one that goes green without releasing is worse.
@@ -308,17 +360,58 @@ never fires on a schedule — silently, like a mismatched label.
 - **Web — expressible directly.** `npm audit --audit-level=critical` is the blocking step;
   plain `npm audit` (or `--audit-level=high`) under `failure: ignore` is the reporting step.
 - **Rust — not directly expressible.** `cargo audit`'s `--deny` takes
-  `warnings|unmaintained|unsound|yanked`; **there is no severity threshold**. A severity gate
-  therefore means `cargo audit --json` plus a filter on the advisory's CVSS severity, or
-  `cargo-deny`'s advisories config. That filter is the one piece a first adopter has to write;
-  it is deliberately not templated here because no repo has one yet to copy from.
+  `warnings|unmaintained|unsound|yanked`; **there is no severity threshold**, so a severity gate
+  means `cargo audit --json` plus a filter on CVSS. On kiln that filter is
+  `libci::audit::AuditGate` (below); pre-kiln, it is a repo-local script.
 - **Pin a recent `cargo audit`, and do not read its exit code as a finding count.**
   cargo-audit 0.21.2 **fails to parse the current advisory database at all** (it rejects
   CVSS 4.0 advisories, which the database now contains) and exits non-zero having audited
   nothing. A tool failure and a real advisory are the same exit code, so the reporting step
   must show its output rather than being trusted silently.
-- Exceptions: `cargo audit --ignore RUSTSEC-YYYY-NNNN` (or `deny.toml`) and npm's overrides —
-  each with the rationale and expiry alongside it.
+- Pre-kiln exceptions: `cargo audit --ignore RUSTSEC-YYYY-NNNN` (or `deny.toml`) and npm's
+  overrides — each with the rationale and expiry alongside it.
+
+**On kiln: `libci::audit::AuditGate`** (feature `audit`). kiln's recipes produce the
+reports (`CargoAudit::run(ctx)…json()`, `Npm::audit(ctx)…report_to(…)`, `Bun::audit(ctx)…`);
+the gate is the policy over them, and one step replaces the two above — it logs every finding
+and fails only on a blocking one:
+
+```rust
+AuditGate::new()
+    .exceptions("audit-exceptions.json")
+    .cargo("server", server_json)
+    .npm("web", web_json)
+    .run(ctx)?;
+```
+
+- **Critical** is a CVSS 3.x base score ≥ 9.0, or a `critical` severity label (bun always; npm
+  when the advisory has no vector; a cargo advisory with no vector is unscored). A CVSS 4.0
+  vector blocks only in the worst-case shape (network, low complexity, no attack requirements,
+  no privileges, no interaction, High impact on the vulnerable system); any other 4.0 vector is
+  reported unscored for manual triage and never blocks.
+- **The gate fails** on a critical finding with no live exception, **or on any expired
+  exception** — whether or not the advisory still appears. An empty or non-JSON report is an
+  error, so a tool that failed cannot read as clean.
+- **The exceptions file** is a JSON list, at a path the repo passes to `.exceptions(…)`
+  (relative to the workspace; a missing file means no exceptions):
+
+  ```json
+  [
+    {
+      "id": "RUSTSEC-2025-0001",
+      "reason": "only reachable through the CLI's offline mode; upgrade blocked on upstream",
+      "expires": "2026-12-31"
+    }
+  ]
+  ```
+
+  All three fields are required and non-empty. `id` is the advisory id as reported
+  (`RUSTSEC-…`, `GHSA-…`). `expires` is `YYYY-MM-DD`, the **last day it holds**, compared with
+  today in UTC. A missing field or a malformed date fails the gate. An exception covers only a
+  critical finding; everything else was never going to block.
+- **The weekly run** is `.on(Schedule::cron("…"))`. The emitted `event: cron` names the
+  pipeline, so the Woodpecker UI schedule must be **named after the pipeline** — the expression
+  in code is recorded as a comment, not honoured.
 
 ## Secrets
 
@@ -333,10 +426,20 @@ set:
 | `ghcr_token` | `*.build.yml` — needs `write:packages` |
 | `thmsn_npm_token` | web pipelines, for `@thmsn/ui` from the internal npm registry |
 | `registry_token` | `*.release.yml`, publishing to `apps.dev.thmsn.dev` |
+| `registry_repo_token` | kiln release jobs: read-only clone of `charliethomson/registry`'s publish client |
 | `macos_cert_p12`, `macos_cert_password`, `macos_notary_key_p8`, `macos_notary_key_id`, `macos_notary_issuer_id` | macOS signing + notarization |
+| `ios_cert_p12`, `ios_cert_password`, `ios_adhoc_profile` | iOS ad-hoc signing |
+
+On kiln these keys are `libci::secrets` types (`GhcrToken = "ghcr_token"`, …). The keys
+are the contract with the secret store: renaming one is an operations change in every repo.
 
 ## Checklist
 
+- [ ] Ported repos: pipelines in `.kiln/`; `.woodpecker/` generated by `emit woodpecker`, never
+      hand-edited, and drift-checked; service pipelines from `libci::templates`, not
+      copied YAML or `scripts/ci/`.
+- [ ] Ported repos: Woodpecker's trusted (volumes) flag set; only read-only fetch credentials
+      use `.allow_on_pull_request()`.
 - [ ] Pipelines live in `.woodpecker/`, named `<component>.<action>.yml`; no `.github/workflows/`.
 - [ ] Each pipeline sets `labels:` — `platform: linux/amd64`, or `os: macos` / `os: windows`.
 - [ ] `when:` covers `manual` + `push: main` + `pull_request`, with the path filter shared by anchor.
@@ -349,5 +452,5 @@ set:
 - [ ] `*.build` push images only on `main`; `RELEASE_VERSION` computed once and passed in.
 - [ ] Release pipelines whose publish path is not ported are `event: manual`, and say so.
 - [ ] Dependency audit runs in the gate and on a **weekly cron**, blocking on critical, with
-      recorded, **expiring** exceptions.
+      recorded, **expiring** exceptions (kiln: `AuditGate` + its exceptions file).
 - [ ] Local-backend (macOS/Windows) pipelines use `skip_clone: true` + a hand clone + an env script.

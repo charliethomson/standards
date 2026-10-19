@@ -1,0 +1,5 @@
+# desc: lines containing {{1}} (a line filter; for metadata use `logs '{{sel}} | key=`v`'`)
+# kind: logs
+# range: 24h
+# limit: 200
+{{sel}} |= `{{1}}`

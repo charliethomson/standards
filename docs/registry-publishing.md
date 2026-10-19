@@ -41,13 +41,68 @@ public.
 
 ## Publish from CI
 
-> **Woodpecker repos cannot use the composite action below.** Woodpecker has no `uses:` and
-> cannot call a GitHub Action at all ([ci-cd.md](ci-cd.md)). A Woodpecker
-> `<surface>.release.yml` calls the same registry API from a **`scripts/ci/publish.sh`**
-> instead. The inputs, the ordering, and the draft → artifacts → finalize path documented here
-> are the contract either way — only the invocation differs. If that script does not exist in
-> the repo yet, keep the release pipeline `event: manual` rather than shipping a trigger it
-> cannot honour.
+The inputs, the ordering, and the draft → artifacts → finalize path below are the contract
+however it is invoked. Which invocation depends on the repo's CI:
+
+| Repo | Publishes with |
+|---|---|
+| **Woodpecker, on kiln** (`.kiln/`) | `libci::registry::AppRegistry` — below |
+| **Woodpecker, pre-kiln** | a copied `scripts/ci/publish.sh`. Don't copy it into another repo; port the release pipeline to kiln instead. If the repo has no publish path yet, keep the release pipeline `event: manual` rather than shipping a trigger it cannot honour. |
+| **GitHub Actions** (legacy) | the composite action — [below](#github-actions-legacy) |
+
+Woodpecker has no `uses:` and cannot call the composite action at all ([ci-cd.md](ci-cd.md)).
+
+### kiln: `libci::registry`
+
+[`AppRegistry`](https://github.com/charliethomson/libci/blob/main/src/registry.rs) (feature `registry`) wraps the registry's client
+script once for the fleet, replacing every per-repo `publish.sh`. Pass it the `Version` from
+[`libci::version`](versioning.md); it sends `--version` = `RELEASE_VERSION` and
+`--build` = the commit count.
+
+```rust
+use libci::registry::{AppRegistry, release_notes};
+use libci::version::Version;
+
+// a GUI app
+AppRegistry::declare(j.on(Macos).lock(Signing)).run(|ctx| {
+    let v = Version::derive(ctx)?;
+    // … build, sign, notarize …
+    let registry = AppRegistry::connect(ctx)?;
+    registry.ensure_product("dev.thmsn.someproduct").meta("apps/apple/altstore/meta.json").call()?;
+    registry.ensure_app("dev.thmsn.someproduct", "macos").platforms(["macos"]).call()?;
+    registry
+        .publish("dev.thmsn.someproduct", "macos", &v, "dist/SomeProduct.dmg")
+        .min_os("26.0")
+        .notes(release_notes(ctx, &format!("SomeProduct {v}"))?)
+        .skip_existing()
+        .call()
+})
+
+// a CLI: each per-target leg attaches and leaves a draft …
+registry.publish_cli("dev.thmsn.someproduct", "cli", &v)
+    .artifact(["linux-amd64", "linux-arm64"], "dist/tool-linux.tar.gz")
+    .bin_name("sometool").install("packaging/install.json")
+    .no_finalize().skip_existing().call()?;
+// … and one fan-in job flips it live
+registry.finalize("dev.thmsn.someproduct", "cli", &v)
+    .require_targets(["macos-universal", "linux-amd64", "linux-arm64"]).call()?;
+```
+
+- **`AppRegistry::declare(job)`** adds both secrets (`registry_token`, `registry_repo_token`)
+  and `.requires(Tailnet)` in one call — the registry does not resolve off the tailnet. The
+  secrets are never allowed on a pull request.
+- **`connect`** clones the registry's client from the private `charliethomson/registry` with
+  `registry_repo_token`. **The token travels as a git `http.extraHeader`** set through
+  `GIT_CONFIG_COUNT` in that one `git` process's environment — **not in the clone URL**, where
+  it showed in `ps` on a shared agent and was written into `.git/config`. The clone never
+  prompts (a blank token fails before anything runs) and times out at two minutes.
+- **`ensure_product` / `ensure_app`** are idempotent; `.update()` PATCHes existing metadata.
+- **`publish` / `publish_cli`** check the artifact exists before uploading. Release notes go
+  through the environment, never argv.
+- **`finalize` fails unless the registry actually finalized.** `--require-targets` exits 0 on
+  an incomplete set; in a fan-in that would leave the version a draft behind a green tick.
+
+### GitHub Actions (legacy)
 
 Use the composite action `charliethomson/registry/.github/actions/publish@main` in a
 `<surface>.release.yml` workflow (e.g. `macos.release.yml`), after building (and
@@ -91,10 +146,12 @@ bundle id must match the IPA's `CFBundleIdentifier` (defaults to `<product>.<app
 
 ### Required repo config
 
-| Kind | Name | Value |
-|---|---|---|
-| variable | `REGISTRY_URL` | `https://apps.dev.thmsn.dev` |
-| secret | `REGISTRY_TOKEN` | the server's `REGISTRY_AUTH_TOKEN` |
+| CI | Kind | Name | Value |
+|---|---|---|---|
+| Actions | variable | `REGISTRY_URL` | `https://apps.dev.thmsn.dev` |
+| Actions | secret | `REGISTRY_TOKEN` | the server's `REGISTRY_AUTH_TOKEN` |
+| Woodpecker | secret | `registry_token` | the server's `REGISTRY_AUTH_TOKEN` |
+| Woodpecker | secret | `registry_repo_token` | a read-only token that can clone `charliethomson/registry` |
 
 ## The script directly
 
@@ -134,9 +191,11 @@ published · `400` checksum mismatch · `401` bad token · `404` unknown product
 ## Checklist
 
 - [ ] Client artifacts publish to `apps.dev.thmsn.dev`, not GHCR.
-- [ ] `*.release.yml` uses `charliethomson/registry/.github/actions/publish@main`.
+- [ ] Release pipelines publish through `libci::registry::AppRegistry` (kiln), or the
+      composite action (Actions) — not a newly copied `scripts/ci/publish.sh`.
 - [ ] `product` = the repo's reverse-DNS identifier; `app` = the surface slug (`ios`/`macos`/`winui`/`cli`).
 - [ ] `version` = the CI `RELEASE_VERSION`; `build` = commit count.
-- [ ] `REGISTRY_URL` variable + `REGISTRY_TOKEN` secret set on the repo.
+- [ ] Secrets provisioned: `registry_token` + `registry_repo_token` (Woodpecker), or the
+      `REGISTRY_URL` variable + `REGISTRY_TOKEN` secret (Actions).
 - [ ] First publish provides `platforms` + `meta`/`product-icon` (or the individual create fields); iOS sets `bundle-id`.
 - [ ] CLI tools publish `kind: cli` with per-target `artifacts` + an install manifest.

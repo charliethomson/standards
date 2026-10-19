@@ -42,8 +42,14 @@ impl Error {
 use poem::http::StatusCode;
 use core_crate::Error;
 
-pub fn to_poem(err: Error) -> poem::Error {
-    let status = match &err {
+use crate::request; // templates/rust/request_layer.rs
+
+// A client error's message is its Display (written for the caller). A server
+// error's is fixed text: its Display carries SQL, paths or an upstream's body,
+// which go onto the request span instead. No log here: the request layer's one
+// `http completed` line logs a 5xx, so it is logged once.
+pub fn to_poem(err: &Error) -> poem::Error {
+    let status = match err {
         Error::NotFound { .. }              => StatusCode::NOT_FOUND,
         Error::Invalid(_)                   => StatusCode::BAD_REQUEST,
         Error::Conflict(_)                  => StatusCode::CONFLICT,
@@ -51,7 +57,14 @@ pub fn to_poem(err: Error) -> poem::Error {
         Error::Upstream(_)                  => StatusCode::BAD_GATEWAY,
         Error::Storage(_) | Error::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
-    poem::Error::from_string(err.to_string(), status)
+    let message = match err {
+        Error::Upstream(_) => "an upstream service failed".to_owned(),
+        Error::Storage(_) | Error::Other(_) => "internal error".to_owned(),
+        client => client.to_string(),
+    };
+    let key = err.key(); // the variant's reverse-DNS error key
+    request::record_error(key, status.is_server_error().then(|| err.to_string()));
+    poem::Error::from_response(request::error_response(status, key, &message))
 }
 */
 

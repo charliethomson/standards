@@ -11,6 +11,12 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Fixed
 
+- **Trace → logs link** — `docs/grafana-dashboards.md`: the provisioned `tracesToLogsV2` query
+  matched `service_name` from `__span.tags["service.name"]`, a resource attribute Grafana's
+  span tags don't carry, so it came out empty and "Logs for this span" found nothing. It now
+  matches on the trace id alone (`{service_name=~".+"} | trace_id=...`), across every service
+  the trace touched.
+
 - **`templates/rust/observability.rs`** — calls `PRODUCT_NAME.set_global()` before init (it
   exported an empty `service.name`), parses `PRODUCTION` as a bool (`is_ok()` made
   `PRODUCTION=false` production), and defaults to `Sampling::AlwaysOn` with `SAMPLE_RATE` as an
@@ -19,6 +25,21 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   parent-based and honours `sampled=0`).
 
 ### Added
+
+- **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
+  naming each rule's incident; alert on repetition and on severity or an exact message (never
+  a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.
+
+- **`thmsn-logs` skill** (`skills/thmsn-logs/`) — a fleet-wide logs/metrics/traces query skill:
+  `scripts/obsq.sh` queries Loki, Prometheus and Tempo through Grafana's datasource proxy
+  with the read-only service-account token (`logs`, `meta`, `series`, `prom`, `trace`, `ref`,
+  plus `top`, which groups WARN/ERROR lines by message for an error sweep), and ships fleet
+  recipes (`problems`, `http-failures`, `latency-p95`, …) written against the standard
+  field names. `{{sel}}` in a query is the repo's selector.
+- **`.standards.d/<skill>/`** — per-repo specialisation of a shared skill, documented in
+  `docs/skills-and-mcp.md`. `thmsn-logs` is the first user: `config` (`SERVICES`, Grafana
+  overrides), `queries/` (repo recipes shadow fleet ones), `commands/` (extra
+  subcommands), `NOTES.md` (the repo's fields, gaps and known noise).
 
 - **Tests are silent** — new section in `docs/testing.md`: no test run plays sound through the
   speakers. Every audio sink goes through one gate that no-ops under test (Apple
@@ -180,6 +201,39 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   product names are stored in this repo**.
 
 ### Changed
+
+- **Tracing and logging, from a whole-product audit** (`docs/tracing.md`, `docs/observability.md`,
+  `docs/error-handling.md`):
+  - The server **adopts** an app/browser `traceparent` (`liblog::adopt_client_trace`: same
+    trace id, no parent, a link) and **continues** only a fleet service's (`server_span!`);
+    continuing a client trace left every client trace rootless in Tempo.
+  - Every request leaves exactly one `http completed` line with a fixed field set, errors
+    included; a 5xx's mapper records `error.type` on the request span through a
+    request-scoped handle instead of logging, so a 5xx logs once. Marking a span ERROR and
+    logging the failure are separate duties.
+  - 5xx bodies are JSON `{message, $type, traceId}` with fixed client text; `to_poem` no
+    longer returns `err.to_string()` (it leaked SQL and upstream bodies).
+  - Outbound calls are one `client_span!` per wire call with `peer.service` /
+    `db.system` + `server.address`; wrappers and SDK-wrapping spans are INTERNAL; a hot
+    route a service calls exports at the caller's level so the service graph
+    pairs. The old `auth.me` example was the wrong kind.
+  - New span-shape rules: unbounded waits closed at 55 s, `*_wait_ms`/`acquire_ms` for dead
+    time, `Span` vs `SpanContext` across queues (no stored clones), a `<service>.startup`
+    root, connections as a connect span + one close event, cache hits DEBUG, outbound body
+    reads as a sibling span.
+  - WARN means recovered (retries DEBUG until the outcome); libraries don't log errors they
+    return; no silent `.ok()`; a panic hook for background tasks; fatal boot errors logged
+    before `main` returns; retried calls record `first_attempt_ms`/`first_error`.
+  - One `outcome` vocabulary, durations always `_ms`, late fields declared `Empty`,
+    filterable fields flat beside any `Valuable`.
+  - `NOISY_TARGETS` listed correctly; an env filter override replaces it wholesale (the old
+    `info,somecrate=debug` example re-enabled `h2`'s connection spans).
+  - Propagation lists the liblog helpers per situation. Pipeline: `OTEL_BSP_MAX_QUEUE_SIZE=8192`,
+    Tempo's 5 MB trace cap and 168 h search window, servicegraph expired edges.
+  - Metrics: HTTP metrics from the outermost layer with bounded labels, `_build_info` and
+    `_process_start_time_seconds`, pre-seeded label values, a render test.
+- **`docs/grafana-dashboards.md` Delivery** describes provisioning as it runs (product
+  dashboards bind-mounted from the stack checkout; mirrors need a drift check).
 
 - **Client analytics, settled by the first adoption** — `docs/client-analytics.md`: the ingest
   route is `POST <api base>/telemetry/events`, under the product's API base (`/api/v1/...`),

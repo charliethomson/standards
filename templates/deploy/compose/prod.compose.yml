@@ -59,6 +59,24 @@ services:
     depends_on: [api, web]
     networks: [{{PRODUCT}}]
 
+  # Hourly snapshots of {{PRODUCT}}-data onto the NAS (standards/docs/backups.md).
+  # Config: ./backup.toml. One-time, on the host, before the first deploy:
+  #   mkdir -p '/mnt/truenas/Secure/Application Backups/{{PRODUCT}}'
+  #   touch '/mnt/truenas/Secure/Application Backups/{{PRODUCT}}/.{{PRODUCT}}-backup-target'
+  backup:
+    image: ghcr.io/charliethomson/stash-backup:main
+    restart: unless-stopped
+    user: "3000:3000"
+    command: ["loop"]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.scope={{PRODUCT}}"
+    volumes:
+      - {{PRODUCT}}-data:/data:ro
+      - "/mnt/truenas/Secure/Application Backups/{{PRODUCT}}:/backups"
+      - ./backup.toml:/etc/stash-backup/config.toml:ro
+    network_mode: none
+
   # Polls GHCR for new :main images and recreates only this stack's containers.
   # Label-scoped (ignores the rest of the box, and isn't culled by other
   # watchtowers, which SIGTERM same-scope instances on startup). Pinned to the

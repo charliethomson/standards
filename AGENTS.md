@@ -52,7 +52,7 @@ spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](doc
 
 For services and clients there's a deeper layer of implementation standards — **service
 architecture** (`core→db→engine→api`, poem-openapi), **data & persistence** (sqlx, typed
-`Id<T>`), **contracts** (OpenAPI/AsyncAPI + drift checks), **error handling**, **auth
+`Id<T>`), **contracts** (OpenAPI/AsyncAPI + drift checks), **backups** (`stash-backup` sidecar, NAS, stash audits), **error handling**, **auth
 integration**, **configuration** (libconfig), **observability** (liblog/OTLP), **tracing** (always-on +
 tail sampling, span shape, the client↔server trace contract), **client analytics** (usage
 events relayed through the product server to ClickHouse), **security**,

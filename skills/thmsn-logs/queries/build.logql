@@ -1,0 +1,5 @@
+# desc: the newest line's metadata: service_build_info, version, environment
+# kind: meta
+# range: 15m
+# limit: 1
+{{sel}}

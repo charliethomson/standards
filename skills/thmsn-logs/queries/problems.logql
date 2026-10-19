@@ -1,0 +1,5 @@
+# desc: every WARN and ERROR, grouped by message, commonest first
+# kind: top
+# range: 7d
+# limit: 5000
+{{sel}} | severity_text=~`WARN|ERROR`

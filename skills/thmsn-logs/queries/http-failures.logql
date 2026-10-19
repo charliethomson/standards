@@ -1,0 +1,4 @@
+# desc: 4xx/5xx responses by operation and status, from the `http completed` lines
+# kind: series
+# range: 7d
+sum by (api_operation, status) (count_over_time({{sel}} | status=~`[45]..` [{{range}}]))

@@ -52,12 +52,14 @@ This is the organizing principle. Each concern has exactly one home:
 | [Workflow](../workflow.md) | Commit to `main`; continuous deploy. |
 | [Service architecture](../service-architecture.md) | Workspace `core→db→engine→api`; poem-openapi; 10s drain. |
 | [Data & persistence](../data-persistence.md) | sqlx + SQLite, `.sql` migrations, typed `Id<T>`. |
+| [Backups](../backups.md) | `stash-backup` sidecar + committed `backup.toml`; SHORTCUTS entries for checking and restoring. |
 | [Contracts](../contracts.md) | Emit OpenAPI/AsyncAPI; generate + drift-check clients. |
 | [Error handling](../error-handling.md) | Domain `Error`→HTTP; `liberror`/`valuable` trinity. |
 | [Auth integration](../auth-integration.md) | Central auth SDK; `me()` live authority; grant-gated. |
 | [Configuration](../configuration.md) | `libconfig` `Loader`; `<PRODUCT>_` + bare shared env. |
 | [Observability](../observability.md) | liblog/OTLP; `/api/metrics`; ids/timings only. |
 | [Tracing](../tracing.md) | Always-on + collector tail sampling; short linked roots; client `traceparent`/`x-<product>-*`, `Ref:` on errors. |
+| [Alerting](../alerting.md) | Provisioned rules, code-as-truth; alert on sustained failure, liveness at minimum. |
 | [Client analytics](../client-analytics.md) | Every client records the reserved usage events through one recorder; the server serves `POST <api base>/telemetry/events` and re-emits them to ClickHouse. |
 | [Security](../security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | [Web & client arch](../web-architecture.md) | TanStack Query + Zustand; generated client; shared Kit. |
@@ -79,9 +81,11 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
 - [ ] `deploy/` has Komodo sync TOML + compose + Caddyfile; secrets only in Komodo UI.
 - [ ] `*.build`/`*.release` workflows on self-hosted runners; version computed once.
 - [ ] Telemetry per [`../observability.md`](../observability.md) (`set_global()` before init,
-      always-on) and tracing per [`../tracing.md`](../tracing.md): request span continues
-      `traceparent`, echoes `x-<product>-trace-id` + `traceId`; every client sends the header
-      contract and shows `Ref:` on errors.
+      always-on) and tracing per [`../tracing.md`](../tracing.md): request span adopts a
+      client's `traceparent` (continues a service's), every request leaves one `http
+      completed` line (errors included), echoes `x-<product>-trace-id` + `traceId`; every
+      client sends the header contract and shows `Ref:` on errors.
+- [ ] Alert rules per [`../alerting.md`](../alerting.md) (liveness at minimum).
 - [ ] The OTLP-exporting prod compose service carries `dev.thmsn.telemetry=otlp` (logs stored
       once; see [`../observability.md`](../observability.md#the-pipeline)).
 - [ ] Client analytics per [`../client-analytics.md`](../client-analytics.md): every client

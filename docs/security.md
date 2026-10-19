@@ -18,8 +18,16 @@ dummy password anyway so the response time doesn't reveal whether the account ex
 
 Seal sensitive values (API keys, tokens) before they touch the DB:
 
-- 32-byte master key at `<data_dir>/secret.key`, generated on first boot, **mode 0600**, reused
-  across restarts.
+- 32-byte master key from **env** (`<PRODUCT>_SECRET_KEY`, 64 hex characters), a Komodo secret
+  Variable. Set but malformed ⇒ refuse to boot (a truncated paste is a mistake). Unset ⇒ the
+  features that seal are off, and boot logs a warning saying so.
+- **Never a file under the data dir.** The data dir is what the backup sidecar snapshots, and a
+  key in the snapshot beside its own ciphertext protects nothing ([backups.md](backups.md)).
+  Older services generate `<data_dir>/secret.key` on first boot; that is the pattern being
+  retired, and until a service migrates, its backups can't restore sealed values without the
+  key file kept separately.
+- Store a `key_version` with each sealed value so a rotation can be added later without a
+  migration.
 - **Fresh random nonce per encryption**; store nonce alongside ciphertext.
 - AEAD: a tampered ciphertext fails authentication (don't ignore the tag); reject wrong-length
   nonces.
@@ -70,7 +78,7 @@ Any attacker-influenced fetch or decode is bounded:
 ## Checklist
 
 - [ ] Passwords: Argon2id + random salt + dummy-hash on user-not-found.
-- [ ] Secrets sealed with ChaCha20-Poly1305; 32-byte key file mode 0600; per-secret nonce; AEAD verified.
+- [ ] Secrets sealed with ChaCha20-Poly1305; 32-byte key from env (never under the data dir), `key_version` stored; per-secret nonce; AEAD verified.
 - [ ] Service handshakes: `HMAC-SHA256(admin_key, app_id)`, constant-time compared.
 - [ ] Edge CSP `script-src 'self'`; full header set; `connect-src` host kept current.
 - [ ] `?token=` only on asset/WS routes; query strings stripped from logs; native tokens in keychain.

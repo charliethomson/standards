@@ -8,12 +8,24 @@ A build's version is **derived from git, never stored in a manifest**:
 VERSION = <tag MAJOR>.<tag MINOR>.<total commit count>
 ```
 
-- **`MAJOR.MINOR`** comes from the most recent tag matching `v[0-9]*` (e.g. `v0.2.0` →
-  `0.2`). The tag's patch component is ignored. **This is the only manual knob.**
+- **`MAJOR.MINOR`** comes from a tag matching `vMAJOR.MINOR[.PATCH]`, anchored at the start
+  (e.g. `v0.2.0` → `0.2`; `macos-v0.1.309` is not a release tag). The tag's patch component is
+  ignored. **This is the only manual knob.** The tag is chosen in this order:
+  1. the nearest one reachable from `HEAD` — `git describe --tags --abbrev=0 --match 'v[0-9]*'`;
+  2. failing that, the **highest** `vN.N` tag in the repo, compared **numerically** field by
+     field (`0.10` > `0.9`).
 - **The patch component is `git rev-list --count HEAD`** — the total commit count on the
   branch. It is globally monotonic and never resets, so a higher version always means a
   later commit.
-- If there is no tag: `0.0.<count>`. If there is no git at all: `0.0.0`.
+- **No tag is an error in CI**, not `0.0.<count>`. In a repo that has tags it means the tag
+  fetch failed, and publishing anyway ships a version below the live one. A repo that has
+  genuinely never been tagged opts in to `0.0.<count>` explicitly, and drops the opt-in when
+  its first `v0.1` tag lands.
+- **A shallow clone is an error in CI.** `rev-list --count` does not fail on one; it returns a
+  smaller number, which is the same below-the-live-version bug.
+- Alongside the version, CI exposes **`COMMIT`** (seven-character sha) and **`DIRTY`** (tracked
+  files differ from `HEAD`; untracked files do not count).
+- Local builds are lenient on purpose: see [build.rs and local builds](#buildrs-and-local-builds).
 
 Manifest versions (`Cargo.toml` `version`, `package.json` `version`) are **static
 placeholders** (e.g. `0.0.1`) and are *not* the source of truth. Do not bump them per
@@ -45,26 +57,46 @@ clone:
       tags: true
 ```
 
-Put the derivation in **`scripts/ci/version.sh`** and `eval` it from each pipeline that needs
-it, rather than inlining a copy per pipeline — four copies of these lines is four places for
-them to drift:
+**On a kiln repo, the implementation is [`libci::version`](https://github.com/charliethomson/libci/blob/main/src/version.rs)**
+(feature `version`): `Version::derive(ctx)` applies every rule above — refuses a shallow
+checkout, fetches tags, prefers `describe`, falls back to the highest tag, errors on none — and
+returns `major`, `minor`, `build`, `commit` and `dirty`; `release_version()` is the
+`RELEASE_VERSION` string. `Version::derive_untagged_ok(ctx)` is the never-tagged opt-in
+(`ImageBuild::untagged_ok()` on the image template). Do not reimplement it in a `.kiln/`.
+
+**Pre-kiln repos** keep the derivation in **`scripts/ci/version.sh`** and `eval` it from each
+pipeline that needs it, rather than inlining a copy per pipeline. It must implement the same
+rule, including the two refusals; the older five-line form that fell back to `0.0` does not:
 
 ```sh
-COUNT="$(git rev-list --count HEAD)"
-TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
-MM="$(printf '%s' "${TAG#v}" | awk -F. '{ if ($1 != "" && $2 != "") print $1"."$2 }')"
-[ -n "$MM" ] || MM="0.0"
-printf 'RELEASE_VERSION=%s\n' "$MM.$COUNT"
+set -eu
+if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+  echo "shallow clone: the commit count would be too low" >&2; exit 1
+fi
+git fetch --tags --quiet origin 2>/dev/null || true
+mm() { sed -n 's/^v\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p'; }
+MM="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | mm)"
+[ -n "$MM" ] || MM="$(git tag -l | mm | sort -k1,1n -k2,2n | tail -n 1)"
+if [ -z "$MM" ]; then
+  [ "${VERSION_UNTAGGED_OK:-}" = 1 ] || { echo "no vMAJOR.MINOR tag (tag fetch failed?)" >&2; exit 1; }
+  MM="0 0"
+fi
+set -- $MM
+printf 'RELEASE_VERSION=%s.%s.%s\n' "$1" "$2" "$(git rev-list --count HEAD)"
+printf 'COMMIT=%s\n' "$(git rev-parse --short=7 HEAD)"
+[ -z "$(git status --porcelain --untracked-files=no)" ] && echo DIRTY=false || echo DIRTY=true
 ```
 
-Two traps this simple form has hit in practice, worth handling if the repo has release tags:
+Why each piece is there:
 
-- **`git describe` walks only the current branch's ancestry**, so a tag on a sibling branch is
-  invisible to it and the version silently drops to the `0.0` fallback.
-- **Sort `MAJOR.MINOR` numerically, field by field.** A lexical sort puts `0.9` after `0.10`,
-  so the first `v0.10.x` tag drags every build back below what is already published — which
-  clients read as "no update available", permanently. BSD `sort` has no `-V`, and the macOS
-  agent is a real target, so use explicit numeric keys.
+- **`describe` first.** It walks only `HEAD`'s ancestry, so a newer tag on a side branch does
+  not override the one `main` descends from — and it is the question `build.rs` asks, so the
+  two agree in the common case.
+- **The highest-tag fallback** covers a `describe` that finds nothing where tags do exist.
+- **Numeric sort, field by field.** A lexical sort puts `0.9` after `0.10`, so the first
+  `v0.10.x` tag drags every build back below what is already published — which clients read as
+  "no update available", permanently. BSD `sort` has no `-V`, and the macOS agent is a real
+  target, so use explicit numeric keys.
 
 ## Consume it per platform
 
@@ -76,6 +108,22 @@ Two traps this simple form has hit in practice, worth handling if the repo has r
 | **Web** | Inject at build time (e.g. Vite `define` / env) and render it in the UI. |
 
 The canonical `build.rs` is in [`templates/rust/build.rs`](../templates/rust/build.rs).
+
+### `build.rs` and local builds
+
+`build.rs` takes `RELEASE_VERSION` when it is set and only derives the version itself when it is
+not. That derivation is deliberately **not** the CI rule: it asks `describe` only, has no
+highest-tag fallback, never refuses a shallow clone, and falls back to `0.0.<count>` with no
+tag and `0.0.0` with no git — because a developer's `cargo build` must not fail for want of a tag.
+
+The two therefore **disagree exactly where CI is strict**: a tag not reachable from `HEAD`
+(CI uses the highest tag, `build.rs` says `0.0`), a shallow clone (CI refuses, `build.rs`
+undercounts), and no tag at all (CI refuses, `build.rs` says `0.0`). If a CI-built binary ever
+derives its own version, an image tagged `0.10.307` can contain a binary reporting `0.0.290`.
+So the rule is: **every binary built in CI receives `RELEASE_VERSION`** — as an env var on the
+`cargo` step, or as the Docker build-arg plus `ARG`/`ENV` in the Dockerfile (kiln's `GhcrImage`
+always passes the build-arg; the Dockerfile still has to declare it). `build.rs`'s own
+derivation is for local builds only.
 
 ## Expose it to clients
 
@@ -106,8 +154,10 @@ is ever published. See [archetypes/library.md](archetypes/library.md).
 ## Checklist
 
 - [ ] Manifest versions left as static placeholders (not bumped per release).
-- [ ] CI checks out with `fetch-depth: 0` and `fetch-tags: true`.
-- [ ] CI computes `RELEASE_VERSION` with the snippet above and passes it to every build.
+- [ ] CI checks out full history and tags — never a shallow clone.
+- [ ] CI computes the version with `libci::version::Version::derive` (pre-kiln: the
+      `scripts/ci/version.sh` above), and no tag is an error unless the repo has never been tagged.
+- [ ] Every CI-built binary and image receives `RELEASE_VERSION`; none relies on `build.rs` deriving it.
 - [ ] Each artifact exposes its version (startup log, About screen, `/version`).
 - [ ] A repo-root `VERSIONING.md` documents this (copy from
       [`templates/VERSIONING.md`](../templates/VERSIONING.md)).
