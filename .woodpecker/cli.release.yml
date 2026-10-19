@@ -1,0 +1,197 @@
+# `standards` cli changes on main build the binary for every supported target and attach
+# them to one registry `cli` version (dev.thmsn.standards / cli, L3), which
+# cli.release-finalize then flips live:
+#
+#     curl -fsSL https://apps.dev.thmsn.dev/install/dev.thmsn.standards | bash
+#
+# (https://standards.thmsn.dev/install redirects there.) Copied from vision's
+# cli.release.yml; the build-and-attach logic is scripts/ci/cli-release.sh and the
+# registry call is scripts/ci/publish.sh. NB docs/registry-publishing.md asks new repos
+# to publish through kiln (libci::registry) rather than a copied publish.sh; this repo
+# copies vision's on the program's decision (L20), and the kiln port is the follow-up.
+#
+# One workflow, one matrix leg per target, each built NATIVELY on its own agent:
+#
+#   darwin-arm64  aarch64-apple-darwin       the dev Mac (`os: macos`, local backend)
+#   linux-amd64   x86_64-unknown-linux-gnu   the Linux docker agents
+#
+# These are the targets `standards self-update` resolves (os darwin/linux, arch
+# arm64/amd64, glibc). Adding a target means a matrix entry here AND in
+# cli.release-finalize's REQUIRED_TARGETS.
+#
+# Legs only ever *attach* (--no-finalize), so a failed or cancelled leg leaves a draft
+# nobody can install rather than a live version missing a platform. No codesigning (see
+# cli-release.sh): the cli keeps nothing in the Keychain.
+#
+# PULL REQUESTS build, version-check and package both targets exactly as a release does,
+# and publish nothing: cli-release.sh stops before the registry on pull_request, and
+# cli.release-finalize has no PR trigger. Each leg has a separate PR step with no
+# registry secrets, because a step that names a secret not enabled for pull_request
+# errors before it runs; the steps share environment and commands by anchor.
+#
+# Both legs clone by hand (`skip_clone`): the macOS local backend cannot run the clone
+# plugin, and skip_clone is per-workflow. The repo is public, so the clone is HTTPS; the
+# ssh key is only for the private liblog crate.
+#
+# NB: Woodpecker substitutes braced variable references over the raw file text before
+# parsing it, comments included. Keep shell in the steps unbraced (or in
+# scripts/ci/cli-release.sh, which Woodpecker never reads).
+when:
+  - event: manual
+  - event: push
+    branch: main
+    path: &cli_release_paths
+      include:
+        # The binary, its install manifest (crates/standards-cli/packaging) and the one
+        # crate it depends on, whose build.rs stamps the version.
+        - "crates/standards-cli/**"
+        - "crates/standards-core/**"
+        - "Cargo.toml"
+        - "Cargo.lock"
+        - ".cargo/**"
+        - "scripts/ci/**"
+        # cli.release-finalize completes what this starts, so a change to either must
+        # trigger both, or artifacts get attached with nothing left to finalize them.
+        # Keep this list IDENTICAL to cli.release-finalize.yml's.
+        - ".woodpecker/cli.release.yml"
+        - ".woodpecker/cli.release-finalize.yml"
+  - event: pull_request
+    path: *cli_release_paths
+
+matrix:
+  include:
+    - TARGET: darwin-arm64
+      RUST_TARGET: aarch64-apple-darwin
+      AGENT_OS: macos
+      AGENT_PLATFORM: ""
+    - TARGET: linux-amd64
+      RUST_TARGET: x86_64-unknown-linux-gnu
+      AGENT_OS: ""
+      AGENT_PLATFORM: linux/amd64
+
+# Two label keys, one left empty per leg: Woodpecker's scheduler ignores a label whose
+# value is empty, so each leg is filtered on its own key only.
+labels:
+  os: "${AGENT_OS}"
+  platform: "${AGENT_PLATFORM}"
+
+skip_clone: true
+
+variables:
+  # Everything but the registry secrets, which only the publishing steps name.
+  - &darwin_env
+    CARGO_BUILD_JOBS: "2"
+    CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=accept-new"
+    SSH_KEY:
+      from_secret: ssh_key
+  - &darwin_commands
+    - |
+      set -eu
+      # A local-backend step's ssh-agent outlives the step on a machine that is also
+      # someone's laptop; stop it on the way out.
+      eval "$(ssh-agent -s)"
+      trap 'ssh-agent -k >/dev/null 2>&1 || true' EXIT
+      printf '%s\n' "$SSH_KEY" | ssh-add -
+
+      # Full history + tags: the version is the commit count. A PR's head is fetched by
+      # its ref in case it is on no branch the clone brought down.
+      git clone --no-checkout https://github.com/charliethomson/standards.git .
+      if [ "$CI_PIPELINE_EVENT" = pull_request ]; then git fetch -q origin "$CI_COMMIT_REF"; fi
+      git checkout -q "$CI_COMMIT_SHA"
+
+      # Real HOME, Homebrew on PATH, and a CACHE root outside the workspace.
+      . scripts/ci/macos-env.sh
+      # The agent is a LaunchAgent, not a login shell: rustup's bin dir is not on PATH.
+      PATH="$HOME/.cargo/bin:$PATH"
+      export PATH
+      command -v jq >/dev/null || brew install jq
+
+      # A persistent, bounded target dir so a release is not a cold compile.
+      CARGO_TARGET_DIR="$CACHE/target-cli-release"
+      export CARGO_TARGET_DIR
+      sh scripts/ci/cache-guard.sh "$CARGO_TARGET_DIR" 3 8
+
+      rustup target add "$RUST_TARGET" >/dev/null 2>&1 || true
+      bash scripts/ci/cli-release.sh "$TARGET" "$RUST_TARGET"
+
+  # Shares the registry and git caches with rust.ci, with its own target dir (release
+  # profile, per-target). Needs the repo's trusted flag, which rust.ci relies on too.
+  - &linux_volumes
+    - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
+    - /var/lib/woodpecker-cache/standards/cargo-git:/usr/local/cargo/git
+    - /var/lib/woodpecker-cache/standards/target-cli-release:/cache/target-cli-release
+  - &linux_env
+    CARGO_TERM_COLOR: always
+    CARGO_TARGET_DIR: /cache/target-cli-release
+    CARGO_BUILD_JOBS: "2"
+    CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=accept-new"
+    SSH_KEY:
+      from_secret: ssh_key
+  - &linux_commands
+    - |
+      set -eu
+      # jq: publish.sh's --install and the finalize check need it.
+      apt-get update -qq
+      apt-get install -y -qq --no-install-recommends jq git openssh-client ca-certificates >/dev/null
+
+      eval "$(ssh-agent -s)"
+      printf '%s\n' "$SSH_KEY" | ssh-add -
+
+      git clone --no-checkout https://github.com/charliethomson/standards.git .
+      if [ "$CI_PIPELINE_EVENT" = pull_request ]; then git fetch -q origin "$CI_COMMIT_REF"; fi
+      git checkout -q "$CI_COMMIT_SHA"
+
+      sh scripts/ci/cache-guard.sh "$CARGO_TARGET_DIR" 3 8
+      bash scripts/ci/cli-release.sh "$TARGET" "$RUST_TARGET"
+
+steps:
+  # ---- macOS (Apple Silicon), local backend -----------------------------------
+  darwin:
+    # local backend: `image` names the host shell, not a container.
+    image: bash
+    when:
+      - event: [push, manual]
+        evaluate: 'AGENT_OS == "macos"'
+    environment:
+      <<: *darwin_env
+      REGISTRY_URL: https://apps.dev.thmsn.dev
+      REGISTRY_TOKEN:
+        from_secret: registry_token
+      REGISTRY_REPO_TOKEN:
+        from_secret: registry_repo_token
+    commands: *darwin_commands
+
+  darwin-pr:
+    image: bash
+    when:
+      - event: pull_request
+        evaluate: 'AGENT_OS == "macos"'
+    environment: *darwin_env
+    commands: *darwin_commands
+
+  # ---- Linux (x86_64, glibc), docker agents ------------------------------------
+  linux:
+    image: rust:1-bookworm
+    when:
+      - event: [push, manual]
+        evaluate: 'AGENT_PLATFORM == "linux/amd64"'
+    volumes: *linux_volumes
+    environment:
+      <<: *linux_env
+      REGISTRY_URL: https://apps.dev.thmsn.dev
+      REGISTRY_TOKEN:
+        from_secret: registry_token
+      REGISTRY_REPO_TOKEN:
+        from_secret: registry_repo_token
+    commands: *linux_commands
+
+  linux-pr:
+    image: rust:1-bookworm
+    when:
+      - event: pull_request
+        evaluate: 'AGENT_PLATFORM == "linux/amd64"'
+    volumes: *linux_volumes
+    environment: *linux_env
+    commands: *linux_commands

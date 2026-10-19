@@ -1,0 +1,93 @@
+# Flips the `standards` cli version that cli.release staged from draft to live.
+#
+# cli.release is a matrix, one leg per target on its own native agent, and every leg
+# attaches with --no-finalize. The release has exactly one definition of "complete", and
+# it lives here: REQUIRED_TARGETS below. Copied from vision's cli.release-finalize.yml.
+#
+# Runs on Linux: it needs nothing from the build, only git (to derive the same version)
+# plus curl and jq to talk to the registry.
+#
+# No pull_request trigger, on purpose: cli.release builds and packages both targets on a
+# PR but publishes nothing, so there is no draft to finalize.
+when:
+  - event: manual
+  - event: push
+    branch: main
+    path:
+      include:
+        # This list must stay IDENTICAL to cli.release.yml's. `depends_on` below only
+        # orders the two when both are triggered; if a change matched one filter and not
+        # the other, either the artifacts are attached with nothing to finalize them
+        # (draft forever) or this runs against a release that was never staged.
+        - "crates/standards-cli/**"
+        - "crates/standards-core/**"
+        - "Cargo.toml"
+        - "Cargo.lock"
+        - ".cargo/**"
+        - "scripts/ci/**"
+        - ".woodpecker/cli.release.yml"
+        - ".woodpecker/cli.release-finalize.yml"
+
+# Waits for every matrix leg of cli.release, and is skipped if one fails. The
+# --require-targets check below does not trust that on its own.
+depends_on:
+  - cli.release
+
+labels:
+  platform: linux/amd64
+
+# version.sh counts commits and reads tags, so the clone has to be complete.
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      partial: false
+      tags: true
+
+steps:
+  finalize:
+    image: bash
+    environment:
+      REGISTRY_URL: https://apps.dev.thmsn.dev
+      # The release's definition of "complete". Adding a target means adding it to
+      # cli.release's matrix *and* here, or the version never flips live.
+      REQUIRED_TARGETS: "darwin-arm64,linux-amd64"
+      REGISTRY_TOKEN:
+        from_secret: registry_token
+      REGISTRY_REPO_TOKEN:
+        from_secret: registry_repo_token
+    commands:
+      - |
+        set -eu
+        apk add --no-cache git curl jq >/dev/null
+
+        # The same derivation every leg used, from the same commit, so this resolves to
+        # the version they attached to.
+        eval "$(sh scripts/ci/version.sh)"
+        echo "finalizing standards cli $RELEASE_VERSION (requires: $REQUIRED_TARGETS)"
+
+        out="$(bash scripts/ci/publish.sh finalize \
+          --product dev.thmsn.standards --app cli \
+          --version "$RELEASE_VERSION" --require-targets "$REQUIRED_TARGETS" 2>&1)" || {
+          st=$?
+          echo "$out"
+          exit "$st"
+        }
+        echo "$out"
+
+        # `finalize --require-targets` exits 0 when the set is incomplete, on the
+        # assumption that someone else will finish the job. Here there is no one else:
+        # an incomplete set is a hard failure rather than a green tick over a release
+        # that never happened. registry-publish.sh prints "... not published yet.
+        # Missing targets: ..." when incomplete and "Published <product>/<app> <version>."
+        # when done.
+        case "$out" in
+          *"not published yet"*) published=no ;;
+          *"Published "*) published=yes ;;
+          *) published=no ;;
+        esac
+        if [ "$published" != yes ]; then
+          echo "ERROR: $RELEASE_VERSION was not published. See above for the missing target(s)."
+          echo "Re-run the failed cli.release leg, then re-run this workflow."
+          exit 1
+        fi

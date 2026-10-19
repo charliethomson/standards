@@ -60,6 +60,15 @@ and Watchtower redeploys it; agents see the change on their next MCP call, and t
 `standards doctor` refreshes skill stubs. Genericize before you push: no product names,
 examples use `someproduct` / `SOMEPRODUCT_` / `libsomeproduct`.
 
+## CI and deploy
+
+Woodpecker (`.woodpecker/`): `rust.ci` runs fmt, clippy, tests, the OpenAPI drift check and
+the 80% coverage gate over the workspace, and runs on doc edits too, since the content is
+compiled in; `server.build` pushes the server image to GHCR; `cli.release` publishes the cli
+to the registry; `audit.ci` audits `Cargo.lock` weekly. Details and the local commands are in
+[`crates/README.md`](crates/README.md#ci-and-delivery); the Komodo stack is in
+[`deploy/`](deploy/README.md).
+
 ## Status
 
 Early/iterative. These docs are designed against the fleet's real products, libraries, and

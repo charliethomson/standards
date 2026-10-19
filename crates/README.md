@@ -167,17 +167,37 @@ claude mcp add --transport http --scope local standards-dev http://127.0.0.1:808
 
 ## Development
 
-These are the gates CI runs once its pipelines land; passing them locally means passing CI.
+These are the gates CI runs (`.woodpecker/rust.ci.yml`); passing them locally means passing
+CI.
 
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo tarpaulin            # tarpaulin.toml: fail-under = 80
+cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.json \
+  && git diff --exit-code -- api/openapi.json
+cargo tarpaulin --engine llvm   # tarpaulin.toml: fail-under = 80 (what CI runs, on Linux)
 ```
 
-`cargo llvm-cov --workspace --summary-only` gives the same number locally where tarpaulin's
-profile parser lags the toolchain (macOS).
+`cargo llvm-cov --workspace --fail-under-lines 80` gives the same gate locally where
+tarpaulin's profile parser lags the toolchain (macOS). CI keeps tarpaulin: the fleet's tool,
+and its llvm engine works on the Linux runner image.
+
+### CI and delivery
+
+Woodpecker, pipelines in [`.woodpecker/`](../.woodpecker/), shared shell in
+[`scripts/ci/`](../scripts/ci/) (copied from vision):
+
+| Pipeline | Runs on | Does |
+|---|---|---|
+| `rust.ci` | push to main / PR touching the workspace or served content | the gates above, workspace-wide |
+| `server.build` | the same, plus `Dockerfile` | builds the root [`Dockerfile`](../Dockerfile) (context = repo root, `.dockerignore` is an allowlist) and pushes `ghcr.io/charliethomson/standards-server:main` + `:sha-<commit>` on main; Watchtower rolls it out ([`deploy/`](../deploy/README.md)) |
+| `cli.release` + `cli.release-finalize` | push to main / PR touching the cli or core | builds `standards` natively for `darwin-arm64` (dev Mac) and `linux-amd64`, attaches each to a draft `dev.thmsn.standards`/`cli` version in the registry, then flips it live once both are there; PRs build and package only |
+| `audit.ci` | `Cargo.lock` changes, and the weekly `weekly-audit` cron | cargo-audit report (never red) plus a gate that fails only on a critical advisory without a live exception in `scripts/ci/audit-exceptions.txt` |
+
+A doc edit is a server change: the content is compiled in, so it runs `rust.ci` (core's
+tests read it) and ships through `server.build`. Build the image locally with
+`docker build --ssh default .` (liblog is fetched over SSH).
 
 The REST contract is committed at [`api/openapi.json`](../api/openapi.json) and
 `cargo test -p standards-api` fails when it differs from what the server emits. After
@@ -205,7 +225,8 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 
 `standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
 MCP at `/mcp`, the HTML site and the standard mounts) exist, and `standards-cli` with
-`init`, `new` and `self-update`. The cli's `doctor`, `janitor` and `ultron` are not built yet,
-and nothing is deployed.
+`init`, `new` and `self-update`. The cli's `doctor`, `janitor` and `ultron` are not built yet.
+The image, deploy stack and pipelines are in the repo; nothing is deployed and no pipeline
+has run yet (go-live is STD-19).
 
 Conventions for this code: the "This repo's own code" section of [`AGENTS.md`](../AGENTS.md).

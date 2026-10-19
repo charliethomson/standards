@@ -79,6 +79,18 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   `ultron` are stubs in their own modules. Exit codes 0/1/2/3 (3 = server unreachable); a
   manifest cache at `~/.cache/thmsn/standards/manifest.json` for `doctor --quiet`.
 
+- **Image, deploy stack and CI** (`Dockerfile`, `deploy/`, `.woodpecker/`, `scripts/ci/`):
+  the server image `ghcr.io/charliethomson/standards-server` (context = repo root so the
+  content embeds, non-root, `RELEASE_COMMIT` passed in as the content identity); a Komodo
+  stack (`api` + an internal Caddy on `127.0.0.1:8103` + Watchtower scoped `standards`, the
+  only secret `GHCR_TOKEN`) for the homelab gateway to front as `standards.thmsn.dev`; and
+  Woodpecker pipelines: `rust.ci` (fmt, clippy, tests, OpenAPI drift, tarpaulin ≥80%),
+  `server.build` (image to GHCR on main), `cli.release` + `cli.release-finalize` (`standards`
+  for darwin-arm64 and linux-amd64 to the registry as `dev.thmsn.standards`/`cli`, with
+  `crates/standards-cli/packaging/install.json`) and a weekly `audit.ci`. Scripts are vision's
+  copies; `publish.sh` is a known divergence from `docs/registry-publishing.md` until the
+  release moves to kiln.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.
