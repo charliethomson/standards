@@ -146,6 +146,7 @@ fn api_operation(operation: Option<&'static str>, path: &str) -> &'static str {
         "/manifest.json" => "manifest_json",
         "/version" => "version",
         "/install" => "install",
+        "/mcp" => "mcp",
         raw if raw.starts_with("/t/") => "raw_template",
         _ => "unmatched",
     }

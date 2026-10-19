@@ -54,6 +54,14 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   five-minute max-age. Config is env only (`STANDARDS_BIND`, `STANDARDS_ALLOWED_HOSTS`). MCP
   and the HTML site mount next.
 
+- **MCP at `/mcp`** (`crates/standards-api/src/mcp.rs`): rmcp 3.5 over streamable HTTP,
+  mounted under poem, stateless with JSON replies and a `Host` allowlist from
+  `STANDARDS_ALLOWED_HOSTS`. Tools `search`, `get_doc` (whole doc or one `section`),
+  `get_checklist`, `get_template` (rendered, unfilled keys listed), `get_skill` (body plus
+  asset paths), `get_skill_asset` and `version`, all answering markdown with absolute links;
+  an unknown name is a tool error that lists what exists. One prompt per skill (optional
+  `args`), and the server `instructions` that tell agents when to call which tool.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.

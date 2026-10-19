@@ -53,7 +53,7 @@ Properties worth knowing before you change anything:
 | [`standards-db`](standards-db/) | The served files embedded at build time (rust-embed, one folder per served dir, plus `CHANGELOG.md`), re-checked with `is_served`; `files()`, `commit()`, and `bundle()`, which parses once and hands out an `Arc<Bundle>`. |
 | [`standards-engine`](standards-engine/) | `Engine` over an `Arc<Bundle>`: `search`, `checklist(standard, archetype)`, `doc` / `doc_section` with absolute links, `templates` / `render_template`, `skills` / `skill` / `skill_asset`, `manifest`. Typed errors for unknown names; N/A is a value. |
 
-| [`standards-api`](standards-api/) | The server binary `standards-server` (`dev.thmsn.standards.server`): `app()` is the whole mount map; REST mirror (`rest.rs`), wire types (`dto.rs`), engine errors as keyed 404s (`error.rs`), ETag caching (`caching.rs`), slash-holding path parameters (`paths.rs`), the request layer and metrics, env config. `mcp.rs` and `web.rs` are the mount points for `/mcp` and the HTML site. |
+| [`standards-api`](standards-api/) | The server binary `standards-server` (`dev.thmsn.standards.server`): `app()` is the whole mount map; REST mirror (`rest.rs`), wire types (`dto.rs`), engine errors as keyed 404s (`error.rs`), ETag caching (`caching.rs`), slash-holding path parameters (`paths.rs`), the request layer and metrics, env config. MCP at `/mcp` (`mcp.rs`); `web.rs` is the mount point for the HTML site. |
 
 `standards-cli` joins the workspace when it is built.
 
@@ -71,7 +71,8 @@ Properties worth knowing before you change anything:
 | `GET /openapi.json`, `/api/docs` | the contract; Scalar |
 | `GET /health`, `/version`, `/api/metrics` | liveness; derived version, commit and full libbuildinfo; OpenMetrics |
 | `GET /install` | 302 to `https://apps.dev.thmsn.dev/install/dev.thmsn.standards` |
-| `/mcp`; `/`, `/d/{id}` | MCP (STD-16, `mcp.rs`); the HTML site (STD-17, `web.rs`) |
+| `POST /mcp` | MCP, streamable HTTP (`mcp.rs`; see below) |
+| `/`, `/d/{id}` | the HTML site (STD-17, `web.rs`) |
 
 - **Ids and paths with slashes are one parameter.** `{id}`, the template `{path}` and the
   asset `{path}` may hold slashes (`archetypes/cli-tool`, `rust/build.rs`,
@@ -91,6 +92,15 @@ Properties worth knowing before you change anything:
 - **Skill bodies are served as written** (not link-rewritten), so `body` hashes to what the
   manifest's `content_sha256` covers.
 - Logs carry the path, never the query string: search terms and template values stay out.
+- **MCP** (`mcp.rs`) is rmcp's `StreamableHttpService` mounted with poem's tower-compat,
+  stateless (no `mcp-session-id`, `GET /mcp` is 405) with `application/json` replies. A
+  request whose `Host` is not in `STANDARDS_ALLOWED_HOSTS` gets a 403, so the public hostname
+  must stay on that list. Tools: `search{query, limit?}`, `get_doc{id, section?}`,
+  `get_checklist{standard, archetype}`, `get_template{path, vars?}`, `get_skill{name}`,
+  `get_skill_asset{name, path}`, `version{}`; each answers markdown, and a miss is a tool
+  error (`isError: true`) naming what exists. One prompt per skill, with an optional `args`
+  appended to the body. The `instructions` string is `mcp::INSTRUCTIONS`. rmcp logs request
+  params only at DEBUG, so never run it with `rmcp=debug` where search text matters.
 
 Run it locally:
 
@@ -98,6 +108,8 @@ Run it locally:
 cargo run -p standards-api --bin standards-server          # serves 127.0.0.1:8080
 STANDARDS_BIND=127.0.0.1:8099 cargo run -p standards-api --bin standards-server
 curl -s localhost:8080/manifest.json
+# MCP from Claude Code, local scope (remove it afterwards with `claude mcp remove -s local standards-dev`):
+claude mcp add --transport http --scope local standards-dev http://127.0.0.1:8080/mcp
 ```
 
 ## Development
@@ -138,8 +150,8 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 
 ## Status
 
-`standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror and
-standard mounts) exist. MCP at `/mcp`, the HTML site and the cli are not built yet, and
-nothing is deployed.
+`standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
+MCP at `/mcp` and the standard mounts) exist. The HTML site and the cli are not built yet,
+and nothing is deployed.
 
 Conventions for this code: the "This repo's own code" section of [`AGENTS.md`](../AGENTS.md).
