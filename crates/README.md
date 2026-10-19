@@ -248,6 +248,17 @@ Woodpecker, pipelines in [`.woodpecker/`](../.woodpecker/), shared shell in
 | `cli.release` + `cli.release-finalize` | push to main / PR touching the cli or core | builds `standards` natively for `darwin-arm64` (dev Mac) and `linux-amd64`, attaches each to a draft `dev.thmsn.standards`/`cli` version in the registry, then flips it live once both are there; PRs build and package only |
 | `audit.ci` | `Cargo.lock` changes, and the weekly `weekly-audit` cron | cargo-audit report (never red) plus a gate that fails only on a critical advisory without a live exception in `scripts/ci/audit-exceptions.txt` |
 
+**Cargo caches.** Every Linux step that runs cargo (`rust.ci`, `cli.release`'s linux leg,
+`audit.ci`) mounts the same host dir `/var/lib/woodpecker-cache/standards/cargo-home` as
+`CARGO_HOME=/cache/cargo-home`: the whole cargo home, not only its `registry/`. Cargo
+serializes downloads and unpacks with `flock` on `$CARGO_HOME/.package-cache`, and only a
+shared CARGO_HOME makes that one lock file for every container on the agent, so concurrent
+workflows on a cold cache no longer collide (`failed to unpack ... .cargo-ok: File exists`).
+The image's cargo and rustup are untouched (`/usr/local/cargo/bin` stays on `PATH`).
+`scripts/ci/cache-guard.sh` wipes a dir under `$CARGO_HOME` only while holding cargo's
+mutate and download locks, so a wipe waits for builds in other containers. The macOS leg
+uses the Mac's own `~/.cargo`. `server.build` caches inside BuildKit, not in these dirs.
+
 A doc edit is a server change: the content is compiled in, so it runs `rust.ci` (core's
 tests read it) and ships through `server.build`. Build the image locally with
 `docker build --ssh default .` (liblog is fetched over SSH).

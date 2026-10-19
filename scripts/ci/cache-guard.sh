@@ -28,6 +28,16 @@
 # larger workspace (BoringSSL, gpui); argus deliberately sized DOWN to 4G/5G
 # because its agent reported only 10G free. standards' callers pick their own —
 # see the per-step comments in .woodpecker/{rust.ci,cli.release}.yml.
+#
+# Cargo's own caches (<dir> under $CARGO_HOME, e.g. $CARGO_HOME/registry) are shared by
+# every Linux step on the agent through one CARGO_HOME host dir (STD-33), so another
+# container may be unpacking into <dir> or compiling from it right now. The wipe then
+# takes cargo's MutateExclusive lock first, the way cargo itself does before deleting
+# cache contents: flock on $CARGO_HOME/.package-cache-mutate, THEN on
+# $CARGO_HOME/.package-cache (cargo's order; the reverse can deadlock against a cargo
+# that holds the shared mutate lock and wants the download lock). It blocks until every
+# other cargo on the agent has finished its build. The size check itself takes no lock,
+# so a guard that wipes nothing never waits.
 set -eu
 
 dir="${1:?cache-guard.sh needs a directory}"
@@ -38,8 +48,30 @@ mkdir -p "$dir"
 
 # Empty <dir> without removing it. Handles dotfiles, and an empty dir is a
 # no-op rather than an error.
-wipe() {
+wipe_contents() {
   find "$dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+}
+
+# Under $CARGO_HOME (and not CARGO_HOME itself): hold cargo's locks for the wipe.
+wipe() {
+  case "${CARGO_HOME:-}" in
+    "") wipe_contents; return ;;
+  esac
+  case "$dir" in
+    "$CARGO_HOME"/?*) ;;
+    *) wipe_contents; return ;;
+  esac
+  command -v flock >/dev/null || {
+    echo "cache-guard: flock not found; refusing to wipe $dir under a shared CARGO_HOME" >&2
+    return 1
+  }
+  echo "cache-guard: waiting for cargo's cache locks in $CARGO_HOME"
+  (
+    exec 8>"$CARGO_HOME/.package-cache-mutate" 9>"$CARGO_HOME/.package-cache"
+    flock -x 8
+    flock -x 9
+    wipe_contents
+  )
 }
 
 used_gb="$(du -sk "$dir" 2>/dev/null | awk '{print int($1/1048576)}')"

@@ -46,13 +46,23 @@ variables:
   # Host-volume caches (docs/ci-cd.md "Caching"); needs the repo's trusted flag.
   # Separate target dirs for the plain build and the instrumented coverage build, so
   # neither invalidates the other.
+  #
+  # The cargo caches are ONE shared CARGO_HOME (registry/ and git/ inside it), not the
+  # registry and git dirs mounted into the image's /usr/local/cargo. cargo serializes
+  # downloads and unpacks with flock on $CARGO_HOME/.package-cache; with only registry/
+  # shared, that lock file was per container and two workflows unpacking the same crate
+  # on a cold cache collided ("failed to unpack ... .cargo-ok: File exists", pipeline #1,
+  # STD-33). Shared, the lock is one inode on the agent's local disk and flock holds across
+  # containers. Every Linux step that runs cargo mounts this same dir (cli.release,
+  # audit.ci). The image's cargo and rustup stay put: /usr/local/cargo/bin is still on
+  # PATH and RUSTUP_HOME is unchanged; only the caches move.
   - &rust_cache_volumes
-    - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
-    - /var/lib/woodpecker-cache/standards/cargo-git:/usr/local/cargo/git
+    - /var/lib/woodpecker-cache/standards/cargo-home:/cache/cargo-home
     - /var/lib/woodpecker-cache/standards/cargo-bin:/cache/cargo-bin
     - /var/lib/woodpecker-cache/standards/target-build:/cache/target-build
     - /var/lib/woodpecker-cache/standards/target-coverage:/cache/target-coverage
   - &rust_env
+    CARGO_HOME: /cache/cargo-home
     CARGO_TERM_COLOR: always
     # liblog is private and comes over SSH; route git through the CLI (as
     # .cargo/config.toml does locally).
@@ -79,8 +89,9 @@ steps:
       # Sized for this workspace: five crates over poem, rmcp and the lib* tree, smaller
       # than vision's (no auth-sdk/prost). The 8G free-space floor is what matters.
       - sh scripts/ci/cache-guard.sh /cache/target-build 5 8
-      - sh scripts/ci/cache-guard.sh /usr/local/cargo/registry 3 8
-      - sh scripts/ci/cache-guard.sh /usr/local/cargo/git 1 8
+      # Under CARGO_HOME, so a wipe waits for cargo's locks (cache-guard.sh).
+      - sh scripts/ci/cache-guard.sh /cache/cargo-home/registry 3 8
+      - sh scripts/ci/cache-guard.sh /cache/cargo-home/git 1 8
       - eval "$(ssh-agent -s)"
       - printf '%s\n' "$SSH_KEY" | ssh-add -
       # fmt first: no compile, so a formatting failure costs seconds.

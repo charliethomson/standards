@@ -115,13 +115,16 @@ variables:
       rustup target add "$RUST_TARGET" >/dev/null 2>&1 || true
       bash scripts/ci/cli-release.sh "$TARGET" "$RUST_TARGET"
 
-  # Shares the registry and git caches with rust.ci, with its own target dir (release
-  # profile, per-target). Needs the repo's trusted flag, which rust.ci relies on too.
+  # Shares rust.ci's whole CARGO_HOME (registry and git caches plus cargo's lock files,
+  # so concurrent unpacks serialize; see rust.ci.yml, STD-33), with its own target dir
+  # (release profile, per-target). Needs the repo's trusted flag, which rust.ci relies on
+  # too. The darwin leg uses the Mac's own ~/.cargo, one host, so cargo's lock already
+  # covers it.
   - &linux_volumes
-    - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
-    - /var/lib/woodpecker-cache/standards/cargo-git:/usr/local/cargo/git
+    - /var/lib/woodpecker-cache/standards/cargo-home:/cache/cargo-home
     - /var/lib/woodpecker-cache/standards/target-cli-release:/cache/target-cli-release
   - &linux_env
+    CARGO_HOME: /cache/cargo-home
     CARGO_TERM_COLOR: always
     CARGO_TARGET_DIR: /cache/target-cli-release
     CARGO_BUILD_JOBS: "2"

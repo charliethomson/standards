@@ -40,12 +40,14 @@ steps:
     image: rust:1-bookworm
     failure: ignore
     volumes:
-      # cargo-registry for the one-off `cargo install`; cargo-bin is shared with
-      # rust.ci's cargo-tarpaulin; the advisory db is cloned once and fetched after.
-      - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
+      # cargo-home (rust.ci's shared CARGO_HOME, lock files and all: see rust.ci.yml,
+      # STD-33) for the one-off `cargo install`; cargo-bin is shared with rust.ci's
+      # cargo-tarpaulin; the advisory db is cloned once and fetched after.
+      - /var/lib/woodpecker-cache/standards/cargo-home:/cache/cargo-home
       - /var/lib/woodpecker-cache/standards/cargo-bin:/cache/cargo-bin
       - /var/lib/woodpecker-cache/standards/advisory-db:/cache/advisory-db
     environment:
+      CARGO_HOME: /cache/cargo-home
       CARGO_TERM_COLOR: always
       CARGO_INSTALL_ROOT: /cache/cargo-bin
       CARGO_BUILD_JOBS: "2"

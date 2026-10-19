@@ -14,6 +14,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Fixed
 
+- **CI: concurrent cargo unpack race** (`.woodpecker/`, STD-33): `rust.ci` and
+  `cli.release`'s linux leg shared only `registry/` and `git/` under each container's own
+  `/usr/local/cargo`, so cargo's `.package-cache` lock was per container and two workflows
+  unpacking the same crate on a cold cache failed with `.cargo-ok: File exists`. Every
+  Linux cargo step (`rust.ci`, `cli.release`, `audit.ci`) now mounts one shared
+  `CARGO_HOME` (`/var/lib/woodpecker-cache/standards/cargo-home`), so cargo's own flock
+  serializes them, and `scripts/ci/cache-guard.sh` takes cargo's locks before wiping a dir
+  under it. The old `cargo-registry`/`cargo-git` host dirs are no longer mounted.
+
 - **Trace → logs link** — `docs/grafana-dashboards.md`: the provisioned `tracesToLogsV2` query
   matched `service_name` from `__span.tags["service.name"]`, a resource attribute Grafana's
   span tags don't carry, so it came out empty and "Logs for this span" found nothing. It now
