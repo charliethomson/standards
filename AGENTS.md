@@ -62,3 +62,18 @@ events relayed through the product server to ClickHouse), **security**,
 Each bullet is a link or a doc in [`docs/`](docs/). When a standard and the code
 disagree, fix the code or flag it — don't silently diverge. Unsure of a term (a `lib*` crate,
 a piece of infra, a convention)? See [`docs/glossary.md`](docs/glossary.md).
+
+## The shell is zsh
+
+The Bash tool runs **zsh** on the dev machines, not bash. zsh does not word-split unquoted
+parameter expansions, so this runs `"cargo test --workspace"` as one command name and fails:
+
+```sh
+cmd="cargo test --workspace"
+$cmd            # zsh: command not found: cargo test --workspace
+```
+
+Don't stash a command line in a string variable. Write the command out, or use an array
+(`cmd=(cargo test --workspace); "${cmd[@]}"`), or a function. Same for lists of args or
+files: `files="a b c"; rm $files` is one argument in zsh, so use `files=(a b c)` instead.
+`${=var}` forces splitting if you really need it.
