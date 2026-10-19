@@ -79,9 +79,21 @@ standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron
   the artifact, checks size and sha256, takes `standards` out of the `.tar.gz`, and renames a
   temp file over the running exe. Registry reads need a bearer: `REGISTRY_TOKEN`, the same
   variable the registry's installer reads.
-- **`doctor`, `janitor`, `ultron`** print "not implemented yet" and exit 1. Each owns its
-  clap `Args` and `run` in its own file (`doctor.rs`, `janitor.rs`, `ultron.rs`), so filling
-  one in touches nothing else.
+- **`janitor [scan|clean] [--root D].. [--days N] [--targets] [--main-targets]
+  [--branches] [-y]`** is `bin/janitor` ported line for line (`janitor.rs`, `janitor/`):
+  repos are `.git` dirs at most 3 deep under each root (default `~/git`); each linked
+  worktree is kept when a process's cwd is in it (`lsof`), it's locked, dirty
+  (`git --no-optional-locks status`, submodules included), detached and unmerged, or touched
+  (newest of its index, `logs/HEAD` and last commit) within `--days` (default 3), in that
+  order, else removed. Cargo target dirs count only with a `CACHEDIR.TAG`. `clean` asks
+  once (refuses without `--yes` when stdin isn't a terminal or with `--json`), forces
+  removal only for a worktree with `.gitmodules` that is still clean, and ends with
+  `git worktree prune` per repo. It shells out to `git`, `lsof` and `du` like the script.
+  `--json` carries every repo, verdict, plan step and clean result. A test runs
+  `bin/janitor scan` and the port over the same fixture tree and diffs them.
+- **`doctor`, `ultron`** print "not implemented yet" and exit 1. Each owns its clap `Args`
+  and `run` in its own file (`doctor.rs`, `ultron.rs`), so filling one in touches nothing
+  else.
 - Templates are rendered by the server (`/api/v1/templates/{path}?KEY=V`). `init` and `new`
   render everything before writing, so an unreachable server or a bad archetype writes
   nothing.
@@ -225,7 +237,7 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 
 `standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
 MCP at `/mcp`, the HTML site and the standard mounts) exist, and `standards-cli` with
-`init`, `new` and `self-update`. The cli's `doctor`, `janitor` and `ultron` are not built yet.
+`init`, `new`, `self-update` and `janitor`. The cli's `doctor` and `ultron` are not built yet.
 The image, deploy stack and pipelines are in the repo; nothing is deployed and no pipeline
 has run yet (go-live is STD-19).
 

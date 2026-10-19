@@ -91,6 +91,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   copies; `publish.sh` is a known divergence from `docs/registry-publishing.md` until the
   release moves to kiln.
 
+- **`standards janitor [scan|clean]`** (`crates/standards-cli/src/janitor*`): the port of
+  `bin/janitor`, same flags (`--root` repeatable, `--days`, `--targets`, `--main-targets`,
+  `--branches`, `-y/--yes`), defaults, decision order and output lines, still shelling out to
+  `git`, `lsof` and `du`. Adds `--json` (every repo, worktree verdict, plan step and clean
+  result). Differences: it doesn't crash when a worktree's last `target` dir lacks
+  `CACHEDIR.TAG` (the script exits 1 silently there under `set -e`), unknown flags exit 2
+  rather than 1, relative `--root`s are resolved against the cwd, and scan's last line names
+  `standards janitor clean`. `bin/janitor` stays, marked deprecated.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.

@@ -39,7 +39,6 @@ fn unimplemented_subcommands_fail_with_one() {
     let s = Scratch::new();
     for (cmd, rest) in [
         ("doctor", &["--fix", "--quiet"][..]),
-        ("janitor", &["clean", "-y"]),
         ("ultron", &["watch"]),
     ] {
         let mut args = vec![cmd];
@@ -61,6 +60,25 @@ fn unimplemented_subcommands_fail_with_one() {
         assert_eq!(v["error"]["exit_code"], 1);
         assert_eq!(r.err, "");
     }
+}
+
+#[test]
+fn janitor_with_no_repos_under_the_default_root_fails() {
+    let s = Scratch::new();
+    let root = s.env.home.join("git");
+    // --json, so the warning is uncoloured even when the test's stdout is a terminal.
+    let r = run(&s.env, &["--json", "janitor", "clean", "-y"]);
+    assert_eq!(r.code, 1);
+    assert_eq!(r.err, format!("warning: no such root {}\n", root.display()));
+    let v = r.json();
+    assert_eq!(
+        v["error"]["message"],
+        format!("no git repos under {}", root.display())
+    );
+    assert_eq!(
+        v["error"]["$type"],
+        "dev.thmsn.standards.cli.command.error.failed"
+    );
 }
 
 #[test]

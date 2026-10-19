@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEPRECATED: use `standards janitor [scan|clean]` (same flags; crates/standards-cli). This
+# script stays, unchanged, until the fleet sweep moves every machine to the cli.
+#
 # janitor — find (and clean up) the git worktrees and cargo target dirs agents leave behind.
 #
 #   janitor [scan]  [options]   report every linked worktree and what `clean` would do (read-only)
@@ -38,7 +41,7 @@ kib() { du -sk "$1" 2>/dev/null | awk '{print $1+0}'; }
 # --- args ------------------------------------------------------------------
 
 cmd=scan
-case "${1:-}" in scan|clean) cmd=$1; shift;; -h|--help|help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0;; esac
+case "${1:-}" in scan|clean) cmd=$1; shift;; -h|--help|help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0;; esac
 
 roots=(); days=3; do_targets=0; do_main_targets=0; do_branches=0; yes=0
 while [ $# -gt 0 ]; do
