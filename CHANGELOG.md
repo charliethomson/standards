@@ -14,6 +14,15 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Fixed
 
+- **docs/migration.md after the libid pilot** (LIBID-2): the installer's one-time device
+  sign-in and stored credential; `mcp.registered` follows `--host`/`STANDARDS_HOST`; the
+  bare `ultron`/`janitor` commands are gone after `--fix`; retired skills aren't recreated;
+  `cli.current`'s "latest unknown" 401 is expected; repo scope is opt-in and `--quiet` nags
+  on warnings; `legacy.submodule` also removes a comments-only `.gitmodules`; drop a
+  Woodpecker `clone:` block that held only the override; more `standards/` leftovers
+  (rustdoc, `tarpaulin.toml` excludes); and a new step for libraries: consumers need
+  `cargo update -p <lib>`, checked with a cold `CARGO_HOME` build. The `migration.md` half of
+  STD-31.
 - **CI: concurrent cargo unpack race** (`.woodpecker/`, STD-33): `rust.ci` and
   `cli.release`'s linux leg shared only `registry/` and `git/` under each container's own
   `/usr/local/cargo`, so cargo's `.package-cache` lock was per container and two workflows
