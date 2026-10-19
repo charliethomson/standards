@@ -89,7 +89,8 @@ is reachable only there and authenticates its callers (see [auth-integration](au
 One documented exception: the standards server at `standards.thmsn.dev` is public and
 unauthenticated. It serves only content that is already public on GitHub (`docs/`,
 `skills/`, `templates/`, `CHANGELOG.md` of this repo), it is read-only, and it holds no
-state or secrets, so auth would protect nothing. Every other service stays on the tailnet
+state or secrets, so auth would protect nothing. It reaches the internet through a
+Cloudflare Tunnel (a `cloudflared` sidecar in its stack), not a public A record. Every other service stays on the tailnet
 behind auth; a new exception needs the same three properties and a line here.
 
 ## Telemetry

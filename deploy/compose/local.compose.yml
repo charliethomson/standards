@@ -1,5 +1,6 @@
 # Local override: the production stack on this machine, built from the working tree, no
-# watchtower. Never deployed (Komodo reads only prod.compose.yml).
+# watchtower and no cloudflared (no tunnel token here; the proxy's loopback port stands in
+# for the public route). Never deployed (Komodo reads only prod.compose.yml).
 #
 #   docker compose -f prod.compose.yml -f local.compose.yml up -d --build
 #   curl -s -H 'Host: standards.thmsn.dev' localhost:8103/manifest.json
@@ -20,4 +21,9 @@ services:
 
   watchtower:
     # Not started locally: it would poll GHCR and try to replace the local image.
+    profiles: [prod-only]
+
+  cloudflared:
+    # Not started locally: it needs the tunnel's token, and a second connector on the real
+    # tunnel would take a share of public traffic.
     profiles: [prod-only]

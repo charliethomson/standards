@@ -91,6 +91,13 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   copies; `publish.sh` is a known divergence from `docs/registry-publishing.md` until the
   release moves to kiln.
 
+- **Public route via Cloudflare Tunnel** (`deploy/`): `standards.thmsn.dev` is now served
+  through a `cloudflared` sidecar in the stack (token mode, the `ci.thmsn.dev` shape), routed
+  to `proxy:80`, with no public A record. Its token is the Komodo Variable
+  `STANDARDS_CF_TUNNEL_TOKEN` (the homelab's `CF_TUNNEL_TOKEN` is the ci tunnel). The local
+  override leaves `cloudflared` out; the homelab gateway block becomes an optional tailnet
+  route on the kept `127.0.0.1:8103`. `deploy/README.md` has the rewritten go-live steps.
+
 - **`standards janitor [scan|clean]`** (`crates/standards-cli/src/janitor*`): the port of
   `bin/janitor`, same flags (`--root` repeatable, `--days`, `--targets`, `--main-targets`,
   `--branches`, `-y/--yes`), defaults, decision order and output lines, still shelling out to

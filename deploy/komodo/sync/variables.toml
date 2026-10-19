@@ -11,6 +11,13 @@
 #                     (The daemon's initial pull is authed separately via the ghcr.io
 #                     Registry Account in Komodo Settings.)
 #
+#   STANDARDS_CF_TUNNEL_TOKEN
+#                     Secret. The Cloudflare Tunnel token for the `standards` tunnel
+#                     (Zero Trust → Networks → Tunnels → standards → install command, the
+#                     string after `--token`). Lands in the stack .env as CF_TUNNEL_TOKEN.
+#                     Its own Variable, not the homelab's CF_TUNNEL_TOKEN: that one is the
+#                     ci.thmsn.dev tunnel.
+#
 #   HOMELAB_HOST_IP — not secret, already declared by the homelab repo's own sync
 #                     (homelab/komodo/sync/variables.toml). Do not re-declare it here.
 #

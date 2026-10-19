@@ -12,7 +12,7 @@
 
 [[stack]]
 name = "standards"
-description = "standards — the fleet's standards over HTML, REST and MCP, behind an internal Caddy router, fronted by the homelab gateway at standards.thmsn.dev (public, read-only)."
+description = "standards: the fleet's standards over HTML, REST and MCP, behind an internal Caddy router, public at standards.thmsn.dev through a Cloudflare Tunnel (cloudflared sidecar; read-only)."
 tags = ["dev"]
 deploy = true
 [stack.config]
@@ -28,10 +28,16 @@ registry_account = "charliethomson"
 # without --project-directory gymnastics.
 run_directory = "deploy/compose"
 file_paths = ["prod.compose.yml"]
-# GHCR_TOKEN: read:packages PAT for watchtower's poll, the stack's only secret (no
-# AUTH_ADMIN_KEY: the server is public and read-only). HOMELAB_HOST_IP is the homelab's
-# existing non-secret variable for the dev box's LAN address, where otelcol listens.
+# Two secrets (no AUTH_ADMIN_KEY: the server is public and read-only):
+#   GHCR_TOKEN: read:packages PAT for watchtower's poll.
+#   CF_TUNNEL_TOKEN: the cloudflared sidecar's tunnel token. The compose name matches the
+#     homelab woodpecker precedent, but the Komodo Variable is STANDARDS_CF_TUNNEL_TOKEN:
+#     the homelab's own CF_TUNNEL_TOKEN is the ci.thmsn.dev tunnel, and reusing it would
+#     add this stack as a connector of that tunnel.
+# HOMELAB_HOST_IP is the homelab's existing non-secret variable for the dev box's LAN
+# address, where otelcol listens.
 environment = """
-GHCR_TOKEN    = [[GHCR_TOKEN]]
-OTLP_ENDPOINT = http://[[HOMELAB_HOST_IP]]:4317
+GHCR_TOKEN      = [[GHCR_TOKEN]]
+CF_TUNNEL_TOKEN = [[STANDARDS_CF_TUNNEL_TOKEN]]
+OTLP_ENDPOINT   = http://[[HOMELAB_HOST_IP]]:4317
 """

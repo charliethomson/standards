@@ -8,11 +8,16 @@
 # Komodo writes .env here from the `environment` block in ../komodo/sync/stacks.toml, then
 # runs `docker compose --env-file .env -f prod.compose.yml up -d`.
 #
-# Ingress: the homelab gateway Caddy terminates TLS for standards.thmsn.dev and
-# reverse-proxies to `proxy` on 127.0.0.1:8103 (loopback; the gateway is network_mode: host).
-# The gateway block is in deploy/README.md. Both Caddy hops forward the client's Host
-# unchanged (reverse_proxy's default), which /mcp depends on: rmcp answers 403 to a Host
-# not in STANDARDS_ALLOWED_HOSTS. Never add `header_up Host` on either hop.
+# Ingress: Cloudflare Tunnel. Cloudflare's edge terminates TLS for standards.thmsn.dev and
+# hands the request to the `cloudflared` sidecar below, which dials out (no open port, no
+# public A record) and forwards to `proxy` at http://proxy:80 on the stack network. The
+# tunnel's public hostname is configured in Cloudflare Zero Trust, not here
+# (deploy/README.md). cloudflared and Caddy both forward the client's Host unchanged, which
+# /mcp depends on: rmcp answers 403 to a Host not in STANDARDS_ALLOWED_HOSTS. Never set an
+# HTTP Host Header override on the tunnel route, nor `header_up Host` in Caddy.
+#
+# `proxy` also listens on 127.0.0.1:8103 for an optional tailnet route through the homelab
+# gateway Caddy and for local runs. It is not the public path.
 services:
   api:
     image: ghcr.io/charliethomson/standards-server:main
@@ -45,6 +50,21 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on: [api]
+    networks: [standards]
+
+  # The public route: a Cloudflare Tunnel in token mode, the same shape as the homelab's
+  # ci.thmsn.dev sidecar (homelab woodpecker/docker-compose.yml). The token names the
+  # tunnel; its public hostname standards.thmsn.dev → http://proxy:80 lives in Cloudflare
+  # Zero Trust. No watchtower label, like the precedent: it moves on a stack redeploy.
+  # Excluded from local runs by local.compose.yml (there is no token there).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    mem_limit: 256m
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${CF_TUNNEL_TOKEN:-}"
+    depends_on: [proxy]
     networks: [standards]
 
   # Polls GHCR for a new :main image and recreates only this stack's containers.

@@ -1,5 +1,7 @@
-# Internal router for the standards stack. No TLS: the homelab gateway Caddy owns the
-# public hostname standards.thmsn.dev and forwards plain HTTP here (deploy/README.md).
+# Internal router for the standards stack. No TLS: Cloudflare's edge owns the public
+# hostname standards.thmsn.dev and the stack's cloudflared sidecar forwards plain HTTP here
+# at proxy:80 (deploy/README.md). The optional tailnet route through the homelab gateway
+# Caddy arrives on the same :80 via the loopback port.
 # There is no web bundle, so everything goes to the api: the HTML site (/, /d/*), the REST
 # mirror (/api/v1/*), /manifest.json, /t/*, /mcp, /health, /version, /api/metrics.
 #
@@ -8,16 +10,17 @@
 # given, which rmcp checks against STANDARDS_ALLOWED_HOSTS: never add `header_up Host`.
 {
 	servers {
-		# The gateway reaches this proxy over docker's published port from a private
-		# address. Trusting private ranges keeps the gateway's X-Forwarded-For (the real
-		# client) rather than replacing it with the gateway's address.
+		# cloudflared reaches this proxy from its address on the stack network (the
+		# optional gateway route, over docker's published port); both are private.
+		# Trusting private ranges keeps their X-Forwarded-For (the real client, set by
+		# Cloudflare's edge) rather than replacing it with the sidecar's address.
 		trusted_proxies static private_ranges
 	}
 }
 
 :80 {
 	# Security headers, set once at the single ingress. The public origin is always HTTPS
-	# (the gateway serves TLS), so HSTS is safe on this plain-HTTP hop. The server sets
+	# (Cloudflare serves TLS), so HSTS is safe on this plain-HTTP hop. The server sets
 	# its own CSP on the HTML pages (web.rs) and Scalar at /api/docs loads its own
 	# script, so no CSP here: two places setting one is a CSP nobody can reason about.
 	header {
