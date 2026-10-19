@@ -1,6 +1,6 @@
 <!--
   Skeleton README for a product / service / orchestration repo.
-  Convention and rationale: standards/docs/readmes.md
+  Convention and rationale: https://standards.thmsn.dev/d/readmes
 
   Fill a section or delete it — a section left as a stub is worse than an absent one.
   Delete these comments as you go; the file is not done while any of them survive.
@@ -55,7 +55,6 @@
 | `api/` | |
 | `branding/` | |
 | `deploy/` | |
-| `standards/` | Shared engineering standards, vendored as a submodule. Binding defaults |
 
 ## Quickstart
 
@@ -104,5 +103,5 @@ These are the same commands CI runs, so passing them locally means passing CI:
 <!-- One line per doc. This is what makes the README a front door rather than a dead end. -->
 
 - [`VERSIONING.md`](VERSIONING.md) — derived-version doctrine
-- [`AGENTS.md`](AGENTS.md) — repo conventions and the [`standards/`](standards) submodule
+- [`AGENTS.md`](AGENTS.md) — repo conventions and overrides of the [shared standards](https://standards.thmsn.dev)
 - [`SHORTCUTS.md`](SHORTCUTS.md) — answers to the recurring operational questions

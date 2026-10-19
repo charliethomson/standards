@@ -1,6 +1,6 @@
 # Fleet-standard workspace lints + conventions. Merge into the workspace-root Cargo.toml,
 # and add `[lints] workspace = true` to every member crate.
-# See standards/docs/rust-conventions.md.
+# See https://standards.thmsn.dev/d/rust-conventions.
 
 [workspace.package]
 edition = "2024"

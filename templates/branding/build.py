@@ -11,7 +11,7 @@ Run from the repo root:  python3 branding/build.py
 Requires: rsvg-convert (icon rasterization). `magick` only for previews.
 
 This is a STARTER — replace {{PRODUCT}}, the PALETTE values, the MARK geometry,
-and the output paths to match the product. See standards/docs/branding.md.
+and the output paths to match the product. See https://standards.thmsn.dev/d/branding.
 """
 import json
 import math

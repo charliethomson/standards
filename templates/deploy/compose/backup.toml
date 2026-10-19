@@ -1,4 +1,4 @@
-# What the `backup` sidecar snapshots (standards/docs/backups.md). Mounted at
+# What the `backup` sidecar snapshots (https://standards.thmsn.dev/d/backups). Mounted at
 # /etc/stash-backup/config.toml. Only what is listed is backed up: never list a
 # key file. Schedule (hourly at :07) and retention (48 hourly, 30 daily) default
 # in code; override with [schedule] / [retention] only for a reason.

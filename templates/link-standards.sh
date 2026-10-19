@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# DEPRECATED: legacy submodule mechanism, kept only so unmigrated repos keep working
+# until the fleet sweep. Skills and MCP now come from https://standards.thmsn.dev via the
+# `standards` cli (`standards doctor --fix`). Don't run this in a new repo; to move a repo
+# off the submodule follow https://standards.thmsn.dev/d/migration.
+#
 # Wire the standards submodule into a consuming repo:
 #   - symlink every shared skill into .claude/skills/
 #   - scaffold .mcp.json from the template if absent

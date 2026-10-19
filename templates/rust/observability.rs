@@ -1,5 +1,5 @@
 // Telemetry bootstrap. Call at the top of main(), before serving.
-// Replace {{PRODUCT}}/{{SERVICE}}. See standards/docs/observability.md and tracing.md.
+// Replace {{PRODUCT}}/{{SERVICE}}. See https://standards.thmsn.dev/d/observability and https://standards.thmsn.dev/d/tracing.
 //
 // Cargo.toml:  liblog = { git = "ssh://git@github.com/charliethomson/liblog.git" }
 //              libproduct = { git = "https://github.com/charliethomson/libpath" } // member crate of the libpath repo
@@ -50,7 +50,7 @@ fn init_telemetry() -> liblog::LoggingGuard {
         // If this binary speaks a protocol over stdio (e.g. an MCP server), add:
         //     .console_stream(liblog::ConsoleStream::Stderr)
         // Otherwise the first log record is written into the wire and the peer's
-        // parser fails, silently. See standards/docs/observability.md.
+        // parser fails, silently. See https://standards.thmsn.dev/d/observability.
         .init();
 
     tracing::info!(

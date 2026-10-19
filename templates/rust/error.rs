@@ -1,7 +1,7 @@
 // Domain error + HTTP mapping. Split across two crates:
 //   - the `Error` enum + `Result` alias live in `core` (HTTP-agnostic),
 //   - `to_poem` lives in `api` (the only crate that knows about HTTP).
-// See standards/docs/error-handling.md.
+// See https://standards.thmsn.dev/d/error-handling.
 
 // ─────────────────────────── core/src/error.rs ───────────────────────────
 // Categorised domain error. Variants map cleanly onto HTTP status codes in the

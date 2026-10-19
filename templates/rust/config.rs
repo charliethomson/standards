@@ -1,6 +1,6 @@
 // Service configuration via libconfig::Loader. Lives at api/src/config.rs.
 // Precedence (later wins): defaults → TOML file → shared (unprefixed) env → prefixed env.
-// Replace {{PRODUCT}} / {{PRODUCT_UPPER}}. See standards/docs/configuration.md.
+// Replace {{PRODUCT}} / {{PRODUCT_UPPER}}. See https://standards.thmsn.dev/d/configuration.
 //
 // Cargo.toml:  libconfig = { git = "https://github.com/charliethomson/libconfig" }
 //              libpath   = { git = "https://github.com/charliethomson/libpath" }   // for container paths

@@ -1,7 +1,7 @@
 <!--
   Skeleton README for a library or CLI repo. For a library, this file IS the API
   documentation — which raises the bar for the example, not the length.
-  Convention and rationale: standards/docs/readmes.md
+  Convention and rationale: https://standards.thmsn.dev/d/readmes
 
   Fill a section or delete it. Delete these comments as you go.
 -->
@@ -19,7 +19,7 @@
 ## Install
 
 <!--
-  HTTPS for a public repo, SSH for a private one (standards/docs/rust-conventions.md).
+  HTTPS for a public repo, SSH for a private one (https://standards.thmsn.dev/d/rust-conventions).
   For a CLI, the registry one-liner instead — and say that re-running it upgrades.
 -->
 
@@ -59,7 +59,7 @@ cargo clippy --all-targets -- -D warnings
 ```
 
 <!--
-  Repo conventions and the shared standards live in AGENTS.md and the standards/
-  submodule — keep the pointer, drop this comment.
+  Repo conventions live in AGENTS.md; the shared standards are served at
+  https://standards.thmsn.dev. Keep the pointer, drop this comment.
 -->
-Conventions: [`AGENTS.md`](AGENTS.md) and the [`standards/`](standards) submodule.
+Conventions: [`AGENTS.md`](AGENTS.md) and the [shared standards](https://standards.thmsn.dev).

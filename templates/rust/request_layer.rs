@@ -16,10 +16,10 @@
 // liblog init. Every caller of this layer is assumed to be a client (app, browser,
 // CLI), so it ADOPTS the inbound trace; if another fleet service calls you, open
 // that request's span with `liblog::server_span!` instead so the edge pairs.
-// See standards/docs/tracing.md and error-handling.md.
+// See https://standards.thmsn.dev/d/tracing and https://standards.thmsn.dev/d/error-handling.
 
 //! The request layer: one `http.request` span and one `http completed` line per
-//! request, errors and panics included (`standards/docs/tracing.md`).
+//! request, errors and panics included (https://standards.thmsn.dev/d/tracing).
 //!
 //! It is the outermost layer, so it sees what every inner one produced:
 //!

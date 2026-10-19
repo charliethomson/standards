@@ -8,7 +8,7 @@
 # Ingress: the homelab gateway Caddy terminates TLS for {{PRODUCT}}.dev.thmsn.dev
 # and reverse-proxies to `proxy` on 127.0.0.1:{{LOOPBACK_PORT}} (loopback — the
 # gateway is network_mode: host, so localhost reaches it; the LAN can't). Add the
-# gateway block (see standards/docs/deployment.md) before the first deploy.
+# gateway block (see https://standards.thmsn.dev/d/deployment) before the first deploy.
 services:
   api:
     image: ghcr.io/charliethomson/{{PRODUCT}}-api:main
@@ -59,7 +59,7 @@ services:
     depends_on: [api, web]
     networks: [{{PRODUCT}}]
 
-  # Hourly snapshots of {{PRODUCT}}-data onto the NAS (standards/docs/backups.md).
+  # Hourly snapshots of {{PRODUCT}}-data onto the NAS (https://standards.thmsn.dev/d/backups).
   # Config: ./backup.toml. One-time, on the host, before the first deploy:
   #   mkdir -p '/mnt/truenas/Secure/Application Backups/{{PRODUCT}}'
   #   touch '/mnt/truenas/Secure/Application Backups/{{PRODUCT}}/.{{PRODUCT}}-backup-target'

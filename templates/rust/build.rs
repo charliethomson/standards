@@ -9,7 +9,7 @@
 //   3. `0.0.0` fallback.
 //
 // To also embed full build metadata (commit hash, dirty flag, build host/time),
-// add `libbuildinfo` and call `libbuildinfo::emit()` here. See standards/docs/build-info.md.
+// add `libbuildinfo` and call `libbuildinfo::emit()` here. See https://standards.thmsn.dev/d/build-info.
 
 use std::process::Command;
 

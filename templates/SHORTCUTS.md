@@ -18,7 +18,7 @@ workflows and compose files every session.
   shortcut works.
 - **No secrets.** Reference an env var or Komodo Variable; never paste the value.
 
-Keep it under ~15 entries. Full convention: [`standards/docs/shortcuts.md`](standards/docs/shortcuts.md).
+Keep it under ~15 entries. Full convention: [shortcuts](https://standards.thmsn.dev/d/shortcuts).
 
 ---
 

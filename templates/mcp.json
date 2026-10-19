@@ -1,5 +1,5 @@
 {
-  "//": "Root .mcp.json for a repo that vendors the standards submodule. Reference shared servers by their standards/mcp/<name> path. Pass secrets via env (${VAR}), never inline. See standards/docs/skills-and-mcp.md.",
+  "//": "DEPRECATED: legacy submodule scaffold, kept until the fleet sweep; don't copy it into new repos. The standards MCP is registered at user scope by `standards doctor --fix`, and `standards doctor --fix` deletes this file when it is still this untouched template. See https://standards.thmsn.dev/d/migration.",
   "mcpServers": {
   }
 }

@@ -197,7 +197,7 @@ README beside the key.
 ## The compose block
 
 ```yaml
-  # Hourly snapshots of {{PRODUCT}}-data onto the NAS (standards/docs/backups.md).
+  # Hourly snapshots of {{PRODUCT}}-data onto the NAS (https://standards.thmsn.dev/d/backups).
   # Config: ./backup.toml. Restore: SHORTCUTS.md.
   backup:
     image: ghcr.io/charliethomson/stash-backup:main
