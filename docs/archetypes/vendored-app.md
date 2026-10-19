@@ -36,8 +36,7 @@ vendored it — that's a product, not this archetype.
 │   └── extract-app-icon.sh   render the registry icon from the built bundle
 ├── .github/workflows/        <platform>.release.yml → build, sign, notarize, publish
 ├── .standards.conf           PRODUCT = tooling slug only (NOT applied to the vendored app)
-├── AGENTS.md                 stub → standards/, with the à-la-carte overrides spelled out
-└── standards/                this submodule
+└── AGENTS.md                 Standards: line, with the à-la-carte overrides spelled out below it
 ```
 
 The distinguishing features: `upstream/` is a **pinned** submodule (a release is a

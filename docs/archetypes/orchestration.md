@@ -26,7 +26,8 @@ homelab/
 │       └── procedures.toml manual/one-shot procedures
 ├── docs/                   HOSTS.md (IP inventory), RUNBOOK.md (recovery)
 ├── CLAUDE.md               deployment model + gotchas
-└── standards/              this submodule
+├── .standards.conf         PRODUCT / ARCHETYPE identity, read by the standards cli
+└── AGENTS.md               Standards: line (archetype, product) + repo overrides
 ```
 
 ## How it works

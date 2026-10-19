@@ -19,7 +19,8 @@ lib<name>/
 ├── examples/               executable usage = integration tests + API docs
 ├── .cargo/config.toml      if it needs tracing/valuable or git-fetch-with-cli
 ├── README.md               the primary API documentation
-└── standards/              this submodule
+├── .standards.conf         PRODUCT / LIB / ARCHETYPE identity, read by the standards cli
+└── AGENTS.md               Standards: line (archetype, product) + repo overrides
 ```
 
 ## Standards that apply
@@ -73,4 +74,4 @@ lib<name>/
 - [ ] Logic/parsing tested inline; optional `scripts/cov.sh`.
 - [ ] Optional features gate any heavy or platform-specific surface.
 - [ ] CI only if an artifact ships; otherwise none.
-- [ ] Root `AGENTS.md` stub points at `standards/`.
+- [ ] Root `AGENTS.md` starts with the `Standards:` line; `.standards.conf` is committed.

@@ -30,9 +30,9 @@ This is the organizing principle. Each concern has exactly one home:
 ├── branding/               code-as-truth asset generator (see branding.md)
 ├── deploy/                 Komodo sync TOML + compose + Caddyfile
 ├── .github/workflows/      *.build (→ GHCR) + *.release (→ registry); see ci-cd.md naming
-├── AGENTS.md               stub → standards/
-├── VERSIONING.md           copied from standards/templates
-└── standards/              this submodule
+├── .standards.conf         PRODUCT / ARCHETYPE identity, read by the standards cli
+├── AGENTS.md               Standards: line (archetype, product) + repo overrides
+└── VERSIONING.md           from the VERSIONING.md template
 ```
 
 ## Standards that apply
@@ -97,7 +97,7 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
       emits the reserved events through one recorder, the server serves
       `POST <api base>/telemetry/events`, no third-party analytics SDK in any client.
 - [ ] Server ≥80% coverage; web has hermetic e2e; native UI not unit-tested.
-- [ ] Root `AGENTS.md` stub + `VERSIONING.md` copied from `standards/templates`.
+- [ ] Root `AGENTS.md` with the `Standards:` line, `.standards.conf`, and `VERSIONING.md` from the template.
 - [ ] Root `README.md` covers mechanism, layout, quickstart (with *why* each env var is
       required), what CI runs, and the codegen/drift rule; each app has its own
       ([`../readmes.md`](../readmes.md)).

@@ -1,36 +1,40 @@
 # Applying these standards
 
-You are working in a repo that vendors this `standards/` submodule. These are the
-conventions this fleet of repos follows. Treat them as binding defaults: follow them
-unless the repo's own docs explicitly override a specific point.
+These are the conventions this fleet of repos follows, served to every repo by the
+`standards` MCP server (https://standards.thmsn.dev). A consuming repo's `AGENTS.md` starts
+with a `Standards: archetype=<a> product=<p>` line; treat the standards as binding defaults
+and follow them unless that file explicitly overrides a specific point.
 
 **Operational question first?** If you're being asked about the *running system* — is it up
 to date in prod, what's live, where are the logs — check the repo's root `SHORTCUTS.md`
 before you go spelunking through workflows and compose files. And when you do have to go
-spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](docs/shortcuts.md).
+spelunking, write the route down there afterwards. See
+[shortcuts](https://standards.thmsn.dev/d/shortcuts).
 
 ## How to use this
 
-1. **Identify the archetype.** Read [`docs/overview.md`](docs/overview.md) and decide
-   which one this repo is — **full-stack product**, **library**, **orchestration**,
-   **CLI/service tool**, or **vendored app**. The archetype determines which standards apply
-   and how strictly.
-   The per-archetype rules live in [`docs/archetypes/`](docs/archetypes/).
+1. **Identify the archetype.** The repo's `Standards:` line (or `.standards.conf`) names
+   it: **full-stack product**, **library**, **orchestration**, **CLI/service tool**, or
+   **vendored app**. The archetype determines which standards apply and how strictly; see
+   [overview](https://standards.thmsn.dev/d/overview).
 
-2. **Read the relevant topic docs** in [`docs/`](docs/) before making changes in that
-   area. Each doc states the rule, the rationale, and a copyable implementation.
+2. **Get the checklist before changing an area.** `get_checklist(standard, archetype)` on
+   the `standards` MCP gives the rule as it applies to this archetype; `get_doc` gives the
+   rationale and a copyable implementation; `search` when unsure which standard applies.
 
-3. **Scaffold from [`templates/`](templates/)** rather than hand-writing config. Copy the
+3. **Scaffold from templates** (`get_template(path)`, or
+   `https://standards.thmsn.dev/t/<path>`) rather than hand-writing config. Copy the
    template, then adjust — don't redesign.
 
-4. **Use the shared tooling.** Skills in [`skills/`](skills/) and MCP servers in
-   [`mcp/`](mcp/) are available to every repo that vendors this submodule. See
-   [`docs/skills-and-mcp.md`](docs/skills-and-mcp.md) for how they're linked in.
+4. **Use the shared tooling.** The `thmsn-*` skills and the MCP registration come from the
+   `standards` cli (`standards doctor --fix`). See
+   [skills-and-mcp](https://standards.thmsn.dev/d/skills-and-mcp); to move a repo off the
+   old `standards/` submodule, see [migration](https://standards.thmsn.dev/d/migration).
 
 ## The rules in one breath
 
 - **Versioning** — version is *derived*, never stored: `MAJOR.MINOR.<commit count>`. The
-  git tag (`vMAJOR.MINOR`) is the only manual knob. See [`docs/versioning.md`](docs/versioning.md).
+  git tag (`vMAJOR.MINOR`) is the only manual knob. See [versioning](https://standards.thmsn.dev/d/versioning).
 - **Identifiers** — reverse-domain `dev.thmsn.<product>[.<component>]`, everywhere
   (`<component>` = a service like `server`/`worker`/`cli` or an app surface like
   `ios`/`macos`/`winui`/`web`; grants are a parallel axis).
@@ -45,10 +49,10 @@ spelunking, write the route down there afterwards. See [`docs/shortcuts.md`](doc
 - **Branding** — a self-contained, code-as-source-of-truth generator in the repo.
 - **Platform UX** — native per OS, designed for the target OS, not ported across.
 - **Shortcuts** — repeated operational questions get one-command answers in the repo's
-  root `SHORTCUTS.md`; read before recon, write after. See [`docs/shortcuts.md`](docs/shortcuts.md).
+  root `SHORTCUTS.md`; read before recon, write after. See [shortcuts](https://standards.thmsn.dev/d/shortcuts).
 - **READMEs** — every repo (and every independently-buildable subtree) has one, covering the
   mechanism, the layout, the quickstart, and what CI runs. Change the behaviour it describes
-  and you update it in the same commit. See [`docs/readmes.md`](docs/readmes.md).
+  and you update it in the same commit. See [readmes](https://standards.thmsn.dev/d/readmes).
 
 For services and clients there's a deeper layer of implementation standards — **service
 architecture** (`core→db→engine→api`, poem-openapi), **data & persistence** (sqlx, typed
@@ -56,12 +60,12 @@ architecture** (`core→db→engine→api`, poem-openapi), **data & persistence*
 integration**, **configuration** (libconfig), **observability** (liblog/OTLP), **tracing** (always-on +
 tail sampling, span shape, the client↔server trace contract), **client analytics** (usage
 events relayed through the product server to ClickHouse), **security**,
-**web/client architecture**, **rust conventions**, and the **`lib*` ecosystem**. All are in
-[`docs/`](docs/) and indexed in [`docs/overview.md`](docs/overview.md).
+**web/client architecture**, **rust conventions**, and the **`lib*` ecosystem**. All are served at
+https://standards.thmsn.dev and indexed in [overview](https://standards.thmsn.dev/d/overview).
 
-Each bullet is a link or a doc in [`docs/`](docs/). When a standard and the code
+Each bullet is a doc on the server. When a standard and the code
 disagree, fix the code or flag it — don't silently diverge. Unsure of a term (a `lib*` crate,
-a piece of infra, a convention)? See [`docs/glossary.md`](docs/glossary.md).
+a piece of infra, a convention)? See [glossary](https://standards.thmsn.dev/d/glossary).
 
 ## The shell is zsh
 

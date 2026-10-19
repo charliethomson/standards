@@ -76,7 +76,7 @@ for a workspace of many crates, a fenced tree for a handful of directories; eith
 every entry earns its line by telling the reader where to go next.
 
 Mark the ones that aren't what they look like: a subtree deliberately excluded from the
-workspace, a directory of throwaway experiments, the vendored `standards/` submodule.
+workspace, a directory of throwaway experiments.
 
 ### 4. Quickstart
 
@@ -127,8 +127,8 @@ routes to the running system belong in [`SHORTCUTS.md`](shortcuts.md).
 A short index of the repo's other docs, one line of what each covers. This is what makes
 the README a front door rather than a dead end.
 
-Close with the pointer to `AGENTS.md` and the vendored [`standards/`](../README.md)
-submodule.
+Close with the pointer to `AGENTS.md` and the shared standards
+(`https://standards.thmsn.dev`).
 
 ## Per-archetype
 
@@ -173,7 +173,7 @@ migration guides, design notes — has a different reader and belongs in its own
 
 ## What stays out
 
-- **Anything in `standards/`.** Link to it. The README says *this repo commits its OpenAPI
+- **Anything in the shared standards.** Link to it (`https://standards.thmsn.dev/d/<id>`). The README says *this repo commits its OpenAPI
   spec and CI fails on drift*; it does not restate the contracts standard.
 - **Secrets.** Env var *names*, never values. Same rule as [`deployment.md`](deployment.md).
 - **Coding conventions** — `AGENTS.md`.
@@ -193,11 +193,11 @@ before you report back — you are in the one context that knows the correct com
 
 ## Scaffolding
 
-`standards install` writes a skeleton from
+`standards init` (and `standards new`) writes a skeleton from
 [`../templates/README.product.md`](../templates/README.product.md) (or
 [`../templates/README.library.md`](../templates/README.library.md) for the library and CLI
-archetypes), and `standards sync` backfills it for repos installed before this convention
-existed. Neither ever clobbers an existing README.
+archetypes). Running `standards init` again in an older repo backfills a missing one. Neither
+ever clobbers an existing README.
 
 The skeleton is a skeleton: it names the sections and explains each in an HTML comment you
 delete as you fill it. A repo that ships the skeleton unfilled is worse off than one with no
@@ -214,5 +214,5 @@ README, because the skeleton looks like documentation.
       generated artefact.
 - [ ] Anything stubbed, missing, or broken is stated as such.
 - [ ] Every independently-buildable subtree has its own README, linked from the root.
-- [ ] No secrets, no live state, no duplication of `standards/`, no hand-written ToC.
+- [ ] No secrets, no live state, no duplication of the shared standards, no hand-written ToC.
 - [ ] Under ~200 lines; overflow lives in `docs/` with a pointer.

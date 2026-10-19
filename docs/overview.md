@@ -84,13 +84,18 @@ infrastructure, and `lib*` toolchain referenced throughout.
 
 ## Shared tooling
 
-Beyond docs, this repo ships reusable tooling so every repo gets it through the same
-submodule:
+Beyond docs, every repo gets the same tooling from the standards server at
+https://standards.thmsn.dev:
 
-- **`skills/`** — Claude Code skills, linked into a repo's `.claude/skills/`.
-- **`mcp/`** — custom MCP servers, referenced from a repo's `.mcp.json`.
+- **The `standards` MCP**: `search`, `get_doc`, `get_checklist`, `get_template`,
+  `get_skill`, registered once per machine at user scope.
+- **`thmsn-*` skills**: stubs in `~/.claude/skills/` whose bodies are fetched from the server.
+- **The `standards` cli**: `doctor` wires the machine and checks a repo; `init` / `new`
+  scaffold one.
 
-See [skills-and-mcp.md](skills-and-mcp.md).
+A repo keeps only `.standards.conf` and the `Standards:` line in its `AGENTS.md`. See
+[skills-and-mcp.md](skills-and-mcp.md), and [migration.md](migration.md) to move a repo off
+the old `standards/` submodule.
 
 > Status: complete first draft. All standards, all five archetypes, skills-and-mcp, and the
 > copyable templates are written and cross-linked. Open for iteration.

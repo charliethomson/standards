@@ -98,10 +98,20 @@ Shared crates that solve cross-cutting concerns once. See [lib-ecosystem.md](lib
 
 ## Standards tooling
 
-- **the `standards` submodule** — this repo, vendored into each consuming repo at `standards/`.
+- **standards server**: https://standards.thmsn.dev: public, read-only, serves this repo's
+  docs, skills and templates as rendered pages, a REST mirror and the `standards` MCP
+  (`/mcp`). See [skills-and-mcp.md](skills-and-mcp.md).
+- **`standards` cli**: installed per machine from the registry: `doctor`, `init`, `new`,
+  `self-update`, `janitor`, `ultron`. Talks to the server's REST mirror.
+- **doctor**: `standards doctor`: checks the machine (MCP registration, skill stubs,
+  SessionStart hook) and the current repo (`.standards.conf`, the `Standards:` line, submodule
+  leftovers). `--fix` repairs and stages, never commits; `--ci` is the repo gate.
 - **`.standards.conf`** — a consumer-side file (in *your* repo, not here) recording the product's
-  identity (`PRODUCT`, `PRODUCT_UPPER`, `LIB`, `ARCHETYPE`) for the CLI and skills.
-- **`bin/standards`** — the integration CLI: `install`, `sync`, `contribute`, `lint`.
-- **`link-standards.sh`** — symlinks shared skills into `.claude/skills/` and scaffolds `.mcp.json`.
-- **`thmsn-*` skills** — the shared Claude Code skills (audit, review, init, new-component, sync,
-  contribute). See [skills-and-mcp.md](skills-and-mcp.md).
+  identity (`PRODUCT`, `PRODUCT_UPPER`, `LIB`, `ARCHETYPE`) for the cli and skills.
+- **`Standards:` line**: the first line of a consuming repo's `AGENTS.md`, naming its archetype
+  and product and pointing agents at the `standards` MCP.
+- **`thmsn-*` skills**: the shared Claude Code skills (audit, review, init, new-component,
+  deep-review, jarvis, ultron, logs, janitor). See [skills-and-mcp.md](skills-and-mcp.md).
+- **the `standards` submodule** *(legacy)*: how repos used to consume this repo: vendored at
+  `standards/`, with skills symlinked by `link-standards.sh` and the `bin/standards` script.
+  Being retired; see [migration.md](migration.md).

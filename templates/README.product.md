@@ -103,5 +103,5 @@ These are the same commands CI runs, so passing them locally means passing CI:
 <!-- One line per doc. This is what makes the README a front door rather than a dead end. -->
 
 - [`VERSIONING.md`](VERSIONING.md) — derived-version doctrine
-- [`AGENTS.md`](AGENTS.md) — repo conventions and overrides of the [shared standards](https://standards.thmsn.dev)
+- [`AGENTS.md`](AGENTS.md): repo conventions and overrides of the [shared standards](https://standards.thmsn.dev)
 - [`SHORTCUTS.md`](SHORTCUTS.md) — answers to the recurring operational questions

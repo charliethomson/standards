@@ -51,7 +51,7 @@ Operational routes, keyed by the question as you'd actually ask it:
 
 ## What stays out
 
-- **Anything already documented** in `standards/` or this repo's own docs — link to it
+- **Anything already documented** in the shared standards or this repo's own docs — link to it
   instead, or put it there and link. `SHORTCUTS.md` is an index of routes, not a second
   copy of the standards.
 - **Secrets** — no tokens, passwords, or credentials. Commands may *reference* an env var
@@ -92,15 +92,15 @@ prose, promote it into a real doc and leave a one-line pointer behind.
 
 ## Scaffolding
 
-`standards install` writes the file from
-[`../templates/SHORTCUTS.md`](../templates/SHORTCUTS.md), and `standards sync` backfills it
-for repos installed before this convention existed. Neither ever clobbers an existing one.
+`standards init` (and `standards new`) writes the file from
+[`../templates/SHORTCUTS.md`](../templates/SHORTCUTS.md); running `standards init` again in an
+older repo backfills a missing one. Neither ever clobbers an existing one.
 
-The root `AGENTS.md` stub carries the read/write rule — that stub is what agents actually
-load, which is why the trigger lives there and not only here. Repos whose `AGENTS.md`
-predates this need the pointer block from
-[`../templates/consuming-repo-AGENTS.md`](../templates/consuming-repo-AGENTS.md) added by
-hand (`install` won't overwrite an existing `AGENTS.md`).
+The read/write rule reaches agents twice: the `standards` MCP's instructions tell every
+session to check `SHORTCUTS.md` before operational recon, and the root `AGENTS.md` from
+[`../templates/consuming-repo-AGENTS.md`](../templates/consuming-repo-AGENTS.md) repeats it,
+because `AGENTS.md` is what agents always load. Repos whose `AGENTS.md` predates this need
+that bullet added by hand (`init` won't overwrite an existing `AGENTS.md`).
 
 Commit it. The whole point is that the next session — and the next agent — starts with the
 answer already in hand.
@@ -111,5 +111,5 @@ answer already in hand.
 - [ ] Root `AGENTS.md` points at it with the read-before / write-after rule.
 - [ ] Every entry is a route (command/endpoint/mechanism), not a captured value.
 - [ ] Every entry carries a `_Verified:_` date.
-- [ ] No secrets; no duplication of `standards/` content.
+- [ ] No secrets; no duplication of the shared standards.
 - [ ] ≤15 entries.
