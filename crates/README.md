@@ -29,7 +29,16 @@ version of the same commit.
 Properties worth knowing before you change anything:
 
 - **The allowlist is in core** (`is_served`): `docs/**`, `skills/**`, `templates/**`,
-  `CHANGELOG.md`, never dotfiles. The db crate and the tests both use it.
+  `CHANGELOG.md`, never dotfiles. The db crate's embed patterns match it, and every embedded
+  path is checked with it again; a test proves the two agree.
+- **Content identity is the commit.** `standards_db::commit()` is `RELEASE_COMMIT` at build
+  time when CI sets it, else the commit libbuildinfo recorded for this build (the same commit
+  the derived version counts to), else `unknown`. A local build from a dirty tree reports
+  its HEAD commit.
+- **Search is in memory.** The engine indexes doc titles and intros, each section's own
+  text, each checklist item and each skill's name and description when it is built, and
+  scores with BM25 plus heading and doc-title boosts. Hits point at a doc id and section
+  anchor (or a skill name).
 - **Links are rewritten, not stored absolute.** Docs keep relative links so they work on
   GitHub; `Linker::rewrite` points them at `/d/<id>#anchor`, `/t/<path>` or GitHub at the
   commit when served.
@@ -41,9 +50,10 @@ Properties worth knowing before you change anything:
 | Crate | Role |
 |---|---|
 | [`standards-core`](standards-core/) | Content model and parsers: `Bundle`, `Doc`, `Checklist`, `Archetype`, `Skill`, `Template`, `Manifest`, `StandardsConf`, link rewriting, `MIN_CLI_VERSION`. |
+| [`standards-db`](standards-db/) | The served files embedded at build time (rust-embed, one folder per served dir, plus `CHANGELOG.md`), re-checked with `is_served`; `files()`, `commit()`, and `bundle()`, which parses once and hands out an `Arc<Bundle>`. |
+| [`standards-engine`](standards-engine/) | `Engine` over an `Arc<Bundle>`: `search`, `checklist(standard, archetype)`, `doc` / `doc_section` with absolute links, `templates` / `render_template`, `skills` / `skill` / `skill_asset`, `manifest`. Typed errors for unknown names; N/A is a value. |
 
-`standards-db`, `standards-engine`, `standards-api` and `standards-cli` join the workspace
-as they are built.
+`standards-api` and `standards-cli` join the workspace as they are built.
 
 ## Development
 
@@ -64,11 +74,16 @@ profile parser lags the toolchain (macOS).
 - **Core's tests read the real repo content.** A doc edit that drops a `## Checklist`, adds
   a link to a doc that doesn't exist, or breaks an archetype table row fails
   `cargo test -p standards-core`. Fix the doc, not the test.
+- **Content is compiled in.** The server serves what it was built with; `standards-db`'s
+  `build.rs` reruns when `docs/`, `skills/`, `templates/` or `CHANGELOG.md` change, so a
+  rebuild picks up edits. Its tests fail if a served file on disk isn't embedded or an
+  unserved one is.
 - **`MIN_CLI_VERSION` is hand-bumped.** Change the manifest or REST shape in a way an older
   cli would misread and you bump it in the same commit.
 
 ## Status
 
-Only `standards-core` exists. The server and cli are not built yet, and nothing is deployed.
+`standards-core`, `standards-db` and `standards-engine` exist. The api (REST, MCP, HTML)
+and the cli are not built yet, and nothing is deployed.
 
 Conventions for this code: the "This repo's own code" section of [`AGENTS.md`](../AGENTS.md).

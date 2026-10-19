@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 # Server: core -> db -> engine -> api (docs/service-architecture.md); the cli also
-# depends on core. Members land with their tasks; only core exists so far.
-members = ["crates/standards-core"]
+# depends on core. Members land with their tasks.
+members = ["crates/standards-core", "crates/standards-db", "crates/standards-engine"]
 
 [workspace.package]
 version = "0.0.0"          # placeholder: the real version is derived (docs/versioning.md)
@@ -23,11 +23,14 @@ panic              = { level = "warn", priority = 1 }   # surface panics; allow 
 libbuildinfo = { git = "https://github.com/charliethomson/libbuildinfo" }
 
 # ── internal crates (dependencies point inward only) ──
-standards-core = { path = "crates/standards-core" }
+standards-core   = { path = "crates/standards-core" }
+standards-db     = { path = "crates/standards-db" }
+standards-engine = { path = "crates/standards-engine" }
 
 # ── third-party ──
 pulldown-cmark = { version = "0.13", default-features = false }
 regex          = "1"
+rust-embed     = { version = "8", features = ["include-exclude", "debug-embed"] }
 serde          = { version = "1", features = ["derive"] }
 serde_json     = "1"
 sha2           = "0.10"

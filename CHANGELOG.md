@@ -37,6 +37,14 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   `.standards.conf`, the served allowlist, and absolute link rewriting. Zero I/O; tests run
   over this repo's real content.
 
+- **`standards-db` + `standards-engine`** (`crates/`): db embeds the served allowlist
+  (`docs/`, `skills/`, `templates/`, `CHANGELOG.md`) at build time and loads it once into a
+  shared `Bundle` tagged with the build's commit (`RELEASE_COMMIT`, else libbuildinfo). The
+  engine adds what the REST and MCP layers call: full-text search over docs, sections,
+  checklist items and skills; checklists composed per standard and archetype (N/A is a value
+  with the row's reason); docs and sections with absolute links; template listing and
+  rendering; skills and their nested assets; the manifest.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.
