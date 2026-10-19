@@ -50,8 +50,8 @@ ENV RELEASE_VERSION=$RELEASE_VERSION \
 # The download caches are BuildKit cache mounts (bounded by docker-build.sh's
 # `builder prune --keep-storage`); the target dir is not, so the binary is in a layer.
 RUN --mount=type=ssh \
-    --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
     cargo build --release --locked -p standards-api --bin standards-server
 
 # Stage 2: slim runtime image.
