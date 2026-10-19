@@ -37,10 +37,8 @@ fn help_and_version_exit_zero_usage_errors_exit_two() {
 #[test]
 fn unimplemented_subcommands_fail_with_one() {
     let s = Scratch::new();
-    for (cmd, rest) in [
-        ("doctor", &["--fix", "--quiet"][..]),
-        ("ultron", &["watch"]),
-    ] {
+    {
+        let (cmd, rest) = ("ultron", &["watch"][..]);
         let mut args = vec![cmd];
         args.extend(rest);
         let r = run(&s.env, &args);

@@ -91,9 +91,36 @@ standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron
   `git worktree prune` per repo. It shells out to `git`, `lsof` and `du` like the script.
   `--json` carries every repo, verdict, plan step and clean result. A test runs
   `bin/janitor scan` and the port over the same fixture tree and diffs them.
-- **`doctor`, `ultron`** print "not implemented yet" and exit 1. Each owns its clap `Args`
-  and `run` in its own file (`doctor.rs`, `ultron.rs`), so filling one in touches nothing
-  else.
+- **`doctor [--fix] [--quiet] [--ci] [--only ID..] [--repo PATH]`** checks the machine
+  (user scope, skipped with `--ci`) and then the repo it runs in (repo scope, skipped outside
+  a git repo, and outside `--ci` in a repo with no `.standards.conf` and no submodule
+  leftovers). Each check is a row of `CHECKS` in `doctor.rs`: an id, a check function, an
+  optional fix; `--fix` runs the fix and then the check again. User checks are in
+  `doctor/user.rs`, repo checks in `doctor/repo.rs`, shared file and process helpers in
+  `doctor/files.rs`.
+
+  | Id | Scope | `--fix` |
+  |---|---|---|
+  | `mcp.registered` | user | `claude mcp remove -s user standards` (when an entry exists), then `claude mcp add -s user -t http standards <host>/mcp`; fails unfixed without `claude` on `PATH` |
+  | `mcp.reachable` | user | none; warns when `/manifest.json` fails within 2s |
+  | `skills.synced` | user | writes `~/.claude/skills/<name>/SKILL.md` + `.standards-managed`, replaces links into `standards/skills`, removes marked dirs no longer served |
+  | `hook.session-start` | user | merges the `startup` hook running `standards doctor --quiet` into `~/.claude/settings.json` (backup `settings.json.bak`, atomic) |
+  | `cli.current` | user | `self-update`; fails below the manifest's `min_cli_version`, warns behind the registry's latest |
+  | `legacy.path-links` | user | removes `~/.local/bin/{standards,janitor,ultron}` links into `standards/bin` |
+  | `repo.conf` | repo | none; points at `standards init` |
+  | `repo.agents` | repo | rewrites the `Standards: ` line, or inserts it as line 1; stages `AGENTS.md` |
+  | `legacy.submodule` | repo | `git submodule deinit -f`, `git rm -f standards`, removes `.gitmodules` when no section is left, removes `.git/modules/standards` |
+  | `legacy.skill-links` | repo | `git rm` (tracked) or unlink `.claude/skills/thmsn-*` links into `standards/` |
+  | `legacy.mcp-json` | repo | deletes the untouched template, or drops the servers pointing into `standards/` |
+  | `legacy.ci-override` | repo | none; warns with `file:line` |
+
+  `~/.claude.json` is read, never written: it holds OAuth keys. `claude` runs with this
+  run's `HOME` and `PATH`. Repo fixes are staged, never committed. `--quiet` reads the
+  manifest cache (refreshed at most hourly, 1s budget), skips `mcp.reachable` and the
+  registry, never fixes, prints one line when a check warns or fails, and exits 0 whatever
+  happens. Exit 3 when a selected check needs the manifest and the server is unreachable.
+- **`ultron`** prints "not implemented yet" and exits 1. It owns its clap `Args` and `run`
+  in its own file (`ultron.rs`), so filling it in touches nothing else.
 - Templates are rendered by the server (`/api/v1/templates/{path}?KEY=V`). `init` and `new`
   render everything before writing, so an unreachable server or a bad archetype writes
   nothing.
@@ -108,6 +135,8 @@ standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron
   it with a 1s budget.
 - Tests run the real server app in-process on an ephemeral port and a fake registry beside
   it; the "current exe" is always a temp file, and nothing touches the real `$HOME`.
+  `doctor`'s tests add scratch repos and a fake `claude` on a scratch `PATH` (`Env::path`)
+  that records its argv and edits the scratch `~/.claude.json`.
 
 ```sh
 cargo run -q -p standards-cli -- --host http://127.0.0.1:8080 init --archetype library

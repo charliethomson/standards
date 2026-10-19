@@ -11,6 +11,7 @@
 //! | `STANDARDS_REGISTRY_URL` | [`EnvConfig::registry_url`] | `https://apps.dev.thmsn.dev` |
 //! | `REGISTRY_TOKEN` (shared with the registry installer) | [`EnvConfig::registry_token`] | unset |
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 use libconfig::Loader;
@@ -97,6 +98,8 @@ pub struct Env {
     pub version: String,
     pub platform: Platform,
     pub config: EnvConfig,
+    /// `$PATH`, where `doctor` looks for `claude` (and what it hands the child).
+    pub path: Option<OsString>,
 }
 
 impl Env {
@@ -111,6 +114,7 @@ impl Env {
             version: standards_core::VERSION.to_owned(),
             platform: Platform::current(),
             config: EnvConfig::load()?,
+            path: std::env::var_os("PATH"),
         })
     }
 
@@ -160,6 +164,7 @@ mod tests {
             version: "0.1.0".into(),
             platform: Platform::current(),
             config: EnvConfig::default(),
+            path: None,
         }
     }
 

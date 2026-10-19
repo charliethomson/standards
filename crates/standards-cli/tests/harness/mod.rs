@@ -83,6 +83,7 @@ impl Scratch {
                 libc: None,
             },
             config: EnvConfig::default(),
+            path: None,
         };
         Self { dir, env }
     }

@@ -100,6 +100,18 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   rather than 1, relative `--root`s are resolved against the cwd, and scan's last line names
   `standards janitor clean`. `bin/janitor` stays, marked deprecated.
 
+- **`standards doctor`** (`crates/standards-cli/src/doctor.rs`, `doctor/`): twelve checks in
+  two scopes. User scope: `mcp.registered` (fixed by `claude mcp remove/add -s user`;
+  `~/.claude.json` is only read), `mcp.reachable`, `skills.synced` (a stub `SKILL.md` plus a
+  `.standards-managed` marker per served skill; unmarked dirs are never touched; old links into
+  `standards/skills` replaced), `hook.session-start` (merged into `~/.claude/settings.json`
+  with a backup, key order kept, never duplicated), `cli.current`, `legacy.path-links`. Repo
+  scope: `repo.conf`, `repo.agents`, `legacy.submodule`, `legacy.skill-links`,
+  `legacy.mcp-json`, `legacy.ci-override` (warns with `file:line`, never edits YAML).
+  `--fix` stages and never commits; `--quiet` (the hook) uses the cached manifest, fixes
+  nothing, prints one line only when something needs attention and always exits 0; `--ci`
+  runs repo scope only; `--only ID..`, `--repo PATH`, `--json`.
+
 - **`docs/alerting.md`** — Grafana-provisioned alert rules as code, one header comment
   naming each rule's incident; alert on repetition and on severity or an exact message (never
   a substring a retry also logs); `noDataState` per rule; pre-seeded series; fire with runway.

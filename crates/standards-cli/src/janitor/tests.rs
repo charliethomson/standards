@@ -133,6 +133,7 @@ impl Fixture {
                 version: "0.1.0".into(),
                 platform: Platform::current(),
                 config: EnvConfig::default(),
+                path: None,
             },
         }
     }
