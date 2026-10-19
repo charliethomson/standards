@@ -1,0 +1,125 @@
+# The Rust gate for the whole workspace (server crates and the cli): fmt, build, clippy,
+# test, the OpenAPI drift check, then coverage. docs/ci-cd.md "The gate"; shape copied
+# from vision's rust.ci.yml. Runs on the Linux docker agents.
+#
+# Content counts as code here: standards-core's tests read the real docs/, skills/ and
+# templates/ (a lost checklist or a broken link fails them), and standards-db embeds them,
+# so a docs-only change runs this gate too.
+when:
+  - event: manual
+  - event: push
+    branch: main
+    path: &rust_paths
+      include:
+        - "Cargo.toml"
+        - "Cargo.lock"
+        - ".cargo/**"
+        - "crates/**"
+        - "docs/**"
+        - "skills/**"
+        - "templates/**"
+        - "CHANGELOG.md"
+        - "tarpaulin.toml"
+        # The committed contract: the server EMITS it, so a hand-edit has to re-run the
+        # drift step below.
+        - "api/openapi.json"
+        - "scripts/ci/**"
+        - ".woodpecker/rust.ci.yml"
+  - event: pull_request
+    path: *rust_paths
+
+labels:
+  # Pin to the docker agents: an unlabelled pipeline can land on the macOS
+  # local-backend agent, which treats `image:` as a host executable.
+  platform: linux/amd64
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      # Full history + tags: standards-core's build.rs derives the version from them.
+      partial: false
+      tags: true
+
+variables:
+  - &rust_image rust:1-bookworm
+  # Host-volume caches (docs/ci-cd.md "Caching"); needs the repo's trusted flag.
+  # Separate target dirs for the plain build and the instrumented coverage build, so
+  # neither invalidates the other.
+  - &rust_cache_volumes
+    - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
+    - /var/lib/woodpecker-cache/standards/cargo-git:/usr/local/cargo/git
+    - /var/lib/woodpecker-cache/standards/cargo-bin:/cache/cargo-bin
+    - /var/lib/woodpecker-cache/standards/target-build:/cache/target-build
+    - /var/lib/woodpecker-cache/standards/target-coverage:/cache/target-coverage
+  - &rust_env
+    CARGO_TERM_COLOR: always
+    # liblog is private and comes over SSH; route git through the CLI (as
+    # .cargo/config.toml does locally).
+    CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=accept-new"
+    # One rustc per vCPU OOM-killed the small agents (vision rust.ci.yml).
+    CARGO_BUILD_JOBS: "2"
+
+steps:
+  build:
+    image: *rust_image
+    volumes: *rust_cache_volumes
+    environment:
+      <<: *rust_env
+      CARGO_TARGET_DIR: /cache/target-build
+      # No debuginfo: most of what ld holds in memory at link time, and of the target dir.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      SSH_KEY:
+        from_secret: ssh_key
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends openssh-client git
+      - rustup component add clippy rustfmt
+      # Sized for this workspace: five crates over poem, rmcp and the lib* tree, smaller
+      # than vision's (no auth-sdk/prost). The 8G free-space floor is what matters.
+      - sh scripts/ci/cache-guard.sh /cache/target-build 5 8
+      - sh scripts/ci/cache-guard.sh /usr/local/cargo/registry 3 8
+      - sh scripts/ci/cache-guard.sh /usr/local/cargo/git 1 8
+      - eval "$(ssh-agent -s)"
+      - printf '%s\n' "$SSH_KEY" | ssh-add -
+      # fmt first: no compile, so a formatting failure costs seconds.
+      - cargo fmt --all -- --check
+      - cargo build --workspace --all-targets --locked
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+      - cargo test --workspace --locked
+      # ---- OpenAPI drift (docs/contracts.md) ----
+      # `standards-server openapi` prints the document and exits before config or
+      # telemetry, so this cannot hang. `cargo test` already fails on the same condition
+      # (standards-api's committed-contract test); this is the gate the standards name,
+      # and it also catches a committed file whose bytes differ for a non-content reason.
+      - cargo run -q --locked -p standards-api --bin standards-server -- openapi > api/openapi.json
+      - git diff --exit-code -- api/openapi.json
+
+  coverage:
+    image: *rust_image
+    volumes: *rust_cache_volumes
+    environment:
+      <<: *rust_env
+      CARGO_TARGET_DIR: /cache/target-coverage
+      CARGO_INSTALL_ROOT: /cache/cargo-bin
+      SSH_KEY:
+        from_secret: ssh_key
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends openssh-client git
+      - rustup component add llvm-tools-preview
+      - sh scripts/ci/cache-guard.sh /cache/target-coverage 6 8
+      - eval "$(ssh-agent -s)"
+      - printf '%s\n' "$SSH_KEY" | ssh-add -
+      - export PATH="/cache/cargo-bin/bin:$PATH"
+      # Tarpaulin, the fleet's tool (docs/ci-cd.md, tarpaulin.toml: fail-under 80). Its
+      # profile parser lags the toolchain on macOS (rustc 1.99), but the llvm engine works
+      # on Linux, where this runs; verified in rust:1-bookworm with rustc 1.99.1 before
+      # this landed. --engine llvm: ptrace can't disable ASLR in a container. If a
+      # toolchain bump breaks it here too, swap this line for
+      # `cargo llvm-cov --workspace --fail-under-lines 80` (what the crates README gives
+      # for local runs) rather than dropping the gate.
+      - command -v cargo-tarpaulin >/dev/null || cargo install cargo-tarpaulin --locked
+      - cargo tarpaulin --engine llvm --locked --out Xml
+      # No artifact store in Woodpecker: the exit code is the gate.

@@ -1,0 +1,37 @@
+# Komodo stack resource for the standards server. From templates/deploy/komodo/sync/
+# stacks.toml. Wired into the same Komodo Core that manages the homelab. Bootstrap once:
+#   Komodo UI → Syncs → New Sync → name "standards"
+#     Repo:           charliethomson/standards
+#     Branch:         main
+#     Resource paths: deploy/komodo/sync
+#     Managed mode:   off  (git is source of truth)
+#
+# Komodo clones the repo onto the dev box's Periphery, writes .env into run_directory from
+# the `environment` block below (interpolating [[VAR]] against Komodo Variables), then runs
+# `docker compose --env-file .env -f prod.compose.yml up -d`.
+
+[[stack]]
+name = "standards"
+description = "standards — the fleet's standards over HTML, REST and MCP, behind an internal Caddy router, fronted by the homelab gateway at standards.thmsn.dev (public, read-only)."
+tags = ["dev"]
+deploy = true
+[stack.config]
+server = "dev"
+git_account = "charliethomson"
+repo = "charliethomson/standards"
+branch = "main"
+# Periphery authenticates to ghcr.io as `charliethomson` (Registry Account in Komodo UI →
+# Settings) to pull ghcr.io/charliethomson/standards-server.
+registry_provider = "ghcr.io"
+registry_account = "charliethomson"
+# Run from deploy/compose so the ./Caddyfile bind-mount and the .env Komodo writes resolve
+# without --project-directory gymnastics.
+run_directory = "deploy/compose"
+file_paths = ["prod.compose.yml"]
+# GHCR_TOKEN: read:packages PAT for watchtower's poll, the stack's only secret (no
+# AUTH_ADMIN_KEY: the server is public and read-only). HOMELAB_HOST_IP is the homelab's
+# existing non-secret variable for the dev box's LAN address, where otelcol listens.
+environment = """
+GHCR_TOKEN    = [[GHCR_TOKEN]]
+OTLP_ENDPOINT = http://[[HOMELAB_HOST_IP]]:4317
+"""

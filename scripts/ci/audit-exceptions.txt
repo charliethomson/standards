@@ -1,0 +1,19 @@
+# Accepted dependency advisories, read by `scripts/ci/audit.sh gate`
+# (.woodpecker/audit.ci.yml). Only a CRITICAL advisory blocks the gate, so an
+# entry here is only needed for one of those, but any id may be recorded.
+#
+# One per line:  <advisory id>  <expires YYYY-MM-DD>  <rationale>
+#
+#   * id: the RUSTSEC-YYYY-NNNN id (cargo) or the GHSA-xxxx-xxxx-xxxx id (npm),
+#     exactly as the gate's report prints it.
+#   * expires: honoured through this date. The day after, the gate goes red on
+#     purpose, whether or not the advisory still applies; re-triage, then delete
+#     the line or renew it with a new date and an updated reason.
+#   * rationale: why it is safe to ship with, for now. Name the upgrade that
+#     would clear it, if there is one.
+#
+# Triage clock (standards/docs/ci-cd.md): critical within 24h, high by the next
+# planned cycle, the rest best effort.
+#
+# Example (not active):
+#   RUSTSEC-2023-0071  2026-12-31  rsa Marvin attack: we never decrypt with RSA; no fixed release exists

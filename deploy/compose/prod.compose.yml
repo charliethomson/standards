@@ -1,0 +1,70 @@
+# Production stack for the standards server (https://standards.thmsn.dev), deployed by
+# Komodo onto the homelab dev box. From templates/deploy/compose/prod.compose.yml, with
+# the rows this product has no use for dropped: no `web` (the server renders its own HTML
+# site), no `/data` volume and no `backup` sidecar (stateless: the content is compiled into
+# the image), no AUTH_ADMIN_KEY (public and read-only, docs/deployment.md "Public read-only
+# exception").
+#
+# Komodo writes .env here from the `environment` block in ../komodo/sync/stacks.toml, then
+# runs `docker compose --env-file .env -f prod.compose.yml up -d`.
+#
+# Ingress: the homelab gateway Caddy terminates TLS for standards.thmsn.dev and
+# reverse-proxies to `proxy` on 127.0.0.1:8103 (loopback; the gateway is network_mode: host).
+# The gateway block is in deploy/README.md. Both Caddy hops forward the client's Host
+# unchanged (reverse_proxy's default), which /mcp depends on: rmcp answers 403 to a Host
+# not in STANDARDS_ALLOWED_HOSTS. Never add `header_up Host` on either hop.
+services:
+  api:
+    image: ghcr.io/charliethomson/standards-server:main
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.scope=standards"
+      # Exports logs over OTLP: the host log shipper skips it so Loki stores them once.
+      - "dev.thmsn.telemetry=otlp"
+    environment:
+      STANDARDS_BIND: 0.0.0.0:8080
+      # The Host allowlist /mcp checks. The public name must stay on it; loopback keeps
+      # the container's own healthcheck and a `docker exec curl` working.
+      STANDARDS_ALLOWED_HOSTS: standards.thmsn.dev,localhost,127.0.0.1,::1
+      # Telemetry → homelab otelcol (gRPC) → Loki/Tempo for Grafana. The dev box's LAN
+      # address comes from Komodo (stacks.toml), not this file.
+      OTLP_ENDPOINT: "${OTLP_ENDPOINT:-}"
+      PRODUCTION: "true"
+      # Export every span; the collector tail-samples (docs/tracing.md). Don't set
+      # SAMPLE_RATE here: a ratio (even 1.0) is parent-based and honours sampled=0.
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [standards]
+
+  # Internal router (no TLS): everything → api, plus the security headers. ./Caddyfile.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${STANDARDS_PROXY_PORT:-8103}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [api]
+    networks: [standards]
+
+  # Polls GHCR for a new :main image and recreates only this stack's containers.
+  # Label-scoped, pinned to the maintained nickfedor fork (docs/deployment.md).
+  # REPO_USER/PASS auth the poll against GHCR (a read:packages PAT).
+  watchtower:
+    image: nickfedor/watchtower:1.17.2
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCOPE: standards
+      REPO_USER: charliethomson
+      REPO_PASS: "${GHCR_TOKEN}"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=standards"
+    networks: [standards]
+
+networks:
+  standards:

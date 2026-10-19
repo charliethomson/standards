@@ -1,0 +1,68 @@
+# Dependency audit (docs/ci-cd.md, "Dependency audit") of the one lockfile this repo
+# ships from: the workspace Cargo.lock (server and cli). Copied from vision's audit.ci.yml
+# minus its npm half. Runs on the Linux docker agents.
+#
+#   advisories-cargo  prints cargo-audit's full report and saves it to .audit/ in the
+#                     shared workspace. `failure: ignore`: visibility, never red.
+#   critical          reads the saved report and fails on a critical advisory not covered
+#                     by a live exception in scripts/ci/audit-exceptions.txt, on an
+#                     EXPIRED exception, or on a missing report (cargo-audit exits 1 for
+#                     "found something" and for "failed", so the exit code is not trusted).
+# The logic is in scripts/ci/audit.sh.
+#
+# The weekly run is a Woodpecker CRON named `weekly-audit`, a server-side object created
+# by hand in the repo's settings. Until it exists this pipeline never runs on a schedule,
+# silently.
+#
+# No secrets on purpose: a cron run only gets secrets enabled for the cron event, and
+# cargo-audit reads Cargo.lock without fetching crates (so no ssh_key for liblog).
+when:
+  - event: manual
+  - event: cron
+    cron: weekly-audit
+  - event: push
+    branch: main
+    path: &audit_paths
+      include:
+        - "Cargo.lock"
+        - ".woodpecker/audit.ci.yml"
+        # audit.sh and audit-exceptions.txt: a new or renewed exception must be checked
+        # the moment it lands, not at the next cron.
+        - "scripts/ci/audit*"
+  - event: pull_request
+    path: *audit_paths
+
+labels:
+  platform: linux/amd64
+
+steps:
+  advisories-cargo:
+    image: rust:1-bookworm
+    failure: ignore
+    volumes:
+      # cargo-registry for the one-off `cargo install`; cargo-bin is shared with
+      # rust.ci's cargo-tarpaulin; the advisory db is cloned once and fetched after.
+      - /var/lib/woodpecker-cache/standards/cargo-registry:/usr/local/cargo/registry
+      - /var/lib/woodpecker-cache/standards/cargo-bin:/cache/cargo-bin
+      - /var/lib/woodpecker-cache/standards/advisory-db:/cache/advisory-db
+    environment:
+      CARGO_TERM_COLOR: always
+      CARGO_INSTALL_ROOT: /cache/cargo-bin
+      CARGO_BUILD_JOBS: "2"
+      # A subdirectory, not the mount point: cargo-audit clones the db itself and wants
+      # to create the directory.
+      AUDIT_DB: /cache/advisory-db/rustsec
+    commands:
+      - export PATH="/cache/cargo-bin/bin:$PATH"
+      # Pinned, as vision pins it: 0.21.2 could not parse the CVSS 4.0 advisories and
+      # audited nothing (docs/ci-cd.md). Bump deliberately, and re-check that its text
+      # report still prints "Severity:", which the critical step reads.
+      - cargo audit --version 2>/dev/null | grep -q ' 0\.22\.2$' || cargo install cargo-audit --locked --version 0.22.2 --force
+      - sh scripts/ci/audit.sh cargo . cargo-workspace
+
+  critical:
+    image: alpine:3
+    commands:
+      - apk add --no-cache jq >/dev/null
+      # Names every report it expects: one that is absent fails the gate.
+      - sh scripts/ci/audit.sh gate cargo-workspace

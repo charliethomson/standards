@@ -1,0 +1,23 @@
+# Local override: the production stack on this machine, built from the working tree, no
+# watchtower. Never deployed (Komodo reads only prod.compose.yml).
+#
+#   docker compose -f prod.compose.yml -f local.compose.yml up -d --build
+#   curl -s -H 'Host: standards.thmsn.dev' localhost:8103/manifest.json
+#   docker compose -f prod.compose.yml -f local.compose.yml down --rmi local
+#
+# The build fetches the private liblog over SSH: load a key into your agent first
+# (`ssh-add`), compose forwards it. Requests through the proxy need a Host on
+# STANDARDS_ALLOWED_HOSTS for /mcp, hence the -H above (localhost works too).
+services:
+  api:
+    image: standards-server:local
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      ssh: [default]
+    environment:
+      PRODUCTION: "false"
+
+  watchtower:
+    # Not started locally: it would poll GHCR and try to replace the local image.
+    profiles: [prod-only]

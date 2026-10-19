@@ -1,0 +1,66 @@
+# Build + push ghcr.io/charliethomson/standards-server (:main and :sha-<commit>) against
+# the host daemon (docker.sock). Push is gated on the event not being a pull_request
+# (scripts/ci/docker-build.sh). Watchtower in deploy/compose/prod.compose.yml then rolls
+# :main out. Copied from vision's server.build.yml. Needs the repo's trusted flag for the
+# docker.sock mount.
+#
+# The served content is compiled into the image, so a docs/skills/templates change ships
+# through this pipeline too: that is how a doc edit reaches https://standards.thmsn.dev.
+when:
+  - event: manual
+  - event: push
+    branch: main
+    path: &server_paths
+      include:
+        - "Dockerfile"
+        - ".dockerignore"
+        - "Cargo.toml"
+        - "Cargo.lock"
+        - ".cargo/**"
+        - "crates/**"
+        - "docs/**"
+        - "skills/**"
+        - "templates/**"
+        - "CHANGELOG.md"
+        - "scripts/ci/**"
+        - ".woodpecker/server.build.yml"
+  - event: pull_request
+    path: *server_paths
+
+labels:
+  platform: linux/amd64
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      # Full history + tags: scripts/ci/version.sh counts commits and reads the newest
+      # vN.N tag, and a shallow clone gives it neither.
+      partial: false
+      tags: true
+
+steps:
+  build:
+    image: docker:27-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      GHCR_TOKEN:
+        from_secret: ghcr_token
+      SSH_KEY:
+        from_secret: ssh_key
+    commands:
+      - apk add --no-cache git openssh-client
+      # liblog is private, fetched inside the build via `RUN --mount=type=ssh`
+      # (Dockerfile), hence `--ssh default`.
+      - eval "$(ssh-agent -s)"
+      - printf '%s\n' "$SSH_KEY" | ssh-add -
+      # Context is the repo root (standards-db embeds docs/ etc.); .dockerignore keeps
+      # .git out, so libbuildinfo records nothing in the image. What git would have said
+      # is passed instead: RELEASE_COMMIT is the content identity (the ETag and the
+      # manifest's commit, standards-db), the other two are carried for parity with the
+      # fleet. docker-build.sh forwards these arguments to `docker build` verbatim.
+      - sh scripts/ci/docker-build.sh standards-server Dockerfile . --ssh default
+        --build-arg RELEASE_COMMIT="$CI_COMMIT_SHA"
+        --build-arg RELEASE_DIRTY="$(test -z "$(git status --porcelain)" && echo false || echo true)"
+        --build-arg RELEASE_COMMIT_TIME="$(git log -1 --format=%ct)"

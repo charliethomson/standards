@@ -1,0 +1,45 @@
+# Internal router for the standards stack. No TLS: the homelab gateway Caddy owns the
+# public hostname standards.thmsn.dev and forwards plain HTTP here (deploy/README.md).
+# There is no web bundle, so everything goes to the api: the HTML site (/, /d/*), the REST
+# mirror (/api/v1/*), /manifest.json, /t/*, /mcp, /health, /version, /api/metrics.
+#
+# /mcp needs nothing special here. It answers application/json (stateless, no SSE stream),
+# so there is no flush_interval (STD-13 measured it). reverse_proxy forwards the Host it was
+# given, which rmcp checks against STANDARDS_ALLOWED_HOSTS: never add `header_up Host`.
+{
+	servers {
+		# The gateway reaches this proxy over docker's published port from a private
+		# address. Trusting private ranges keeps the gateway's X-Forwarded-For (the real
+		# client) rather than replacing it with the gateway's address.
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	# Security headers, set once at the single ingress. The public origin is always HTTPS
+	# (the gateway serves TLS), so HSTS is safe on this plain-HTTP hop. The server sets
+	# its own CSP on the HTML pages (web.rs) and Scalar at /api/docs loads its own
+	# script, so no CSP here: two places setting one is a CSP nobody can reason about.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Strict-Transport-Security "max-age=31536000"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Read-only server: no request carries a meaningful body except a JSON-RPC call to
+	# /mcp, which is small. Refuse anything bigger before it crosses the hop.
+	request_body {
+		max_size 1MiB
+	}
+
+	# /api/metrics is public for now (L34). To block it from the internet, add above the
+	# catch-all:
+	#     handle /api/metrics {
+	#         respond 404
+	#     }
+	handle {
+		reverse_proxy api:8080
+	}
+}

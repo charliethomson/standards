@@ -1,0 +1,14 @@
+# Allowlist: the image build reads the workspace and the content standards-db embeds,
+# nothing else. Everything not re-included here stays out of the context (.git, .claude/
+# and its worktrees, target/, deploy/, .woodpecker/, bin/).
+*
+!Cargo.toml
+!Cargo.lock
+!.cargo/
+!crates/
+!docs/
+!skills/
+!templates/
+!CHANGELOG.md
+**/target
+**/.DS_Store
