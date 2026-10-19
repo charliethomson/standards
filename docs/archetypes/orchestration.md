@@ -46,7 +46,13 @@ homelab/
 | [Identifiers](../identifiers.md) | DNS naming `<service>.<host>.thmsn.dev`; registry source `dev.thmsn.apps`. Distinct from product identifiers. |
 | [Workflow](../workflow.md) | Commit to `main`; reconcile. |
 | Secrets split | **The defining rule** — see below. |
-| Versioning / Build info / Branding / Testing / Platform UX | **N/A** (it deploys versioned artifacts; it isn't one). |
+| [READMEs](../readmes.md) | Root `README.md` carries the stack inventory, the hostname/DNS schema, the topology, and **state that lives outside the repo**; each stack has its own. |
+| [Shortcuts](../shortcuts.md) | Root `SHORTCUTS.md` holds the routes to what is running where: hosts, stack health, logs. |
+| [Versioning](../versioning.md) | **N/A** (it deploys versioned artifacts; it isn't one). |
+| [Build info](../build-info.md) | **N/A** (it deploys versioned artifacts; it isn't one). |
+| [Branding](../branding.md) | **N/A** (it deploys versioned artifacts; it isn't one). |
+| [Testing](../testing.md) | **N/A** (it deploys versioned artifacts; it isn't one). |
+| [Platform UX](../platform-ux.md) | **N/A** (it deploys versioned artifacts; it isn't one). |
 
 ## Secrets & config split (the defining rule)
 

@@ -55,9 +55,23 @@ lives in `scripts/` applied at **build time** — the upstream checkout is never
 | [Build info](../build-info.md) | As needed to feed the release metadata (upstream commit/tag → registry version + build number). We don't inject `libbuildinfo` into code we don't own. |
 | [Workflow](../workflow.md) | Commit to `main`; a release is a submodule-pointer bump on `main`. |
 | [Identifiers](../identifiers.md) | **Tooling only.** `dev.thmsn.<product>` is the standards/registry slug for *this repo*; it is **never** applied to the vendored app, which keeps its upstream bundle ids. **No rebrand.** |
-| Service architecture / Data / Public ids / Contracts / Error handling / Auth / Configuration / Observability / Security / Web & client arch / Rust conventions / `lib*` ecosystem | **N/A** — upstream owns how the app is built. |
-| Branding / Platform UX | **N/A** — we ship upstream's branding and UX unchanged. |
-| Testing | **N/A** — we don't test code we don't own; the release workflow's build/sign/notarize/staple steps are the gate. |
+| [READMEs](../readmes.md) | Root `README.md` says what upstream is and at which ref it's pinned, what we add and where, and that there is no rebrand. |
+| [Shortcuts](../shortcuts.md) | Root `SHORTCUTS.md` holds the routes to the published registry entry and the pinned upstream ref. |
+| [Service architecture](../service-architecture.md) | **N/A** — upstream owns how the app is built. |
+| [Data & persistence](../data-persistence.md) | **N/A** — upstream owns how the app is built. |
+| [Public ids](../public-ids.md) | **N/A** — upstream owns how the app is built. |
+| [Contracts](../contracts.md) | **N/A** — upstream owns how the app is built. |
+| [Error handling](../error-handling.md) | **N/A** — upstream owns how the app is built. |
+| [Auth integration](../auth-integration.md) | **N/A** — upstream owns how the app is built. |
+| [Configuration](../configuration.md) | **N/A** — upstream owns how the app is built. |
+| [Observability](../observability.md) | **N/A** — upstream owns how the app is built. |
+| [Security](../security.md) | **N/A** — upstream owns how the app is built. |
+| [Web & client arch](../web-architecture.md) | **N/A** — upstream owns how the app is built. |
+| [Rust conventions](../rust-conventions.md) | **N/A** — upstream owns how the app is built. |
+| [`lib*` ecosystem](../lib-ecosystem.md) | **N/A** — upstream owns how the app is built. |
+| [Branding](../branding.md) | **N/A** — we ship upstream's branding and UX unchanged. |
+| [Platform UX](../platform-ux.md) | **N/A** — we ship upstream's branding and UX unchanged. |
+| [Testing](../testing.md) | **N/A** — we don't test code we don't own; the release workflow's build/sign/notarize/staple steps are the gate. |
 
 ## No rebrand, build-time only
 

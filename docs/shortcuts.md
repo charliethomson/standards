@@ -73,7 +73,7 @@ curl -s https://someproduct.dev.thmsn.dev/api/build | jq -r '.version, .commit'
 ```
 
 Compare against local: `git rev-list --count HEAD` (the derived
-[version](standards/docs/versioning.md) is the commit count). Deploys are Watchtower-polled
+[version](versioning.md) is the commit count). Deploys are Watchtower-polled
 every ~5m, so a just-pushed commit takes a few minutes to appear — "pushed" ≠ "live".
 
 _Verified: 2026-08-13_

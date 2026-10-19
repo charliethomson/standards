@@ -52,19 +52,24 @@ This is the organizing principle. Each concern has exactly one home:
 | [Workflow](../workflow.md) | Commit to `main`; continuous deploy. |
 | [Service architecture](../service-architecture.md) | Workspace `core→db→engine→api`; poem-openapi; 10s drain. |
 | [Data & persistence](../data-persistence.md) | sqlx + SQLite, `.sql` migrations, typed `Id<T>`. |
+| [Public ids](../public-ids.md) | Stored short alias in URLs; the UUID stays internal. |
 | [Backups](../backups.md) | `stash-backup` sidecar + committed `backup.toml`; SHORTCUTS entries for checking and restoring. |
 | [Contracts](../contracts.md) | Emit OpenAPI/AsyncAPI; generate + drift-check clients. |
 | [Error handling](../error-handling.md) | Domain `Error`→HTTP; `liberror`/`valuable` trinity. |
 | [Auth integration](../auth-integration.md) | Central auth SDK; `me()` live authority; grant-gated. |
+| [Refresh tokens](../refresh-tokens.md) | Clients keep them in the platform secret store; rotate single-flight. |
 | [Configuration](../configuration.md) | `libconfig` `Loader`; `<PRODUCT>_` + bare shared env. |
 | [Observability](../observability.md) | liblog/OTLP; `/api/metrics`; ids/timings only. |
 | [Tracing](../tracing.md) | Always-on + collector tail sampling; short linked roots; client `traceparent`/`x-<product>-*`, `Ref:` on errors. |
 | [Alerting](../alerting.md) | Provisioned rules, code-as-truth; alert on sustained failure, liveness at minimum. |
+| [Grafana dashboards](../grafana-dashboards.md) | Committed `deploy/monitoring/grafana/<name>.dashboard.json`; at least a `<product>-overview`. |
 | [Client analytics](../client-analytics.md) | Every client records the reserved usage events through one recorder; the server serves `POST <api base>/telemetry/events` and re-emits them to ClickHouse. |
 | [Security](../security.md) | Argon2, ChaCha20-Poly1305, CSP, SSRF/decompression caps. |
 | [Web & client arch](../web-architecture.md) | TanStack Query + Zustand; generated client; shared Kit. |
 | [Rust conventions](../rust-conventions.md) | Edition 2024, clippy pedantic, git deps. |
 | [`lib*` ecosystem](../lib-ecosystem.md) | Reuse shared `lib*` for cross-cutting concerns. |
+| [READMEs](../readmes.md) | Root `README.md` covers mechanism, layout, quickstart, what CI runs, and the codegen/drift rule; each app has its own. |
+| [Shortcuts](../shortcuts.md) | Root `SHORTCUTS.md` holds the routes to prod URLs, the live version, deploy lag, logs and dashboards. |
 
 ## Auth integration
 

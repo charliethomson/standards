@@ -37,7 +37,14 @@ lib<name>/
 | [`lib*` ecosystem](../lib-ecosystem.md) | This **is** a `lib*` — follow the catalogue conventions; reuse siblings. |
 | [Observability](../observability.md) | Optional: `tracing` + `valuable` fields if it logs; no OTLP wiring of its own. |
 | [Tracing](../tracing.md) | If it opens spans: explicit names, per-item/per-line work at DEBUG, no process-lifetime spans, no URLs/argv in fields or error `Display`. |
-| Service architecture / Data / Contracts / Auth / Security / Web | **N/A.** |
+| [READMEs](../readmes.md) | The README **is** the API documentation: install snippet, a minimal compiling example, feature flags, and what stays in the consuming repo. |
+| [Shortcuts](../shortcuts.md) | Root `SHORTCUTS.md` like every repo; usually short, since a library has no running system. |
+| [Service architecture](../service-architecture.md) | **N/A.** |
+| [Data & persistence](../data-persistence.md) | **N/A.** |
+| [Contracts](../contracts.md) | **N/A.** |
+| [Auth integration](../auth-integration.md) | **N/A.** |
+| [Security](../security.md) | **N/A.** |
+| [Web & client arch](../web-architecture.md) | **N/A.** |
 
 ## Conventions
 

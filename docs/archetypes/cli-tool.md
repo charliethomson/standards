@@ -33,8 +33,16 @@ Reference: a `someproduct` CLI and a `worker` (a background companion service).
 | [Error handling](../error-handling.md) | `thiserror`/`liberror` trinity; map to a clean exit code/message. |
 | [Rust conventions](../rust-conventions.md) | Edition 2024, clippy pedantic, git deps. |
 | [`lib*` ecosystem](../lib-ecosystem.md) | Reuse `libsignal` (shutdown), `libcmd`/`libwhich`, etc. |
-| Service architecture / Data / Contracts / Auth / Web | **N/A** (a CLI is not a hosted service). |
-| Branding / Deployment / Platform UX | **N/A** (a CLI ships via the registry, not a deploy). |
+| [READMEs](../readmes.md) | Root `README.md` leads with the registry install one-liner (re-running it upgrades), then a subcommand tour and config/completions. |
+| [Shortcuts](../shortcuts.md) | Root `SHORTCUTS.md` holds the routes to the install manifest and the latest published version. |
+| [Service architecture](../service-architecture.md) | **N/A** (a CLI is not a hosted service). |
+| [Data & persistence](../data-persistence.md) | **N/A** (a CLI is not a hosted service). |
+| [Contracts](../contracts.md) | **N/A** (a CLI is not a hosted service). |
+| [Auth integration](../auth-integration.md) | **N/A** (a CLI is not a hosted service). |
+| [Web & client arch](../web-architecture.md) | **N/A** (a CLI is not a hosted service). |
+| [Branding](../branding.md) | **N/A** (a CLI ships via the registry, not a deploy). |
+| [Deployment](../deployment.md) | **N/A** (a CLI ships via the registry, not a deploy). |
+| [Platform UX](../platform-ux.md) | **N/A** (a CLI ships via the registry, not a deploy). |
 
 ## Registry distribution
 
