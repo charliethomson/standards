@@ -28,8 +28,8 @@ A product's `deploy/` ships a compose stack with four services:
   **terminates no TLS**: the homelab gateway owns the public hostname and forwards plain
   HTTP. It also sets the security headers / CSP for the whole app in one place.
 - It publishes on **loopback only** (`127.0.0.1:<port>`) — the gateway runs
-  `network_mode: host`, so `localhost` reaches it but the LAN can't. Pick a free port (the
-  dev box already uses 8090 for AdGuard, 8091 for someproduct, etc.).
+  `network_mode: host`, so `localhost` reaches it but the LAN can't. Pick a port no other
+  stack on the host already publishes.
 - **`watchtower`** polls GHCR for new `:main` images and recreates only this stack's
   containers. It is **label-scoped** (`com.centurylinklabs.watchtower.scope=<product>`) so
   it ignores the rest of the box and isn't culled by other watchtowers, and **pinned** to
@@ -81,12 +81,21 @@ Add the hostname block to the **homelab** repo's `gateway/Caddyfile`, then redep
 }
 ```
 
-TLS is via Cloudflare DNS-01 (no public A records; access over the tailnet).
+TLS is via Cloudflare DNS-01 (no public A records; access over the tailnet). Every service
+is reachable only there and authenticates its callers (see [auth-integration](auth-integration.md)).
+
+### Public read-only exception
+
+One documented exception: the standards server at `standards.thmsn.dev` is public and
+unauthenticated. It serves only content that is already public on GitHub (`docs/`,
+`skills/`, `templates/`, `CHANGELOG.md` of this repo), it is read-only, and it holds no
+state or secrets, so auth would protect nothing. Every other service stays on the tailnet
+behind auth; a new exception needs the same three properties and a line here.
 
 ## Telemetry
 
-Point services at the homelab OTel collector: `OTLP_ENDPOINT=http://192.168.0.193:4317`
-(the dev box LAN IP; otelcol fans out to Loki/Tempo for Grafana). Log ids/counts/timings,
+Point services at the homelab OTel collector: `OTLP_ENDPOINT=http://<dev-box-lan-ip>:4317`
+(the dev box's LAN address; otelcol fans out to Loki/Tempo for Grafana). Log ids/counts/timings,
 never message content. Use the `dev.thmsn.<product>` identifier as the `service_name`.
 
 Templates: [`templates/deploy/`](../templates/deploy/) (compose, Caddyfile, komodo sync TOML).

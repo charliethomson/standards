@@ -224,12 +224,13 @@ clone:
     settings:
       partial: false            # full history …
       tags: true                # … and tags, or version derivation is wrong
-      submodule_override:
-        standards: https://github.com/charliethomson/standards.git
 ```
 
-The `submodule_override` rewrites the SSH submodule URL to HTTPS so the clone reuses the
-forge token instead of needing a deploy key.
+**Legacy:** pipelines in repos that still vendor the `standards/` submodule carry a
+`submodule_override` entry for `standards` under these settings, which rewrites the SSH
+submodule URL to HTTPS so the clone reuses the forge token. Don't add it to new pipelines;
+standards come from the server now. Remove it when migrating a repo
+([migration](migration.md#3-remove-ci-submodule-handling-by-hand)).
 
 ## Caching
 
