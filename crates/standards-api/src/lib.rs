@@ -7,6 +7,8 @@
 //! /api/v1/*         REST mirror (rest.rs), poem-openapi; public, read-only
 //! /manifest.json    the manifest the cli syncs against (same as /api/v1/manifest)
 //! /t/{path..}       a raw template, text/plain
+//! /llms.txt         the corpus index, llms.txt convention (STD-36)
+//! /llms-full.txt    every doc in one markdown file (STD-36)
 //! /openapi.json     the emitted contract (committed as api/openapi.json)
 //! /api/docs         Scalar (not /docs: the HTML site owns /d/)
 //! /health           liveness
@@ -17,8 +19,13 @@
 //! /, /d/{id..}      STD-17, web.rs
 //! ```
 //!
-//! Content routes (`/api/v1/*`, `/manifest.json`, `/t/*`) carry `ETag: "<commit>"` and a
-//! short max-age (caching.rs). Logs carry the path, never the query string (request.rs).
+//! Content routes (`/api/v1/*`, `/manifest.json`, `/t/*`, `/llms.txt`, `/llms-full.txt`)
+//! carry `ETag: "<commit>"` and a short max-age (caching.rs). Logs carry the path, never
+//! the query string (request.rs).
+//!
+//! The two `llms` routes are deliberately **not** in the contract or mirrored under
+//! `/api/v1`: a chat client importing the corpus needs the well-known path, and the cli has
+//! no use for the docs concatenated (it syncs the manifest, skills and templates).
 
 // #[handler] and #[OpenApi] methods are async by contract, awaiting or not.
 #![allow(clippy::unused_async, clippy::unused_async_trait_impl)]
@@ -90,6 +97,23 @@ fn manifest_json(Data(state): Data<&AppState>) -> Response {
         .body(serde_json::to_string(state.manifest.as_ref()).unwrap_or_default())
 }
 
+/// The corpus index, for a client that reads one file and follows links.
+#[handler]
+fn llms_index(Data(state): Data<&AppState>) -> Response {
+    Response::builder()
+        .content_type(TEXT)
+        .body(state.engine.llms_index().to_owned())
+}
+
+/// Every doc in one markdown file, for a knowledge base that imports a URL and does not
+/// crawl. ~340 KB today; the `ETag` is the content commit, so revalidation is a 304.
+#[handler]
+fn llms_full(Data(state): Data<&AppState>) -> Response {
+    Response::builder()
+        .content_type(TEXT)
+        .body(state.engine.llms_full().to_owned())
+}
+
 /// A template's raw bytes, placeholders and all.
 #[handler]
 fn raw_template(Data(state): Data<&AppState>, Path(path): Path<String>) -> poem::Result<Response> {
@@ -128,6 +152,8 @@ pub fn app(state: AppState) -> impl Endpoint<Output = Response> {
         .nest(rest::API_MOUNT, api.with(cache()))
         .at("/manifest.json", get(manifest_json).with(cache()))
         .at("/t/*path", get(raw_template).with(cache()))
+        .at("/llms.txt", get(llms_index).with(cache()))
+        .at("/llms-full.txt", get(llms_full).with(cache()))
         .at("/openapi.json", spec)
         .nest("/api/docs", scalar)
         .at("/health", get(health))

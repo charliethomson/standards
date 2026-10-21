@@ -322,6 +322,49 @@ async fn misses_are_keyed_json_404s() {
 }
 
 #[tokio::test]
+async fn the_corpus_routes_serve_text_with_the_commit_tag() {
+    let (c, state) = client();
+
+    let resp = c.get("/llms.txt").send().await;
+    resp.assert_status_is_ok();
+    resp.assert_content_type("text/plain; charset=utf-8");
+    resp.assert_header("etag", COMMIT_ETAG);
+    resp.assert_header("cache-control", caching::CACHE_CONTROL_VALUE);
+    let index = text(resp).await;
+    assert_eq!(index, state.engine.llms_index());
+    assert!(index.starts_with("# Standards\n"), "{index}");
+    assert!(index.contains("](https://standards.thmsn.dev/d/versioning):"));
+
+    let resp = c.get("/llms-full.txt").send().await;
+    resp.assert_status_is_ok();
+    resp.assert_content_type("text/plain; charset=utf-8");
+    resp.assert_header("etag", COMMIT_ETAG);
+    let full = text(resp).await;
+    assert_eq!(full, state.engine.llms_full());
+    // Every doc, delimited, with the body /d/versioning serves.
+    assert_eq!(
+        full.matches("<!-- standards:doc id=").count(),
+        state.engine.bundle().docs.len()
+    );
+    let versioning = state
+        .engine
+        .bundle()
+        .doc_markdown(&standards_core::DocId::new("versioning"))
+        .expect("versioning");
+    assert!(full.contains(versioning.trim_end()));
+
+    for path in ["/llms.txt", "/llms-full.txt"] {
+        let resp = c
+            .get(path)
+            .header("if-none-match", COMMIT_ETAG)
+            .send()
+            .await;
+        resp.assert_status(StatusCode::NOT_MODIFIED);
+        resp.assert_header("etag", COMMIT_ETAG);
+    }
+}
+
+#[tokio::test]
 async fn revalidation_answers_304() {
     let (c, _) = client();
     let resp = c

@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use standards_core::{
-    Applicability, Bundle, DocId, Manifest, StandardRef, Target, is_served, render,
+    Applicability, Bundle, DocId, Manifest, ORIGIN, StandardRef, Target, is_served, llms_full,
+    llms_index, outline, render,
 };
 
 fn repo_root() -> PathBuf {
@@ -401,4 +402,44 @@ fn unserved_files_never_reach_the_bundle() {
             .unwrap()
             .starts_with("# Changelog")
     );
+}
+
+/// The whole-corpus files (`/llms-full.txt`, `/llms.txt`) carry this repo's real docs: every
+/// one of them, once, bodies exactly as `/d/<id>` serves them. A doc added or renamed lands
+/// in the outline whether or not `overview.md` links it, so nothing here needs touching for
+/// one — but a grouping that started dropping or repeating docs would fail.
+#[test]
+fn the_corpus_files_carry_every_doc_once() {
+    let listed: Vec<String> = outline(&BUNDLE)
+        .iter()
+        .flat_map(|g| g.entries.iter().map(|e| e.id.to_string()))
+        .collect();
+    let unique: BTreeSet<String> = listed.iter().cloned().collect();
+    assert_eq!(unique.len(), listed.len(), "a doc is listed twice");
+    let all: BTreeSet<String> = BUNDLE.docs.iter().map(|d| d.id.to_string()).collect();
+    assert_eq!(unique, all);
+
+    let full = llms_full(&BUNDLE);
+    let index = llms_index(&BUNDLE);
+    for doc in &BUNDLE.docs {
+        let id = doc.id.to_string();
+        let header = format!("<!-- standards:doc id=\"{id}\" url=\"{ORIGIN}/d/{id}\" -->");
+        assert_eq!(full.matches(&header).count(), 1, "{id}: delimiter");
+        let served = BUNDLE.doc_markdown(&doc.id).expect("markdown");
+        assert!(
+            full.contains(served.trim_end()),
+            "{id}: body is not what /d/{id} serves"
+        );
+        assert_eq!(
+            index.matches(&format!("]({ORIGIN}/d/{id})")).count(),
+            1,
+            "{id}: linked once from the index"
+        );
+    }
+    // Every line of the index is the title, a group heading or a doc, and no doc is left
+    // with an empty description.
+    for line in index.lines().filter(|l| l.starts_with("- [")) {
+        assert!(!line.ends_with(": "), "empty description: {line}");
+        assert!(line.contains(&format!("]({ORIGIN}/d/")), "{line}");
+    }
 }

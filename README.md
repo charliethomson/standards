@@ -31,6 +31,9 @@ cli, and an MCP endpoint for agents. Consuming repos carry no copy of it.
 
 The server serves `docs/`, `skills/`, `templates/` and `CHANGELOG.md` only. See
 [skills-and-mcp](https://standards.thmsn.dev/d/skills-and-mcp) for the whole mechanism.
+For a chat client that imports one URL rather than crawling, the whole corpus is at
+[`/llms-full.txt`](https://standards.thmsn.dev/llms-full.txt) and its index at
+[`/llms.txt`](https://standards.thmsn.dev/llms.txt).
 
 ## Using it
 

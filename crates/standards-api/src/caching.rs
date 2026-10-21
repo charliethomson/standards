@@ -2,10 +2,11 @@
 //!
 //! The content is compiled in, so it is immutable for the life of the process and identical
 //! for every process built from the same commit. Every successful content response
-//! (`/api/v1/*`, `/manifest.json`, `/t/*`) therefore carries `ETag: "<commit>"` and
-//! `Cache-Control: public, max-age=300`, and a request whose `If-None-Match` names that tag
-//! gets `304 Not Modified`. One tag for every path is fine: a tag only has to change when
-//! the resource at that URL changes, and nothing here changes without a new commit.
+//! (`/api/v1/*`, `/manifest.json`, `/t/*`, `/llms.txt`, `/llms-full.txt`) therefore carries
+//! `ETag: "<commit>"` and `Cache-Control: public, max-age=300`, and a request whose
+//! `If-None-Match` names that tag gets `304 Not Modified`. One tag for every path is fine:
+//! a tag only has to change when the resource at that URL changes, and nothing here changes
+//! without a new commit.
 //!
 //! The max-age is short on purpose: a deploy of a new commit should reach readers within
 //! minutes, and revalidation against the tag is cheap.

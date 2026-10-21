@@ -16,7 +16,7 @@
 mod page;
 mod render;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use poem::http::StatusCode;
@@ -25,7 +25,7 @@ use poem::web::{Data, Html, Path, Query};
 use poem::{EndpointExt as _, IntoResponse, Response, Route, get, handler};
 use serde::Deserialize;
 use standards_core::Archetype;
-use standards_engine::{DocView, Engine};
+use standards_engine::Engine;
 
 use crate::caching;
 use crate::state::AppState;
@@ -75,9 +75,7 @@ impl Site {
             .map(|d| (d.id.as_str().to_owned(), d.title.clone()))
             .collect();
         let title_of = |id: &str| titles.get(id).cloned().unwrap_or_else(|| id.to_owned());
-        let overview = engine.doc("overview").ok();
-
-        let (sections, archetypes) = group_docs(engine, overview.as_ref(), &titles);
+        let (sections, archetypes) = group_docs(engine);
 
         let linker = engine.bundle().linker();
         let pitched: Vec<(String, &Archetype)> = archetypes
@@ -144,91 +142,41 @@ impl Site {
     }
 }
 
-/// The docs in index order: the overview's table groups (with their one-line rules), then
-/// the archetypes in the overview's order, then everything else. Also returns the
-/// archetypes in that order.
-fn group_docs<'e>(
-    engine: &'e Engine,
-    overview: Option<&DocView>,
-    titles: &HashMap<String, String>,
-) -> (Vec<Section>, Vec<&'e Archetype>) {
-    let summaries = engine.docs();
-    // Groups as the overview's tables have them, then the archetypes, then the rest.
-    let mut placed: HashSet<String> = HashSet::new();
-    let mut sections: Vec<Section> = Vec::new();
-    for group in overview
-        .as_ref()
-        .map(|o| render::overview_groups(&o.markdown))
-        .unwrap_or_default()
-    {
-        let entries: Vec<Entry> = group
-            .entries
-            .into_iter()
-            .filter(|(id, _)| titles.contains_key(id) && placed.insert(id.clone()))
-            .map(|(id, blurb)| Entry {
-                title: titles.get(&id).cloned().unwrap_or_else(|| id.clone()),
-                id,
-                blurb,
-            })
-            .collect();
-        if !entries.is_empty() {
-            sections.push(Section {
-                title: group.title,
-                entries,
-            });
-        }
-    }
+/// The docs in index order, and the archetypes in that order.
+///
+/// Both the order and each doc's one-line rule are core's ([`standards_core::outline`]), so
+/// this index, `/llms.txt` and `/llms-full.txt` list the docs the same way; the rule is
+/// markdown there and inline HTML here.
+fn group_docs(engine: &Engine) -> (Vec<Section>, Vec<&Archetype>) {
+    let sections: Vec<Section> = standards_core::outline(engine.bundle())
+        .into_iter()
+        .map(|group| Section {
+            title: group.title,
+            entries: group
+                .entries
+                .into_iter()
+                .map(|entry| Entry {
+                    id: entry.id.as_str().to_owned(),
+                    title: entry.title,
+                    blurb: entry.summary.as_deref().map(render::inline),
+                })
+                .collect(),
+        })
+        .collect();
 
-    let order: Vec<String> = overview
-        .as_ref()
-        .map(|o| render::linked_ids(&o.markdown))
+    // The archetype cards above the doc list follow the same order as their group.
+    let order: Vec<&str> = sections
+        .iter()
+        .find(|s| s.title == standards_core::ARCHETYPES_GROUP)
+        .map(|s| s.entries.iter().map(|e| e.id.as_str()).collect())
         .unwrap_or_default();
     let mut archetypes: Vec<&Archetype> = engine.archetypes().iter().collect();
     archetypes.sort_by_key(|a| {
         order
             .iter()
-            .position(|id| id == a.doc.as_str())
+            .position(|id| *id == a.doc.as_str())
             .unwrap_or(usize::MAX)
     });
-    let short_title = |a: &Archetype| {
-        a.title
-            .strip_prefix("Archetype: ")
-            .unwrap_or(&a.title)
-            .to_owned()
-    };
-    let arch_entries: Vec<Entry> = archetypes
-        .iter()
-        .filter(|a| placed.insert(a.doc.as_str().to_owned()))
-        .map(|a| Entry {
-            id: a.doc.as_str().to_owned(),
-            title: short_title(a),
-            blurb: None,
-        })
-        .collect();
-    if !arch_entries.is_empty() {
-        sections.push(Section {
-            title: "Archetypes".to_owned(),
-            entries: arch_entries,
-        });
-    }
-
-    let mut rest: Vec<Entry> = summaries
-        .iter()
-        .filter(|d| placed.insert(d.id.as_str().to_owned()))
-        .map(|d| Entry {
-            id: d.id.as_str().to_owned(),
-            title: d.title.clone(),
-            blurb: None,
-        })
-        .collect();
-    // The overview leads: it is where a reader starts.
-    rest.sort_by_key(|e| (e.id != "overview", e.title.to_lowercase()));
-    if !rest.is_empty() {
-        sections.push(Section {
-            title: "Reference".to_owned(),
-            entries: rest,
-        });
-    }
     (sections, archetypes)
 }
 

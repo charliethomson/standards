@@ -3,7 +3,7 @@
 //!
 //! [`Engine`] wraps one [`Bundle`] (from `standards-db` in the server) and is what the REST
 //! and MCP layers call. It does no I/O; everything is computed from the bundle, and the
-//! search index is built once in [`Engine::new`].
+//! search index and the two whole-corpus files are built once in [`Engine::new`].
 
 mod error;
 mod search;
@@ -97,17 +97,34 @@ pub struct Engine {
     bundle: Arc<Bundle>,
     linker: Linker,
     index: Index,
+    llms_index: String,
+    llms_full: String,
 }
 
 impl Engine {
-    /// Build the engine and its search index.
+    /// Build the engine, its search index and the whole-corpus files.
     #[must_use]
     pub fn new(bundle: Arc<Bundle>) -> Self {
         Self {
             linker: bundle.linker(),
             index: Index::build(&bundle),
+            llms_index: standards_core::llms_index(&bundle),
+            llms_full: standards_core::llms_full(&bundle),
             bundle,
         }
+    }
+
+    /// The whole corpus as one markdown file (`/llms-full.txt`), composed once: the content
+    /// cannot change while the process runs.
+    #[must_use]
+    pub fn llms_full(&self) -> &str {
+        &self.llms_full
+    }
+
+    /// The corpus index per the llms.txt convention (`/llms.txt`), composed once.
+    #[must_use]
+    pub fn llms_index(&self) -> &str {
+        &self.llms_index
     }
 
     #[must_use]

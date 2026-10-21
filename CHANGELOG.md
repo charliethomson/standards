@@ -14,6 +14,12 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Fixed
 
+- **The index rendered a rule starting `>` as a blockquote** (`web/render.rs`): the testing
+  standard's rule is `>80% on services ...`, and rendering a one-line table cell as a whole
+  markdown document read the `>` as a blockquote marker and swallowed it. `inline` now
+  escapes a leading block marker before parsing, so the archetype tables' notes and the doc
+  list's rules render as the text they are.
+
 - **docs/migration.md after the libid pilot** (LIBID-2): the installer's one-time device
   sign-in and stored credential; `mcp.registered` follows `--host`/`STANDARDS_HOST`; the
   bare `ultron`/`janitor` commands are gone after `--fix`; retired skills aren't recreated;
@@ -46,6 +52,20 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   parent-based and honours `sampled=0`).
 
 ### Added
+
+- **`/llms.txt` and `/llms-full.txt`** (`standards-core/src/llms.rs`, STD-36): the whole
+  corpus at two well-known URLs, for a chat client that imports a knowledge base from one URL
+  and does not crawl. `/llms-full.txt` is every doc under `docs/` in the order the site lists
+  them (~340 KB), each preceded by an HTML comment naming its id and canonical URL, bodies
+  byte-identical to what `/d/<id>` serves; `/llms.txt` is the index form per the llms.txt
+  convention, one link and one line per doc, the line taken from the overview table's rule or
+  the doc's own first paragraph. Skills and templates are deliberately not in either: they
+  are tools for an agent in a session, not reading material. Both are `text/plain`, carry the
+  same commit `ETag` and `max-age` as the other content routes, and are not in the contract
+  or mirrored under `/api/v1` (the well-known path is the point, and the cli has no use for
+  the docs concatenated). `standards_core::outline` is now the one doc order the site's index
+  and both files share, replacing the copy in `web/render.rs`. Caddy compresses this hop
+  (`encode zstd gzip`), since only Cloudflare's edge was compressing before.
 
 - **Rust workspace + `standards-core`** (`Cargo.toml`, `crates/standards-core/`): the pure
   content model the hosted server and the `standards` cli share. Parses docs (title, sections

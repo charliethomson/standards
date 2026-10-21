@@ -11,7 +11,8 @@ charliethomson/standards (this repo, main)
         ▼
 https://standards.thmsn.dev ──── /mcp ─────────────▶ Claude Code (user-scope MCP "standards")
         │                   ──── /api/v1, /manifest.json ──▶ standards cli (doctor, init, new)
-        └── /d/<id>, /t/<path> (rendered docs, raw templates, for people)
+        ├── /d/<id>, /t/<path> (rendered docs, raw templates, for people)
+        └── /llms.txt, /llms-full.txt ──────────▶ any chat client's knowledge base
 ```
 
 ## The server
@@ -28,12 +29,21 @@ from, and serves nothing else (`bin/`, `prompts/`, `NOTES.md` and dotfiles stay 
 | `/t/<path>` | A raw template (`/t/rust/build.rs`) |
 | `/manifest.json` | Commit, server version, minimum cli version, archetypes, and each skill's description and hashes |
 | `/api/v1/*` | REST mirror of everything above; the cli uses this. Spec at `/openapi.json`, browsable at `/api/docs` |
+| `/llms.txt` | The corpus index per the [llms.txt convention](https://llmstxt.org): one link and one line per doc |
+| `/llms-full.txt` | Every doc in one markdown file (~340 KB), each delimited by its id and canonical URL |
 | `/install` | Redirects to the cli's registry install page |
 | `/mcp` | MCP over streamable HTTP |
 
 Relative links between docs in this repo are rewritten to absolute
 `https://standards.thmsn.dev/d/<id>` URLs when served, so a doc reads the same on the site,
 over REST and over MCP.
+
+**The two `llms` routes are for chat clients that import a knowledge base from one URL and
+do not crawl.** Point one at `/llms-full.txt` and it has the whole corpus; `/llms.txt` is
+the small form for a client that can follow links. Both list the docs in the order the site
+lists them, carry the same commit `ETag` as the other content routes, and deliberately leave
+the skills and templates out: those are tools for an agent in a session, not reading
+material. An agent with the MCP or the cli needs neither route.
 
 ### MCP tools
 

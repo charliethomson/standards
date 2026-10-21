@@ -165,6 +165,7 @@ cargo run -q -p standards-cli -- --host http://127.0.0.1:8080 init --archetype l
 | `GET /api/v1/search?q&limit` | hits over docs, sections, checklist items, skills (`limit` 1..50, default 10) |
 | `GET /api/v1/manifest`, `/manifest.json` | the manifest (the same document) |
 | `GET /t/{path}` | a raw template, `text/plain` |
+| `GET /llms.txt`, `/llms-full.txt` | the corpus index and every doc in one file, `text/plain` (`standards_core::llms`); not in the contract, see below |
 | `GET /openapi.json`, `/api/docs` | the contract; Scalar |
 | `GET /health`, `/version`, `/api/metrics` | liveness; derived version, commit and full libbuildinfo; OpenMetrics |
 | `GET /install` | 302 to `https://apps.dev.thmsn.dev/install/dev.thmsn.standards` |
@@ -187,7 +188,14 @@ cargo run -q -p standards-cli -- --host http://127.0.0.1:8080 init --archetype l
   tail of a raw-slash request before routing, so both reach the same handler.
 - **Misses are 404s** with `{"message", "$type", "traceId"}`, `$type` one of
   `dev.thmsn.standards.server.content.error.unknown_{doc,section,archetype,skill,asset,template}`.
-- **Caching:** content routes (`/api/v1/*`, `/manifest.json`, `/t/*`) send
+- **The corpus files are composed in core and built once.** `standards_core::outline` is the
+  one doc order the site's index, `/llms.txt` and `/llms-full.txt` all use (the overview's
+  table groups, then the archetypes, then everything else), and `llms_index` / `llms_full`
+  render it; `Engine::new` builds both strings, like the search index. They are not in
+  `api/openapi.json` and not mirrored under `/api/v1`: a chat client importing the corpus
+  needs the well-known path, and the cli has no use for the docs concatenated.
+- **Caching:** content routes (`/api/v1/*`, `/manifest.json`, `/t/*`, `/llms.txt`,
+  `/llms-full.txt`) send
   `ETag: "<commit>"` and `Cache-Control: public, max-age=300`, and answer a matching
   `If-None-Match` with 304. A build whose commit is `unknown` or whose tree was dirty sends
   neither, since its commit does not pin the bytes.

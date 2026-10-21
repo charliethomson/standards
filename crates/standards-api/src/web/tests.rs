@@ -6,12 +6,19 @@ use std::collections::BTreeSet;
 use poem::http::StatusCode;
 use poem::test::TestClient;
 
-use super::render::doc_id_of;
+use super::render::local_href;
 use crate::{AppState, Config, app};
 
 fn state() -> AppState {
     let bundle = standards_db::bundle().expect("embedded content parses");
     AppState::new(bundle, &Config::default(), "0.1.42", false)
+}
+
+/// The doc id a site-local href names (`/d/archetypes/cli-tool#x` → `archetypes/cli-tool`).
+fn doc_id_of(href: &str) -> Option<&str> {
+    let rest = local_href(href).strip_prefix("/d/")?;
+    let id = rest.split(['#', '?']).next().unwrap_or(rest);
+    (!id.is_empty()).then_some(id)
 }
 
 /// Every `href="/d/..."` in `html`, as doc ids.

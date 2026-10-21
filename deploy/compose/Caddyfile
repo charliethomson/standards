@@ -3,7 +3,8 @@
 # at proxy:80 (deploy/README.md). The optional tailnet route through the homelab gateway
 # Caddy arrives on the same :80 via the loopback port.
 # There is no web bundle, so everything goes to the api: the HTML site (/, /d/*), the REST
-# mirror (/api/v1/*), /manifest.json, /t/*, /mcp, /health, /version, /api/metrics.
+# mirror (/api/v1/*), /manifest.json, /t/*, /llms.txt, /llms-full.txt, /mcp, /health,
+# /version, /api/metrics.
 #
 # /mcp needs nothing special here. It answers application/json (stateless, no SSE stream),
 # so there is no flush_interval (STD-13 measured it). reverse_proxy forwards the Host it was
@@ -30,6 +31,11 @@
 		Referrer-Policy "no-referrer"
 		-Server
 	}
+
+	# /llms-full.txt is the whole corpus (~340 KB of markdown), so compress on this hop:
+	# Cloudflare's edge compresses the public hostname for us, the tailnet route and a
+	# direct origin fetch otherwise get it raw.
+	encode zstd gzip
 
 	# Read-only server: no request carries a meaningful body except a JSON-RPC call to
 	# /mcp, which is small. Refuse anything bigger before it crosses the hop.

@@ -43,14 +43,6 @@ pub fn local_href(url: &str) -> &str {
     }
 }
 
-/// The doc id a site-local href names (`/d/archetypes/cli-tool#x` → `archetypes/cli-tool`).
-#[must_use]
-pub fn doc_id_of(href: &str) -> Option<&str> {
-    let rest = local_href(href).strip_prefix("/d/")?;
-    let id = rest.split(['#', '?']).next().unwrap_or(rest);
-    (!id.is_empty()).then_some(id)
-}
-
 /// Point a link event at its root-relative href.
 fn localize(event: Event<'_>) -> Event<'_> {
     match event {
@@ -182,13 +174,41 @@ pub fn doc_body(markdown: &str, anchors: &[String]) -> String {
     out
 }
 
-/// A fragment of inline markdown (a table cell) as HTML, without the wrapping `<p>`.
+/// Where a backslash has to go to stop `s` opening a block instead of reading as inline
+/// text, if anywhere: the testing standard's rule starts `>80%`, which parses as a
+/// blockquote on its own. `None` when the fragment is already inline.
+///
+/// A marker is escaped in front (`\>80%`), except an ordered list's, where only the
+/// delimiter can carry it (`1\.`, since `\1` is not an escape at all).
+fn block_marker(s: &str) -> Option<usize> {
+    let mut rest = s.chars().skip(1);
+    let marked = |next: Option<char>| matches!(next, Some(' ') | None);
+    match s.chars().next() {
+        Some('>' | '|') => Some(0),
+        Some('#' | '-' | '+' | '*') => marked(rest.next()).then_some(0),
+        Some(c) if c.is_ascii_digit() => {
+            let digits = s.len() - s.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+            let mut after = s[digits..].chars();
+            (matches!(after.next(), Some('.' | ')')) && marked(after.next())).then_some(digits)
+        }
+        _ => None,
+    }
+}
+
+/// A fragment of inline markdown (a table cell, a doc's one-line rule) as HTML, without the
+/// wrapping `<p>`. A fragment that would open a block is escaped first, so it renders as the
+/// text it is.
 #[must_use]
 pub fn inline(markdown: &str) -> String {
+    let trimmed = markdown.trim_start();
+    let escaped = match block_marker(trimmed) {
+        Some(at) => format!("{}\\{}", &trimmed[..at], &trimmed[at..]),
+        None => markdown.to_owned(),
+    };
     let mut out = String::new();
     html::push_html(
         &mut out,
-        Parser::new_ext(markdown, options())
+        Parser::new_ext(&escaped, options())
             .filter(|e| {
                 !matches!(
                     e,
@@ -217,100 +237,6 @@ pub fn first_paragraph(markdown: &str) -> Option<String> {
     let mut out = String::new();
     html::push_html(&mut out, body.into_iter());
     Some(out.trim().to_owned())
-}
-
-/// Every doc id the markdown links, in order, duplicates dropped.
-#[must_use]
-pub fn linked_ids(markdown: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for event in Parser::new_ext(markdown, options()) {
-        if let Event::Start(Tag::Link { dest_url, .. }) = event
-            && let Some(id) = doc_id_of(&dest_url)
-            && !out.iter().any(|o| o == id)
-        {
-            out.push(id.to_owned());
-        }
-    }
-    out
-}
-
-/// One group of docs on the index, as the overview's tables group them.
-#[derive(Debug, Clone)]
-pub struct Group {
-    pub title: String,
-    /// Doc id and its one-line rule (inline HTML), in table order.
-    pub entries: Vec<(String, Option<String>)>,
-}
-
-/// The overview's standards tables as groups: each heading whose table rows link docs
-/// becomes a group named by the heading (parenthetical dropped), each row an entry with
-/// its last cell as the blurb. Archetype docs are skipped (the index lists them apart).
-#[must_use]
-pub fn overview_groups(markdown: &str) -> Vec<Group> {
-    let mut groups: Vec<Group> = Vec::new();
-    let mut heading = String::new();
-    let mut in_heading = false;
-    let mut current = String::new();
-    let mut cells: Vec<Vec<Event<'_>>> = Vec::new();
-    let mut in_row = false;
-
-    for event in Parser::new_ext(markdown, options()) {
-        match event {
-            Event::Start(Tag::Heading { .. }) => {
-                in_heading = true;
-                heading.clear();
-            }
-            Event::End(TagEnd::Heading(_)) => {
-                in_heading = false;
-                current.clear();
-                current.push_str(heading.split(" (").next().unwrap_or(&heading).trim());
-            }
-            Event::Text(t) | Event::Code(t) if in_heading => heading.push_str(&t),
-            Event::Start(Tag::TableRow) => {
-                in_row = true;
-                cells.clear();
-            }
-            Event::End(TagEnd::TableRow) => {
-                in_row = false;
-                if let Some(entry) = row_entry(&cells) {
-                    match groups.iter_mut().find(|g| g.title == current) {
-                        Some(g) => g.entries.push(entry),
-                        None => groups.push(Group {
-                            title: current.clone(),
-                            entries: vec![entry],
-                        }),
-                    }
-                }
-            }
-            Event::Start(Tag::TableCell) if in_row => cells.push(Vec::new()),
-            Event::End(TagEnd::TableCell) => {}
-            other if in_row => {
-                if let Some(cell) = cells.last_mut() {
-                    cell.push(localize(other));
-                }
-            }
-            _ => {}
-        }
-    }
-    groups
-}
-
-fn row_entry(cells: &[Vec<Event<'_>>]) -> Option<(String, Option<String>)> {
-    let (at, id) = cells.iter().enumerate().find_map(|(i, cell)| {
-        cell.iter().find_map(|e| match e {
-            Event::Start(Tag::Link { dest_url, .. }) => doc_id_of(dest_url).map(|id| (i, id)),
-            _ => None,
-        })
-    })?;
-    if id.starts_with("archetypes/") {
-        return None;
-    }
-    let blurb = (at + 1 < cells.len()).then(|| {
-        let mut out = String::new();
-        html::push_html(&mut out, cells[cells.len() - 1].iter().cloned());
-        out.trim().to_owned()
-    });
-    Some((id.to_owned(), blurb))
 }
 
 /// `<li>`s for a table of contents: `##` entries with their `###` nested.
@@ -351,4 +277,23 @@ pub fn toc(sections: &[(u8, String, String)]) -> String {
         out.push_str("</li>");
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A one-line fragment renders as text, not as the block its first character suggests.
+    #[test]
+    fn inline_keeps_a_block_looking_fragment_inline() {
+        assert_eq!(inline(">80% on services"), "&gt;80% on services");
+        assert_eq!(inline("- not a list"), "- not a list");
+        assert_eq!(inline("1. not a list"), "1. not a list");
+        assert_eq!(inline("`core` only"), "<code>core</code> only");
+        assert_eq!(inline("**bold** stays"), "<strong>bold</strong> stays");
+        assert_eq!(
+            inline("[Versioning](https://standards.thmsn.dev/d/versioning)"),
+            "<a href=\"/d/versioning\">Versioning</a>"
+        );
+    }
 }

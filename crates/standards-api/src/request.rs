@@ -148,6 +148,8 @@ fn api_operation(operation: Option<&'static str>, path: &str) -> &'static str {
         "/install" => "install",
         "/mcp" => "mcp",
         raw if raw.starts_with("/t/") => "raw_template",
+        "/llms.txt" => "llms_index",
+        "/llms-full.txt" => "llms_full",
         "/" => "web_index",
         "/search" => "web_search",
         doc if doc.starts_with("/d/") => "web_doc",
@@ -409,6 +411,15 @@ pub fn install_panic_hook() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn routes_outside_the_contract_are_named() {
+        assert_eq!(api_operation(Some("get_doc"), "/api/v1/docs/x"), "get_doc");
+        assert_eq!(api_operation(None, "/llms.txt"), "llms_index");
+        assert_eq!(api_operation(None, "/llms-full.txt"), "llms_full");
+        assert_eq!(api_operation(None, "/t/rust/build.rs"), "raw_template");
+        assert_eq!(api_operation(None, "/nope"), "unmatched");
+    }
 
     #[test]
     fn identity_headers_are_dropped_not_truncated() {
