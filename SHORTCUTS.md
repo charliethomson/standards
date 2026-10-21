@@ -53,6 +53,27 @@ Search terms and tool arguments are never logged.
 
 _Verified: 2026-10-19_
 
+## A push to main built nothing
+
+The pipeline is created by GitHub's webhook to `ci.thmsn.dev`, which sits behind
+Cloudflare, so a WAF block shows up as "no build" with nothing wrong on either side:
+
+```sh
+gh api repos/charliethomson/standards/hooks --jq '.[] | {id, active, last: .last_response}'
+```
+
+A `403` whose body is Cloudflare's "Sorry, you have been blocked" is the edge, not
+Woodpecker. Re-send that delivery rather than pushing an empty commit:
+
+```sh
+h=$(gh api repos/charliethomson/standards/hooks --jq '.[0].id'); d=$(gh api repos/charliethomson/standards/hooks/$h/deliveries --jq '.[0].id'); gh api --method POST repos/charliethomson/standards/hooks/$h/deliveries/$d/attempts
+```
+
+A `204` is not a failure: Woodpecker accepted the event and created no pipeline (a branch
+with no matching workflow). `woodpecker-cli pipeline create` triggers one by hand.
+
+_Verified: 2026-10-21_
+
 ## Did CI pass?
 
 ```sh
