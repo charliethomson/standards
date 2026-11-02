@@ -7,7 +7,7 @@
 # Runs on Linux: it needs nothing from the build, only git (to derive the same version)
 # plus curl and jq to talk to the registry.
 #
-# No pull_request trigger, on purpose: cli.release builds and packages both targets on a
+# No pull_request trigger, on purpose: cli.release builds and packages every target on a
 # PR but publishes nothing, so there is no draft to finalize.
 when:
   - event: manual
@@ -51,7 +51,7 @@ steps:
       REGISTRY_URL: https://apps.dev.thmsn.dev
       # The release's definition of "complete". Adding a target means adding it to
       # cli.release's matrix *and* here, or the version never flips live.
-      REQUIRED_TARGETS: "darwin-arm64,linux-amd64"
+      REQUIRED_TARGETS: "darwin-arm64,linux-amd64,windows-amd64"
       REGISTRY_TOKEN:
         from_secret: registry_token
       REGISTRY_REPO_TOKEN:

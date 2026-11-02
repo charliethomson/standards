@@ -44,6 +44,12 @@ curl -fsSL https://standards.thmsn.dev/install | sh   # installs the `standards`
 standards doctor --fix    # registers the MCP, writes skill stubs, adds the SessionStart hook
 ```
 
+On Windows, from PowerShell:
+
+```powershell
+irm https://standards.thmsn.dev/install.ps1 | iex
+```
+
 In a repo:
 
 ```sh
@@ -68,7 +74,8 @@ examples use `someproduct` / `SOMEPRODUCT_` / `libsomeproduct`.
 Woodpecker (`.woodpecker/`): `rust.ci` runs fmt, clippy, tests, the OpenAPI drift check and
 the 80% coverage gate over the workspace, and runs on doc edits too, since the content is
 compiled in; `server.build` pushes the server image to GHCR; `cli.release` publishes the cli
-to the registry; `audit.ci` audits `Cargo.lock` weekly. Details and the local commands are in
+to the registry for darwin-arm64, linux-amd64 and windows-amd64; `audit.ci` audits
+`Cargo.lock` weekly. Details and the local commands are in
 [`crates/README.md`](crates/README.md#ci-and-delivery); the Komodo stack is in
 [`deploy/`](deploy/README.md).
 

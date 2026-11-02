@@ -11,6 +11,10 @@
 #
 # Usage:  scripts/ci/cli-release.sh <registry-target> <rust-target-triple>
 #   e.g.  scripts/ci/cli-release.sh darwin-arm64 aarch64-apple-darwin
+#         scripts/ci/cli-release.sh windows-amd64 x86_64-pc-windows-msvc
+#
+# The Windows leg runs this under Git Bash (scripts/ci/windows-env.ps1 finds it), so the
+# only thing that differs per platform below is the .exe suffix.
 #
 # Run from the repo root of a FULL clone (history + tags): the version is the commit
 # count. The caller sets up the toolchain, CARGO_TARGET_DIR and the cache guard, which
@@ -47,16 +51,24 @@ eval "$(sh scripts/ci/version.sh)"
 export RELEASE_VERSION
 echo "cli-release: standards $RELEASE_VERSION (build $BUILD) for $target ($triple)"
 
+# Windows names the binary standards.exe, and the suffix has to survive into the archive:
+# the registry's PowerShell installer looks for `<bin_name>.exe` inside what it unpacks,
+# and `standards self-update` takes the same entry out of the .tar.gz.
+case "$triple" in
+  *-windows-*) exe=.exe ;;
+  *) exe= ;;
+esac
+
 # --locked: a release builds exactly the committed Cargo.lock.
 cargo build --release --locked -p standards-cli --bin "$BIN_NAME" --target "$triple"
 
-bin="${CARGO_TARGET_DIR:-target}/$triple/release/$BIN_NAME"
+bin="${CARGO_TARGET_DIR:-target}/$triple/release/$BIN_NAME$exe"
 [ -x "$bin" ] || { echo "cli-release: no binary at $bin" >&2; exit 1; }
 
 # Prove the stamp before publishing it. A mismatch would ship a binary that reports a
 # different version than the registry lists; the installer's up-to-date check and
-# `standards self-update` both compare against it, so it would reinstall forever. Both
-# legs build natively, so the binary always runs on the agent that built it.
+# `standards self-update` both compare against it, so it would reinstall forever. Every
+# leg builds natively, so the binary always runs on the agent that built it.
 reported="$("$bin" --version)"
 if [ "$reported" != "$BIN_NAME $RELEASE_VERSION" ]; then
   echo "cli-release: binary reports '$reported', expected '$BIN_NAME $RELEASE_VERSION'" >&2
@@ -64,11 +76,17 @@ if [ "$reported" != "$BIN_NAME $RELEASE_VERSION" ]; then
 fi
 
 # The archive holds the bare binary at its root: self-update takes the entry named
-# `standards` out of the .tar.gz. Nothing else ships (no completions subcommand yet).
+# `standards` (`standards.exe` on Windows) out of the .tar.gz. Nothing else ships (no
+# completions subcommand yet).
+#
+# A .tar.gz on every target, Windows included: the registry's PowerShell installer picks
+# its extractor from the artifact's file name and unpacks a tarball with the bsdtar that
+# ships in Windows 10 1803+, then finds `standards.exe` anywhere inside it. One archive
+# format keeps this script, self-update and the installer on one path.
 rm -rf dist && mkdir -p dist/stage
-cp "$bin" "dist/stage/$BIN_NAME"
+cp "$bin" "dist/stage/$BIN_NAME$exe"
 archive="dist/$BIN_NAME-$target.tar.gz"
-tar -czf "$archive" -C dist/stage "$BIN_NAME"
+tar -czf "$archive" -C dist/stage "$BIN_NAME$exe"
 
 if [ "${CI_PIPELINE_EVENT:-}" = "pull_request" ]; then
   echo "cli-release: pull_request: built and packaged $archive ($(wc -c <"$archive" | tr -d ' ') bytes); not publishing"

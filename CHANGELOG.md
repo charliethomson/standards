@@ -67,6 +67,19 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   and both files share, replacing the copy in `web/render.rs`. Caddy compresses this hop
   (`encode zstd gzip`), since only Cloudflare's edge was compressing before.
 
+- **Windows build for the `standards` cli** (`.woodpecker/cli.release.yml`,
+  `scripts/ci/windows-env.ps1`): a third release leg, `windows-amd64`
+  (`x86_64-pc-windows-msvc`), built natively on the hand-managed Windows agent
+  (`os: windows`, local backend) and attached to the same draft version as `darwin-arm64`
+  and `linux-amd64`. `cli.release-finalize`'s `REQUIRED_TARGETS` holds all three, so a
+  version flips live only once Windows is there too. The artifact stays a `.tar.gz`, now
+  holding `standards.exe`: the registry's PowerShell installer picks its extractor from the
+  file name and unpacks a tarball with the bsdtar Windows has shipped since 10 1803, so one
+  archive format serves every target. `self-update` takes that entry, and moves the old
+  binary to `standards.exe.old` before the swap because Windows refuses to rename over a
+  running image. `GET /install.ps1` is new, a 302 to the registry's PowerShell installer.
+  Nothing is signed: the fleet holds no Authenticode certificate.
+
 - **Rust workspace + `standards-core`** (`Cargo.toml`, `crates/standards-core/`): the pure
   content model the hosted server and the `standards` cli share. Parses docs (title, sections
   with GitHub anchors, trailing `## Checklist`), archetype tables (one row per standard,

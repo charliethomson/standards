@@ -298,6 +298,9 @@ fn make_executable(path: &Path) -> Result<()> {
 }
 
 #[cfg(not(unix))]
+// Mirrors the unix signature, which can fail. Clippy only sees this on a Windows build,
+// which the cli has had since the windows-amd64 release leg.
+#[allow(clippy::unnecessary_wraps)]
 fn make_executable(_path: &Path) -> Result<()> {
     Ok(())
 }

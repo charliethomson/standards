@@ -9,10 +9,12 @@
 //!    need a bearer: `REGISTRY_TOKEN`, the same variable the registry's installer reads.
 //! 2. Compare with the running derived version; `--check` (or already current) stops here.
 //! 3. Download `download_url` (pre-signed, no auth), check its size and sha256, take the
-//!    binary out of the `.tar.gz` (the entry named `bin_name`, default `standards`), or use
-//!    the file as is when it is not an archive.
+//!    binary out of the `.tar.gz` (the entry named `bin_name`, default `standards`, plus
+//!    the platform's exe suffix), or use the file as is when it is not an archive.
 //! 4. Write it beside the running exe as a temp file, make it executable, and rename it over
-//!    the exe: the swap is atomic, and a failure leaves the old binary in place.
+//!    the exe: the swap is atomic, and a failure leaves the old binary in place. Windows
+//!    cannot replace the image of a running process, so there the old binary is renamed
+//!    aside first.
 
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -290,8 +292,13 @@ fn extract(resolved: &Resolved, bytes: Vec<u8>) -> Result<Vec<u8>> {
 }
 
 /// The regular file named `bin` anywhere in the archive, as the installer looks for it.
+///
+/// Either spelling of the name: the release pipeline stages `standards.exe` on Windows
+/// (`scripts/ci/cli-release.sh`) while the registry reports `bin_name` without a suffix,
+/// so the suffix for this platform is accepted too. On Unix the two are the same string.
 fn from_tar_gz(bytes: &[u8], bin: &str) -> Result<Vec<u8>> {
     let bad = |e: std::io::Error| RegistryError::BadResponse(format!("artifact: {e}"));
+    let exe = format!("{bin}{}", std::env::consts::EXE_SUFFIX);
     let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(bytes));
     for entry in archive.entries().map_err(bad)? {
         let mut entry = entry.map_err(bad)?;
@@ -299,7 +306,7 @@ fn from_tar_gz(bytes: &[u8], bin: &str) -> Result<Vec<u8>> {
             && entry
                 .path()
                 .ok()
-                .and_then(|p| p.file_name().map(|n| n == bin))
+                .and_then(|p| p.file_name().map(|n| n == bin || n == exe.as_str()))
                 .unwrap_or(false);
         if is_bin {
             let mut out = Vec::new();
@@ -307,7 +314,7 @@ fn from_tar_gz(bytes: &[u8], bin: &str) -> Result<Vec<u8>> {
             return Ok(out);
         }
     }
-    Err(RegistryError::BadResponse(format!("artifact has no `{bin}`")).into())
+    Err(RegistryError::BadResponse(format!("artifact has no `{exe}`")).into())
 }
 
 /// Swap `exe` for `binary`: a temp file in the same directory (same filesystem), made
@@ -321,12 +328,37 @@ fn replace(exe: &Path, binary: &[u8]) -> Result<()> {
     let result = (|| {
         std::fs::write(&tmp, binary).map_err(|e| Error::io(&tmp, e))?;
         set_executable(&tmp)?;
-        std::fs::rename(&tmp, exe).map_err(|e| Error::io(exe, e))
+        swap(&tmp, exe)
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }
     result
+}
+
+#[cfg(not(windows))]
+fn swap(tmp: &Path, exe: &Path) -> Result<()> {
+    std::fs::rename(tmp, exe).map_err(|e| Error::io(exe, e))
+}
+
+/// Windows refuses to rename over the image of a running process, so the old binary moves
+/// aside first and the new one takes its place: the `<name>.old` dance the registry's
+/// PowerShell installer does. The aside copy stays locked until this process exits, so
+/// removing it is best-effort and the next update clears whatever is left.
+#[cfg(windows)]
+fn swap(tmp: &Path, exe: &Path) -> Result<()> {
+    let mut old = exe.as_os_str().to_owned();
+    old.push(".old");
+    let old = PathBuf::from(old);
+    let _ = std::fs::remove_file(&old);
+    std::fs::rename(exe, &old).map_err(|e| Error::io(exe, e))?;
+    if let Err(e) = std::fs::rename(tmp, exe) {
+        // Put the old binary back rather than leaving nothing where it was.
+        let _ = std::fs::rename(&old, exe);
+        return Err(Error::io(exe, e));
+    }
+    let _ = std::fs::remove_file(&old);
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -337,6 +369,9 @@ fn set_executable(path: &Path) -> Result<()> {
 }
 
 #[cfg(not(unix))]
+// Mirrors the unix signature, which can fail. Clippy only sees this on a Windows build,
+// which the cli has had since the windows-amd64 release leg.
+#[allow(clippy::unnecessary_wraps)]
 fn set_executable(_path: &Path) -> Result<()> {
     Ok(())
 }
@@ -389,6 +424,9 @@ mod tests {
         }
     }
 
+    // Unix only: the failure it arranges (rename over a non-empty directory) is what
+    // Windows' rename-aside path turns into a success.
+    #[cfg(not(windows))]
     #[test]
     fn replace_failure_leaves_no_temp() {
         let dir = tempfile::tempdir().unwrap();

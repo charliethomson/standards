@@ -407,6 +407,10 @@ async fn standard_mounts() {
     resp.assert_status(StatusCode::FOUND);
     resp.assert_header("location", INSTALL_REDIRECT);
 
+    let resp = c.get("/install.ps1").send().await;
+    resp.assert_status(StatusCode::FOUND);
+    resp.assert_header("location", INSTALL_PS1_REDIRECT);
+
     let resp = c.get("/health").send().await;
     resp.assert_status_is_ok();
     assert_eq!(json(resp).await["status"], "ok");

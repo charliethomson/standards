@@ -31,7 +31,8 @@ from, and serves nothing else (`bin/`, `prompts/`, `NOTES.md` and dotfiles stay 
 | `/api/v1/*` | REST mirror of everything above; the cli uses this. Spec at `/openapi.json`, browsable at `/api/docs` |
 | `/llms.txt` | The corpus index per the [llms.txt convention](https://llmstxt.org): one link and one line per doc |
 | `/llms-full.txt` | Every doc in one markdown file (~340 KB), each delimited by its id and canonical URL |
-| `/install` | Redirects to the cli's registry install page |
+| `/install` | Redirects to the cli's registry install page (`sh`) |
+| `/install.ps1` | The same installer for PowerShell, which is how a Windows machine gets the cli |
 | `/mcp` | MCP over streamable HTTP |
 
 Relative links between docs in this repo are rewritten to absolute

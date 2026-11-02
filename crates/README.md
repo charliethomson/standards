@@ -76,8 +76,10 @@ standards [--host URL] [--json] [-v] <doctor|init|new|self-update|janitor|ultron
 - **`self-update [--check]`** asks the registry
   (`STANDARDS_REGISTRY_URL`, default `https://apps.dev.thmsn.dev`) to resolve
   `dev.thmsn.standards`/`cli` for this os/arch, compares with the running version, downloads
-  the artifact, checks size and sha256, takes `standards` out of the `.tar.gz`, and renames a
-  temp file over the running exe. Registry reads need a bearer: `REGISTRY_TOKEN`, the same
+  the artifact, checks size and sha256, takes `standards` (`standards.exe` on Windows) out of
+  the `.tar.gz`, and renames a temp file over the running exe. On Windows, which refuses to
+  rename over a running image, the old binary moves to `standards.exe.old` first and is
+  cleared by the next update. Registry reads need a bearer: `REGISTRY_TOKEN`, the same
   variable the registry's installer reads.
 - **`janitor [scan|clean] [--root D].. [--days N] [--targets] [--main-targets]
   [--branches] [-y]`** is `bin/janitor` ported line for line (`janitor.rs`, `janitor/`):
@@ -169,6 +171,7 @@ cargo run -q -p standards-cli -- --host http://127.0.0.1:8080 init --archetype l
 | `GET /openapi.json`, `/api/docs` | the contract; Scalar |
 | `GET /health`, `/version`, `/api/metrics` | liveness; derived version, commit and full libbuildinfo; OpenMetrics |
 | `GET /install` | 302 to `https://apps.dev.thmsn.dev/install/dev.thmsn.standards` |
+| `GET /install.ps1` | the same, `…/dev.thmsn.standards.ps1`: the PowerShell installer for Windows |
 | `POST /mcp` | MCP, streamable HTTP (`mcp.rs`; see below) |
 | `GET /`, `/d/{id}` | the rendered site (`web.rs`): the index (archetypes with their standards tables, every doc by the overview's groups) and one doc with a heading TOC; links made root-relative so it works on any host |
 | `GET /search?q` | search results rendered server-side, so search works without JS; the query is never logged |
@@ -253,7 +256,7 @@ Woodpecker, pipelines in [`.woodpecker/`](../.woodpecker/), shared shell in
 |---|---|---|
 | `rust.ci` | push to main / PR touching the workspace or served content | the gates above, workspace-wide |
 | `server.build` | the same, plus `Dockerfile` | builds the root [`Dockerfile`](../Dockerfile) (context = repo root, `.dockerignore` is an allowlist) and pushes `ghcr.io/charliethomson/standards-server:main` + `:sha-<commit>` on main; Watchtower rolls it out ([`deploy/`](../deploy/README.md)) |
-| `cli.release` + `cli.release-finalize` | push to main / PR touching the cli or core | builds `standards` natively for `darwin-arm64` (dev Mac) and `linux-amd64`, attaches each to a draft `dev.thmsn.standards`/`cli` version in the registry, then flips it live once both are there; PRs build and package only |
+| `cli.release` + `cli.release-finalize` | push to main / PR touching the cli or core | builds `standards` natively for `darwin-arm64` (dev Mac), `linux-amd64` (docker agents) and `windows-amd64` (the Windows agent), attaches each to a draft `dev.thmsn.standards`/`cli` version in the registry, then flips it live once all three are there; PRs build and package only |
 | `audit.ci` | `Cargo.lock` changes, and the weekly `weekly-audit` cron | cargo-audit report (never red) plus a gate that fails only on a critical advisory without a live exception in `scripts/ci/audit-exceptions.txt` |
 
 **Cargo caches.** Every Linux step that runs cargo (`rust.ci`, `cli.release`'s linux leg,
@@ -266,6 +269,17 @@ The image's cargo and rustup are untouched (`/usr/local/cargo/bin` stays on `PAT
 `scripts/ci/cache-guard.sh` wipes a dir under `$CARGO_HOME` only while holding cargo's
 mutate and download locks, so a wipe waits for builds in other containers. The macOS leg
 uses the Mac's own `~/.cargo`. `server.build` caches inside BuildKit, not in these dirs.
+
+**The two local-backend legs.** The macOS and Windows agents run commands on the host, not
+in a container, so both legs clone by hand and fix up an environment that is not a login
+shell's: `scripts/ci/macos-env.sh` and `scripts/ci/windows-env.ps1`. The Windows one finds
+the rustup toolchain (the agent runs as a service with no profile on `PATH`), sets
+`CARGO_HOME`/`RUSTUP_HOME` to match, exports Git Bash as `CI_BASH` — every shared script in
+`scripts/ci` is `sh` — and a `CACHE` root spelled with forward slashes, because those paths
+cross into Git Bash where a backslash is an escape. A toolchain, Git for Windows, `jq` and
+the MSVC build tools are chores on that machine; the first three are checked with a message
+that names what is missing. Nothing on Windows is signed: the fleet holds no Authenticode
+certificate.
 
 A doc edit is a server change: the content is compiled in, so it runs `rust.ci` (core's
 tests read it) and ships through `server.build`. Build the image locally with
@@ -297,7 +311,8 @@ cargo run -q -p standards-api --bin standards-server -- openapi > api/openapi.js
 
 `standards-core`, `standards-db`, `standards-engine` and `standards-api` (REST mirror,
 MCP at `/mcp`, the HTML site and the standard mounts) exist, and `standards-cli` with
-`init`, `new`, `self-update` and `janitor`. The cli's `doctor` and `ultron` are not built yet.
+`init`, `new`, `self-update` and `janitor`, released for darwin-arm64, linux-amd64 and
+windows-amd64. The cli's `doctor` and `ultron` are not built yet.
 The image, deploy stack and pipelines are in the repo; nothing is deployed and no pipeline
 has run yet (go-live is STD-19).
 

@@ -3,8 +3,9 @@
 # cli.release-finalize then flips live:
 #
 #     curl -fsSL https://apps.dev.thmsn.dev/install/dev.thmsn.standards | bash
+#     irm https://apps.dev.thmsn.dev/install/dev.thmsn.standards.ps1 | iex   # Windows
 #
-# (https://standards.thmsn.dev/install redirects there.) Copied from vision's
+# (https://standards.thmsn.dev/install and /install.ps1 redirect there.) Copied from vision's
 # cli.release.yml; the build-and-attach logic is scripts/ci/cli-release.sh and the
 # registry call is scripts/ci/publish.sh. NB docs/registry-publishing.md asks new repos
 # to publish through kiln (libci::registry) rather than a copied publish.sh; this repo
@@ -12,26 +13,29 @@
 #
 # One workflow, one matrix leg per target, each built NATIVELY on its own agent:
 #
-#   darwin-arm64  aarch64-apple-darwin       the dev Mac (`os: macos`, local backend)
-#   linux-amd64   x86_64-unknown-linux-gnu   the Linux docker agents
+#   darwin-arm64   aarch64-apple-darwin       the dev Mac (`os: macos`, local backend)
+#   linux-amd64    x86_64-unknown-linux-gnu   the Linux docker agents
+#   windows-amd64  x86_64-pc-windows-msvc     the Windows agent (`os: windows`, local backend)
 #
-# These are the targets `standards self-update` resolves (os darwin/linux, arch
+# These are the targets `standards self-update` resolves (os darwin/linux/windows, arch
 # arm64/amd64, glibc). Adding a target means a matrix entry here AND in
 # cli.release-finalize's REQUIRED_TARGETS.
 #
 # Legs only ever *attach* (--no-finalize), so a failed or cancelled leg leaves a draft
-# nobody can install rather than a live version missing a platform. No codesigning (see
-# cli-release.sh): the cli keeps nothing in the Keychain.
+# nobody can install rather than a live version missing a platform. Nothing is signed: no
+# codesigning on darwin (see cli-release.sh) because the cli keeps nothing in the
+# Keychain, and no Authenticode on Windows because the fleet holds no certificate.
 #
-# PULL REQUESTS build, version-check and package both targets exactly as a release does,
+# PULL REQUESTS build, version-check and package every target exactly as a release does,
 # and publish nothing: cli-release.sh stops before the registry on pull_request, and
 # cli.release-finalize has no PR trigger. Each leg has a separate PR step with no
 # registry secrets, because a step that names a secret not enabled for pull_request
 # errors before it runs; the steps share environment and commands by anchor.
 #
-# Both legs clone by hand (`skip_clone`): the macOS local backend cannot run the clone
-# plugin, and skip_clone is per-workflow. The repo is public, so the clone is HTTPS; the
-# ssh key is only for the private liblog crate.
+# Every leg clones by hand (`skip_clone`): the macOS and Windows local backends have no
+# Docker to run the clone plugin in, and skip_clone is per-workflow, so the Linux leg
+# clones itself too. The repo is public, so the clone is HTTPS; the ssh key is only for
+# the private liblog crate.
 #
 # NB: Woodpecker substitutes braced variable references over the raw file text before
 # parsing it, comments included. Keep shell in the steps unbraced (or in
@@ -68,6 +72,10 @@ matrix:
       RUST_TARGET: x86_64-unknown-linux-gnu
       AGENT_OS: ""
       AGENT_PLATFORM: linux/amd64
+    - TARGET: windows-amd64
+      RUST_TARGET: x86_64-pc-windows-msvc
+      AGENT_OS: windows
+      AGENT_PLATFORM: ""
 
 # Two label keys, one left empty per leg: Woodpecker's scheduler ignores a label whose
 # value is empty, so each leg is filtered on its own key only.
@@ -149,6 +157,63 @@ variables:
       sh scripts/ci/cache-guard.sh "$CARGO_TARGET_DIR" 3 8
       bash scripts/ci/cli-release.sh "$TARGET" "$RUST_TARGET"
 
+  # The Windows agent is hand-managed and has no package manager this pipeline drives, so
+  # four things are chores on the machine: a rustup toolchain, Git for Windows (the clone,
+  # and the Git Bash every scripts/ci/*.sh runs under), jq (publish.sh), and the MSVC
+  # build tools -- `ring`, under reqwest's rustls, compiles C and the linker is link.exe.
+  # rustc and the cc crate find MSVC through the registry, so nothing sources vcvars.
+  # windows-env.ps1 checks for the first three and says which is missing.
+  - &windows_env
+    CARGO_BUILD_JOBS: "2"
+    CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    SSH_KEY:
+      from_secret: ssh_key
+  - &windows_commands
+    - |
+      $ErrorActionPreference = 'Stop'
+      if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'no git on PATH for this agent' }
+
+      # Full history + tags: the version is the commit count. A PR's head is fetched by
+      # its ref in case it is on no branch the clone brought down.
+      git clone --no-checkout https://github.com/charliethomson/standards.git .
+      if ($LASTEXITCODE -ne 0) { throw 'git clone failed' }
+      if ($env:CI_PIPELINE_EVENT -eq 'pull_request') { git fetch -q origin $env:CI_COMMIT_REF }
+      git checkout -q $env:CI_COMMIT_SHA
+      if ($LASTEXITCODE -ne 0) { throw 'git checkout failed' }
+
+      # The toolchain, CARGO_HOME/RUSTUP_HOME, Git Bash (as CI_BASH) and a CACHE root
+      # outside the workspace: the agent service's environment has none of them.
+      . .\scripts\ci\windows-env.ps1
+
+      # liblog is private and comes over SSH. There is no ssh-agent to lean on in a
+      # service session, so the key goes to a file only this account can read, named in
+      # GIT_SSH_COMMAND, and is deleted on the way out.
+      $keyFile = Join-Path $env:TEMP ('standards-ci-' + [guid]::NewGuid().ToString('N'))
+      try {
+        $key = $env:SSH_KEY -replace "`r`n", "`n"
+        if (-not $key.EndsWith("`n")) { $key += "`n" }
+        [IO.File]::WriteAllText($keyFile, $key)
+        icacls $keyFile /inheritance:r /grant:r "$(whoami):(F)" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'icacls could not restrict the ssh key to this account' }
+        $env:GIT_SSH_COMMAND = 'ssh -i "' + $keyFile.Replace('\', '/') + '" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new'
+
+        # A persistent, bounded target dir, as the other legs keep. Forward slashes
+        # throughout: this path crosses into Git Bash, where a backslash is an escape.
+        $env:CARGO_TARGET_DIR = $env:CACHE + '/target-cli-release'
+        & $env:CI_BASH -c 'sh scripts/ci/cache-guard.sh "$CARGO_TARGET_DIR" 3 8'
+        if ($LASTEXITCODE -ne 0) { throw 'cache-guard.sh failed' }
+
+        # The host's own target, so already installed; here for parity with the other
+        # legs, and tolerant of an agent that has cargo without rustup.
+        if (Get-Command rustup -ErrorAction SilentlyContinue) { rustup target add $env:RUST_TARGET }
+
+        & $env:CI_BASH -c 'bash scripts/ci/cli-release.sh "$TARGET" "$RUST_TARGET"'
+        if ($LASTEXITCODE -ne 0) { throw ('cli-release.sh exited ' + $LASTEXITCODE) }
+      } finally {
+        Remove-Item -LiteralPath $keyFile -Force -ErrorAction SilentlyContinue
+        Remove-Item Env:GIT_SSH_COMMAND -ErrorAction SilentlyContinue
+      }
+
 steps:
   # ---- macOS (Apple Silicon), local backend -----------------------------------
   darwin:
@@ -198,3 +263,27 @@ steps:
     volumes: *linux_volumes
     environment: *linux_env
     commands: *linux_commands
+
+  # ---- Windows (x86_64, msvc), local backend -----------------------------------
+  windows:
+    # local backend: `image` names the host shell, not a container.
+    image: powershell
+    when:
+      - event: [push, manual]
+        evaluate: 'AGENT_OS == "windows"'
+    environment:
+      <<: *windows_env
+      REGISTRY_URL: https://apps.dev.thmsn.dev
+      REGISTRY_TOKEN:
+        from_secret: registry_token
+      REGISTRY_REPO_TOKEN:
+        from_secret: registry_repo_token
+    commands: *windows_commands
+
+  windows-pr:
+    image: powershell
+    when:
+      - event: pull_request
+        evaluate: 'AGENT_OS == "windows"'
+    environment: *windows_env
+    commands: *windows_commands

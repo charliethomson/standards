@@ -14,7 +14,8 @@
 //! /health           liveness
 //! /version          full libbuildinfo
 //! /api/metrics      OpenMetrics, standards_* series
-//! /install          302 to the registry's cli install script
+//! /install          302 to the registry's cli install script (sh)
+//! /install.ps1      302 to the same installer's PowerShell form, for Windows
 //! /mcp              STD-16, mcp.rs
 //! /, /d/{id..}      STD-17, web.rs
 //! ```
@@ -55,6 +56,11 @@ pub use crate::state::AppState;
 /// Where `GET /install` sends the caller: the registry's install script for the cli.
 pub const INSTALL_REDIRECT: &str = "https://apps.dev.thmsn.dev/install/dev.thmsn.standards";
 
+/// Where `GET /install.ps1` sends the caller: the same installer rendered for PowerShell,
+/// which is how a Windows machine gets the cli (the `windows-amd64` artifact the release
+/// pipeline attaches).
+pub const INSTALL_PS1_REDIRECT: &str = "https://apps.dev.thmsn.dev/install/dev.thmsn.standards.ps1";
+
 const JSON: &str = "application/json; charset=utf-8";
 const TEXT: &str = "text/plain; charset=utf-8";
 
@@ -79,6 +85,14 @@ fn install() -> Response {
     Response::builder()
         .status(StatusCode::FOUND)
         .header(LOCATION, INSTALL_REDIRECT)
+        .finish()
+}
+
+#[handler]
+fn install_ps1() -> Response {
+    Response::builder()
+        .status(StatusCode::FOUND)
+        .header(LOCATION, INSTALL_PS1_REDIRECT)
         .finish()
 }
 
@@ -159,7 +173,8 @@ pub fn app(state: AppState) -> impl Endpoint<Output = Response> {
         .at("/health", get(health))
         .at("/version", get(version))
         .at("/api/metrics", get(scrape))
-        .at("/install", get(install));
+        .at("/install", get(install))
+        .at("/install.ps1", get(install_ps1));
     let route = mcp::mount(route, &state); // STD-16: /mcp, in mcp.rs
     let route = web::mount(route, &state); // STD-17: / and /d/{id}, in web.rs
 
