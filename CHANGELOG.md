@@ -78,7 +78,10 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
   archive format serves every target. `self-update` takes that entry, and moves the old
   binary to `standards.exe.old` before the swap because Windows refuses to rename over a
   running image. `GET /install.ps1` is new, a 302 to the registry's PowerShell installer.
-  Nothing is signed: the fleet holds no Authenticode certificate.
+  Nothing is signed: the fleet holds no Authenticode certificate. The agent's default
+  `ExecutionPolicy` refuses a dot-sourced `.ps1` from the workspace, so the step opens with
+  a process-scoped `Bypass`; [`ci-cd.md`](docs/ci-cd.md) records that as the fourth
+  local-backend trap.
 
 - **Rust workspace + `standards-core`** (`Cargo.toml`, `crates/standards-core/`): the pure
   content model the hosted server and the `standards` cli share. Parses docs (title, sections

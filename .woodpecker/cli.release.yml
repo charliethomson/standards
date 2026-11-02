@@ -181,6 +181,14 @@ variables:
       git checkout -q $env:CI_COMMIT_SHA
       if ($LASTEXITCODE -ne 0) { throw 'git checkout failed' }
 
+      # The agent's ExecutionPolicy is Restricted, so dot-sourcing a .ps1 from the
+      # workspace is refused ("running scripts is disabled on this system", pipeline #8)
+      # even though Woodpecker runs this step's own commands fine. Process scope only:
+      # it needs no admin rights and dies with this step, leaving the machine's policy
+      # alone. A `-Scope Process` set that a group policy overrides is a warning, not a
+      # failure, so this does not stop the step on an agent that never needed it.
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Continue
+
       # The toolchain, CARGO_HOME/RUSTUP_HOME, Git Bash (as CI_BASH) and a CACHE root
       # outside the workspace: the agent service's environment has none of them.
       . .\scripts\ci\windows-env.ps1

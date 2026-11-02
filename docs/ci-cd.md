@@ -199,7 +199,7 @@ when:
 agent, by hand** — the macOS and Windows agents are hand-managed and have no checked-in
 configuration, so confirm the value with the agent rather than assuming it.
 
-The macOS and Windows agents run the **local backend**, which changes three things and
+The macOS and Windows agents run the **local backend**, which changes four things and
 silently breaks pipelines that ignore them:
 
 1. **`skip_clone: true` and clone by hand.** A `clone:` block naming an image cannot run, and
@@ -211,6 +211,13 @@ silently breaks pipelines that ignore them:
    and `PATH` are both wrong, so Homebrew tools are not found, and a throwaway `HOME` breaks
    keychains and every cache. Fix it in a `scripts/ci/macos-env.sh` (or `windows-env.ps1`)
    sourced at the top of the step.
+4. **Windows only: dot-sourcing that `.ps1` is refused** under the agent's default
+   `ExecutionPolicy`, with "running scripts is disabled on this system" — even though the
+   step's own `commands` run. Open the step with
+   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`: process scope needs
+   no admin rights and dies with the step, so the machine's policy is untouched. The
+   alternative is to inline the environment fix-up in every step, which is what a generated
+   pipeline does.
 
 **If a pipeline's label does not match any registered agent it never schedules, and it fails
 silently rather than red.** That is the most likely thing to go wrong on a repo's first run.
