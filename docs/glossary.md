@@ -32,8 +32,18 @@ actually building.
   into a binary via `build.rs` (read with `env!("APP_VERSION")`).
 - **reverse-domain identifier** — `dev.thmsn.<product>[.<component>]`; the fleet-wide naming root.
   See [identifiers.md](identifiers.md).
-- **grant** — an auth permission, `dev.thmsn.<product>.<grant>` (`use`/`read`/`write`/`admin`),
-  declared with `#[derive(App)]`. See [auth-integration.md](auth-integration.md).
+- **grant** — a permission on a product, declared once in the product's code. For people it is
+  an Authelia **group** (`<slug>` for use, `<slug>-admin`, `<slug>-write`); for services a
+  **scope** (`<slug>.<grant>`). Legacy-SDK apps still use `dev.thmsn.<product>.<grant>` ids
+  from `#[derive(App)]`. See [auth-integration.md](auth-integration.md).
+- **audience** — the product a token is for: its app id `dev.thmsn.<product>`, in the token's
+  `aud`. A server refuses a token whose `aud` lacks its own id.
+- **principal** — who a request is from: the token's `sub` (an opaque per-person id, the same
+  across every client and product), or a service when `sub == client_id`. Users link on
+  `(iss, sub)`. See [auth-integration.md](auth-integration.md#user-identity).
+- **server-side exchange** — the web sign-in shape: the product server, as a confidential OIDC
+  client, runs the code exchange and refresh and keeps the refresh token in an httpOnly cookie;
+  the SPA only holds the access token in memory.
 - **`AppId`** — the validated reverse-domain identifier type (lowercase, ≥2 segments).
 - **`Id<T>`** — a typed UUIDv7 entity id; `Id<Order>` can't be passed where `Id<Item>` is
   expected. See [data-persistence.md](data-persistence.md).
@@ -60,8 +70,12 @@ actually building.
 
 ## Platform infrastructure (real, shared)
 
-- **auth** — the central authentication service (TCP/protobuf SDK + REST). Products register
-  their app + grants on boot and validate every request's JWT against it.
+- **Authelia** — the fleet's identity provider at **`sso.dev.thmsn.dev`** (OpenID Connect,
+  plus gateway forward-auth). Every product client is an OIDC client of it; product servers
+  validate its JWT access tokens locally. See [auth-integration.md](auth-integration.md).
+- **auth** (legacy) — the old central authentication service (TCP/protobuf SDK + REST, `me()`,
+  `#[derive(App)]`). Still serves apps whose `AGENTS.md` says `Auth: legacy-sdk` until they
+  migrate; nothing new is built on it.
 - **registry** — the self-hosted app registry at **`apps.dev.thmsn.dev`** where client apps and
   CLIs publish. **`dev.thmsn.apps`** is its AltStore source identifier (never changes). See
   [registry-publishing.md](registry-publishing.md).

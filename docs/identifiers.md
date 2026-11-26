@@ -47,17 +47,20 @@ background job-runner that hangs off the main service is `worker`, the desktop a
 | `dev.thmsn.someproduct.worker` | the someproduct worker binary (service component) |
 | `dev.thmsn.someproduct.cli` | the someproduct CLI binary (service component) |
 | `dev.thmsn.someproduct.ios` / `.macos` / `.winui` / `.web` | app-surface components (Apple bundle ids, etc.) |
-| `dev.thmsn.someproduct` | the product as a whole (its auth app id) |
-| `dev.thmsn.someproduct.use` / `.admin` | auth **grants** on the product (parallel axis) |
+| `dev.thmsn.someproduct` | the product as a whole (its app id and token audience) |
+| `someproduct` / `someproduct-admin`, `someproduct.ingest` | auth **grants** on the product as Authelia groups and service scopes (parallel axis) |
 | `dev.thmsn.libsomeproduct` / `.libsomeproduct.proxy` | a library and its service variant |
 | `dev.thmsn.apps` | the registry's AltStore source identifier |
 
 ## Grants (the parallel axis)
 
-Auth grants hang off the **product root**, not a component: `dev.thmsn.<product>.<grant>`
-(`use`/`read`/`write`/`admin`). They're declared with `#[derive(App)]` on the product's auth
-app id and registered on boot — see [auth-integration.md](auth-integration.md). A grant
-authorizes *access to the product*; it is not a component and is never a `product_name!`.
+Auth grants hang off the **product root**, not a component. The app id `dev.thmsn.<product>`
+is the token audience; the grants are named from its last segment, `<slug>`: Authelia groups
+`<slug>` (use), `<slug>-write`, `<slug>-admin` for people, scopes `<slug>.<grant>` for
+services. They're declared once in the product's code and configured in Authelia; see
+[auth-integration.md](auth-integration.md). A grant authorizes *access to the product*; it is
+not a component and is never a `product_name!`. (Apps still on the legacy SDK use
+`dev.thmsn.<product>.<grant>` ids from `#[derive(App)]`.)
 
 **Error keys** are another member of this reverse-domain family:
 `dev.thmsn.<root>.<area>.error.<kind>` identifies a specific failure. See
@@ -93,7 +96,7 @@ A product typically has both: identifier `dev.thmsn.someproduct`, hostname `some
 | **Rust binary** (service component) | `libproduct`'s `product_name!("dev.thmsn.<product>.<component>")` in `main.rs` — e.g. `.server`, `.worker`, `.cli` — **followed by `set_global()`** (see below). The canonical injection point; also becomes the OTel `service.name`. |
 | **Apple** (`ios`/`macos`) | `project.yml` (XcodeGen): `options.bundleIdPrefix: dev.thmsn.<product>` and per-target `PRODUCT_BUNDLE_IDENTIFIER: dev.thmsn.<product>.{ios,macos}`. |
 | **Windows / Web** (`winui`/`web`) | The WinUI app identity / web app config uses `dev.thmsn.<product>.{winui,web}`. |
-| **Auth grants** | `#[derive(App)]` with `id = "dev.thmsn.<product>"` and a `Grants` enum (`Use`/`Read`/`Write`/`Admin` → `dev.thmsn.<product>.{use,read,write,admin}`), registered idempotently on startup. |
+| **Auth grants** | A `Grants` table in the server (`Use`/`Write`/`Admin` → groups `<slug>`/`<slug>-write`/`<slug>-admin`; service grants → scopes `<slug>.<grant>`), audience `dev.thmsn.<product>`, matched by Authelia client and group config. |
 | **Notifications / channels / log service names** | Constants reusing the component string, e.g. `Notification.Name("dev.thmsn.someproduct.newJobRequested")`, OTel `service_name = dev.thmsn.<product>.server`. |
 | **Registry source** | iOS source identifier `dev.thmsn.apps` (must never change). |
 

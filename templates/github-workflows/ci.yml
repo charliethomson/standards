@@ -10,7 +10,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # Private lib*/auth-sdk crates are fetched over SSH. libgit2's ssh-agent auth
+  # Private lib* crates (liboidc, ...) are fetched over SSH. libgit2's ssh-agent auth
   # is unreliable on CI runners, so route git through the CLI and trust
   # github.com's host key on first use.
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"

@@ -67,8 +67,8 @@ libraries/CLIs too):
 | Public short ids | [public-ids.md](public-ids.md) | Stored 11-char Crockford-Base32 alias; URLs use it, UUID stays internal. |
 | API contracts | [contracts.md](contracts.md) | Server emits OpenAPI/AsyncAPI; clients generated + drift-checked. |
 | Error handling | [error-handling.md](error-handling.md) | Domain `Error`→HTTP; `liberror`+`thiserror`+`valuable` trinity. |
-| Auth integration | [auth-integration.md](auth-integration.md) | Central auth via SDK; explicit mode (fail-closed); TLS transport; `me()` is live authority; grant-gated. |
-| Refresh tokens | [refresh-tokens.md](refresh-tokens.md) | Client stores in Keychain/DPAPI/httpOnly-cookie/0600; rotate single-flight; refresh is non-idempotent. |
+| Auth integration | [auth-integration.md](auth-integration.md) | SSO through Authelia (OIDC); explicit mode (fail-closed); local JWT validation; group/scope-gated; legacy SDK apps declare `Auth: legacy-sdk`. |
+| Refresh tokens | [refresh-tokens.md](refresh-tokens.md) | Issued by the IdP; web server keeps it in an httpOnly cookie, natives in Keychain/DPAPI/0600; rotate single-flight; refresh is non-idempotent. |
 | Configuration | [configuration.md](configuration.md) | libconfig `Loader`: defaults→TOML→shared→prefixed env. |
 | Observability | [observability.md](observability.md) | `liblog`/OTLP; `/api/metrics`; log ids/timings, never bodies. |
 | Tracing | [tracing.md](tracing.md) | Always-on export, collector tail-samples; spans finish inside 60 s; `traceparent` + `x-<product>-*` from clients, trace id echoed as `Ref:`. |

@@ -43,7 +43,7 @@ jobs:
           [ -n "$MM" ] || MM="0.0"
           echo "RELEASE_VERSION=$MM.$COUNT" >> "$GITHUB_ENV"
 
-      # Private lib* / auth-sdk crates are fetched over SSH; load the deploy key
+      # Private lib* crates (liboidc, ...) are fetched over SSH; load the deploy key
       # into an agent so `ssh: default` forwards it into the build
       # (`--mount=type=ssh` in the Dockerfile). Drop if there are no private deps.
       - name: Set up SSH agent

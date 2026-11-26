@@ -223,7 +223,7 @@ fn record_identity(span: &tracing::Span, headers: &HeaderMap) -> String {
 
 /// A plain-text error body (poem's own, or a handler's `from_string`) rewritten
 /// as the JSON every client reads. The text is passed through: every plain-text
-/// error here is written for the client (`auth service unavailable`), and the
+/// error here is written for the client (`identity provider unavailable`), and the
 /// one source of internal detail, `to_poem`, already answers JSON.
 async fn to_json_error(response: &mut Response, kind: &str, trace_id: Option<&str>) {
     let status = response.status();

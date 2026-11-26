@@ -373,6 +373,24 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Changed
 
+- **Auth is now SSO through Authelia (OIDC); the auth service SDK is legacy**
+  (`docs/auth-integration.md` rewritten, `docs/refresh-tokens.md`, and every doc that restated
+  the old contract: `service-architecture`, `security`, `configuration`, `deployment`,
+  `identifiers`, `glossary`, `overview`, `web-architecture`, `contracts`, `readmes`,
+  `lib-ecosystem`, `ci-cd`, `tracing`, both product archetypes, the deploy/config templates and
+  the init skill). Every product client is an OIDC client of `sso.dev.thmsn.dev`; servers
+  validate RS256 `at+jwt` access tokens locally (exact `iss`, `aud` = app id, `scp`), with
+  10-minute access and 30-day refresh tokens and no per-request call to the IdP. Grants become
+  Authelia groups (`<slug>`, `<slug>-admin`) for people and scopes (`<slug>.<grant>`) for
+  `client_credentials` services; user routes refuse service tokens. Modes are
+  `oidc`/`none`/`proxied`, fail-closed on a blank issuer or audience or an unreachable JWKS.
+  Web is a server-side exchange (refresh token in an httpOnly cookie, access token in memory);
+  natives are public PKCE clients and CLIs use the device flow, all discovering the issuer from
+  `GET /api/auth/config`. The principal is `sub`, users link on `(iss, sub)`. `/api/login`
+  leaves the mount map. A repo still on the old SDK declares `Auth: legacy-sdk` in `AGENTS.md`
+  and is held to the condensed Legacy section until it migrates. The CLI archetype gains a
+  client-side auth row (it was N/A), and `liboidc` joins the `lib*` catalogue.
+
 - **Tracing and logging, from a whole-product audit** (`docs/tracing.md`, `docs/observability.md`,
   `docs/error-handling.md`):
   - The server **adopts** an app/browser `traceparent` (`liblog::adopt_client_trace`: same

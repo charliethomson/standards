@@ -56,8 +56,8 @@ This is the organizing principle. Each concern has exactly one home:
 | [Backups](../backups.md) | `stash-backup` sidecar + committed `backup.toml`; SHORTCUTS entries for checking and restoring. |
 | [Contracts](../contracts.md) | Emit OpenAPI/AsyncAPI; generate + drift-check clients. |
 | [Error handling](../error-handling.md) | Domain `Error`→HTTP; `liberror`/`valuable` trinity. |
-| [Auth integration](../auth-integration.md) | Central auth SDK; `me()` live authority; grant-gated. |
-| [Refresh tokens](../refresh-tokens.md) | Clients keep them in the platform secret store; rotate single-flight. |
+| [Auth integration](../auth-integration.md) | SSO through Authelia (OIDC); server validates JWT access tokens locally; group/scope-gated; web uses the server-side exchange. |
+| [Refresh tokens](../refresh-tokens.md) | Issued by the IdP; web keeps them in the server's httpOnly cookie, natives in the platform secret store; rotate single-flight. |
 | [Configuration](../configuration.md) | `libconfig` `Loader`; `<PRODUCT>_` + bare shared env. |
 | [Observability](../observability.md) | liblog/OTLP; `/api/metrics`; ids/timings only. |
 | [Tracing](../tracing.md) | Always-on + collector tail sampling; short linked roots; client `traceparent`/`x-<product>-*`, `Ref:` on errors. |
@@ -73,15 +73,22 @@ This is the organizing principle. Each concern has exactly one home:
 
 ## Auth integration
 
-Products that sit behind central auth register an app id `dev.thmsn.<product>` and a
-`Grants` enum (`Read`/`Write`/`Admin`) via the auth SDK's `#[derive(App)]`, registered
-idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
+The server is an OAuth resource server for audience `dev.thmsn.<product>`. Its permission
+model is declared once in code: people get Authelia groups `<slug>`, `<slug>-write`,
+`<slug>-admin` (Admin checked in addition to Use), services get scopes `<slug>.<grant>`. Each
+client surface is its own Authelia client (`<slug>-web` confidential, natives public with
+PKCE), and the server exposes `GET /api/auth/config` so clients find the issuer. No password
+form anywhere. A repo still on the legacy SDK declares `Auth: legacy-sdk` in `AGENTS.md`. See
+[auth-integration.md](../auth-integration.md).
 
 ## Checklist
 
 - [ ] Server emits `api/openapi.json`; clients are generated from it with a CI drift check.
 - [ ] No business logic duplicated outside the server.
 - [ ] Native clients exist per target OS, designed for that OS (not ported wrappers).
+- [ ] Auth per [`../auth-integration.md`](../auth-integration.md): OIDC through Authelia, local
+      JWT validation, `GET /api/auth/config`, web server-side exchange (or `Auth: legacy-sdk`
+      declared in `AGENTS.md`).
 - [ ] Branding generator present and run; no hand-edited icon assets.
 - [ ] `deploy/` has Komodo sync TOML + compose + Caddyfile; secrets only in Komodo UI.
 - [ ] `*.build`/`*.release` pipelines in `.woodpecker/`, on self-hosted agents; version

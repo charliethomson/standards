@@ -8,12 +8,12 @@
 FROM rust:1-bookworm AS build
 WORKDIR /build
 
-# Private crates (lib*, auth-sdk) are fetched over SSH — the key is supplied at
+# Private crates (lib*, liboidc) are fetched over SSH; the key is supplied at
 # build time via `--mount=type=ssh`, never baked into the image. CI provides the
 # agent (webfactory/ssh-agent + `ssh: default`); locally, `docker compose build`
 # forwards your agent via the `ssh:` key in docker-compose.yml.
-# protobuf-compiler: needed when an auth-sdk/proto dependency compiles .proto via
-# prost-build. openssh-client: for the private-crate SSH fetch.
+# protobuf-compiler: needed when a proto dependency (e.g. the legacy auth-sdk)
+# compiles .proto via prost-build; drop it if none does. openssh-client: for the private-crate SSH fetch.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openssh-client protobuf-compiler \
     && rm -rf /var/lib/apt/lists/* \

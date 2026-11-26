@@ -85,7 +85,8 @@ Commands that work when pasted, in the order a newcomer runs them. Prerequisites
 
 **Required environment variables get a sentence saying why they're required.** This is
 where the fleet's fail-closed auth surprises people: a server that refuses to boot without
-`AUTH_ADMIN_KEY` looks broken until you know it is refusing rather than failing. Show both
+`<PRODUCT>_OIDC_ISSUER` and `<PRODUCT>_OIDC_AUDIENCE` looks broken until you know it is
+refusing rather than failing. Show both
 the real-auth invocation and the loopback opt-out, with its constraints. See
 [`auth-integration.md`](auth-integration.md).
 

@@ -19,9 +19,9 @@ built-in defaults  →  TOML file  →  shared (unprefixed) env  →  prefixed <
 ```
 
 App-specific `<PRODUCT>_*` vars override everything; a small set of **bare, unprefixed** vars
-(`AUTH_ADMIN_KEY`, `AUTH_MODE`, `OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE`) are fleet-shared
-conventions, read via `.shared_env([...])`. Note this is **not** all of `AUTH_*` — see
-[Naming](#naming).
+(`OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE`) are fleet-shared conventions, read via
+`.shared_env([...])`. Auth config is **not** shared: it is the product's own and carries its
+prefix. See [Naming](#naming).
 
 ## libconfig for a service
 
@@ -32,8 +32,9 @@ use libconfig::Loader;
 // read-only by default. Config: Serialize + Deserialize + Default.
 let cfg = Loader::path("/etc/someproduct/config.toml")
     .env_prefix("SOMEPRODUCT_")
-    .shared_env(["AUTH_ADMIN_KEY", "AUTH_MODE", "OTLP_ENDPOINT", "PRODUCTION", "SAMPLE_RATE"])
-    // NB: no AUTH_TCP_* here — those are this service's own prefixed fields. See Naming.
+    .shared_env(["OTLP_ENDPOINT", "PRODUCTION", "SAMPLE_RATE"])
+    // NB: no auth vars here. SOMEPRODUCT_AUTH_MODE / _OIDC_* are this service's own
+    // prefixed fields. See Naming.
     .load::<Config>()?;
 ```
 
@@ -45,7 +46,7 @@ config! {
     pub static CONFIG: Config = {
         module: "someproduct",
         env_prefix: "SOMEPRODUCT_",
-        shared_env: ["AUTH_ADMIN_KEY", "OTLP_ENDPOINT", "PRODUCTION", "SAMPLE_RATE"],
+        shared_env: ["OTLP_ENDPOINT", "PRODUCTION", "SAMPLE_RATE"],
         impl_trait,
     }
 }
@@ -64,17 +65,19 @@ boots.
 - **Prefixed per product:** `SOMEPRODUCT_BIND`, `AGENTUTIL_SYNC_INTERVAL_SECS`, `SOMEPRODUCT_SERVER_PORT`.
   The prefix is the product's short name, uppercased.
 - **Bare, fleet-shared (no prefix):**
-  - `AUTH_ADMIN_KEY`, `AUTH_MODE` — read out of the environment by the auth SDK itself, so they
-    keep these exact names in every service.
   - `OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE` — telemetry knobs ([observability.md](observability.md));
     `SAMPLE_RATE` is an override only, production is always-on ([tracing.md](tracing.md)).
-- **`AUTH_TCP_ADDR` / `AUTH_TCP_TLS` / `AUTH_TCP_DOMAIN` are prefixed, not shared.** They look
-  fleet-wide but they are *the consuming service's own* config fields, so under `libconfig` they
-  take that service's prefix — `SOMEPRODUCT_AUTH_TCP_ADDR`, **not** `AUTH_TCP_ADDR`. Putting them
-  in `.shared_env([...])` fails **silently**: the bare names are ignored, the built-in defaults
-  apply, and the service speaks plaintext to a TLS-only listener. Deploy env must set the
-  prefixed names. This is the single most common auth-wiring mistake — see
-  [auth-integration.md](auth-integration.md).
+- **Auth config is prefixed, not shared.** `SOMEPRODUCT_AUTH_MODE`, `SOMEPRODUCT_OIDC_ISSUER`,
+  `SOMEPRODUCT_OIDC_AUDIENCE`, `SOMEPRODUCT_OIDC_SERVICE_CLIENTS` and (web)
+  `SOMEPRODUCT_OIDC_CLIENT_SECRET` look fleet-wide (every product points at the same issuer) but
+  they are *the service's own* fields. A bare `OIDC_ISSUER` is ignored, the default applies,
+  and in `oidc` mode the service refuses to boot on the blank issuer. See
+  [auth-integration.md](auth-integration.md#config).
+- **Legacy-SDK repos** (`Auth: legacy-sdk`) also read the bare `AUTH_ADMIN_KEY` and `AUTH_MODE`
+  through `.shared_env([...])`, because the auth SDK reads those names itself, while their
+  `AUTH_TCP_ADDR` / `AUTH_TCP_TLS` / `AUTH_TCP_DOMAIN` are prefixed
+  (`SOMEPRODUCT_AUTH_TCP_ADDR`). A bare `AUTH_TCP_*` is silently ignored and the service speaks
+  plaintext to a TLS-only listener.
 - **Bind default is loopback** (`127.0.0.1:8080`) for local dev; Docker sets `0.0.0.0:8080` via
   env. The internal Caddy proxy is the only thing that should bind publicly
   ([deployment.md](deployment.md)).
@@ -82,10 +85,9 @@ boots.
 ## Conventions
 
 - **Hardcode sensible defaults in code**, not in committed config files
-  (`DEFAULT_AUTH_TCP_ADDR = "<auth-tcp-host>:<auth-tcp-port>"`, cache TTLs, ports). The TOML file is
-  for overrides, not for carrying the baseline. Default the auth address to a **name, not a LAN
-  IP** — the TLS leg verifies the certificate's hostname
-  ([auth-integration.md](auth-integration.md)).
+  (`DEFAULT_OIDC_ISSUER = "https://sso.dev.thmsn.dev"`, cache TTLs, ports). The TOML file is
+  for overrides, not for carrying the baseline. Default any upstream address to a **name, not a
+  LAN IP**: TLS verifies the certificate's hostname.
 - **Write `Default` by hand; don't `#[derive(Default)]` on a config struct.** `libconfig`'s
   lowest layer is `Serialized::defaults(Config::default())`, i.e. it *serializes your `Default`
   impl*. A derived `Default` supplies `""`/`0`/`None` for every field, so that layer covers them
@@ -107,10 +109,11 @@ or the `config!{}` macro.
 
 - [ ] Config loaded via `libconfig` — `Loader::path`/`pure_env` (services) or
       `Loader::module`/`config!{}` (tools); never hand-rolled `std::env::var`.
-- [ ] `.shared_env([...])` reads the bare fleet vars (`AUTH_ADMIN_KEY`, `AUTH_MODE`,
-      `OTLP_ENDPOINT`, `PRODUCTION`, `SAMPLE_RATE`); app vars use the `<PRODUCT>_` prefix.
-- [ ] `AUTH_TCP_ADDR`/`_TLS`/`_DOMAIN` are **prefixed** (`<PRODUCT>_AUTH_TCP_ADDR`) and are
-      *not* in `shared_env` — deploy env sets the prefixed names.
+- [ ] `.shared_env([...])` reads the bare fleet vars (`OTLP_ENDPOINT`, `PRODUCTION`,
+      `SAMPLE_RATE`; legacy-SDK repos add `AUTH_ADMIN_KEY`, `AUTH_MODE`); app vars use the
+      `<PRODUCT>_` prefix.
+- [ ] Auth config (`<PRODUCT>_AUTH_MODE`, `<PRODUCT>_OIDC_*`; legacy `<PRODUCT>_AUTH_TCP_*`) is
+      **prefixed** and *not* in `shared_env`; deploy env sets the prefixed names.
 - [ ] `Default` is hand-written, not derived — otherwise `#[serde(default = "…")]` never runs.
 - [ ] Precedence defaults→TOML→shared→prefixed.
 - [ ] Containers: `LIBPATH_BASE_DIR` (+ `set_create_dirs(false)`) for deploy-controlled paths.

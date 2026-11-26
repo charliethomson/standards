@@ -9,9 +9,11 @@
 # Settings → Variables → New Variable, `Is Secret` ON. Names are case-sensitive
 # and must match the [[references]] in stacks.toml.
 #
-#   AUTH_ADMIN_KEY — central auth service TCP HMAC root. The SAME shared secret
-#                    the homelab auth stack defines: if it already exists, REUSE
-#                    it; do NOT regenerate (that rotates every app's key).
+#   {{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET
+#                    the `{{PRODUCT}}-web` Authelia client's plain secret, for
+#                    the server-side code exchange. Its digest goes in the
+#                    homelab Authelia config in the same change. Skip it if the
+#                    product has no web client.
 #
 #   GHCR_TOKEN     — GitHub PAT with read:packages, for watchtower's GHCR poll.
 #                    (The daemon's initial pull is authed separately via the
