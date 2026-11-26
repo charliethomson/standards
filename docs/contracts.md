@@ -51,9 +51,9 @@ backlog are dropped and expected to resync over REST. This `WsHub` lives in `App
 ## Inter-service contract: protobuf
 
 Service-to-service RPC over a persistent TCP connection uses **protobuf (prost)** with
-length-delimited framing and a `oneof result { ok; error }` envelope. This is the auth SDK's
-wire format — see [auth-integration.md](auth-integration.md). REST/JSON is for clients;
-protobuf is for the hot internal auth path.
+length-delimited framing and a `oneof result { ok; error }` envelope. The legacy auth SDK is
+the example in the fleet ([auth-integration.md](auth-integration.md#legacy-the-auth-service-sdk)).
+REST/JSON is for clients and for OIDC, which is plain HTTPS to the issuer.
 
 ## Checklist
 

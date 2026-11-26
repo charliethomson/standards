@@ -29,15 +29,12 @@ registry_account = "charliethomson"
 # resolve without --project-directory gymnastics.
 run_directory = "deploy/compose"
 file_paths = ["prod.compose.yml"]
-# AUTH_ADMIN_KEY: the central auth service's TCP HMAC root (an existing shared
-# Komodo secret — reference it, don't regenerate). GHCR_TOKEN: read:packages PAT
-# for watchtower's poll. Both must exist as secret Variables before first sync.
+# {{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET: the `{{PRODUCT}}-web` client's secret in
+# Authelia (its digest lives in the homelab Authelia config); drop it if there is
+# no web client. GHCR_TOKEN: read:packages PAT for watchtower's poll. Both must
+# exist as secret Variables before first sync. Auth vars carry this product's
+# prefix; bare names are silently ignored by libconfig.
 environment = """
-AUTH_ADMIN_KEY = [[AUTH_ADMIN_KEY]]
-# The auth transport settings are THIS stack's own config fields, so they carry this
-# product's prefix. The bare AUTH_TCP_* names are silently ignored by libconfig.
-# {{PRODUCT_UPPER}}_AUTH_TCP_ADDR   = <auth-tcp-host>:<auth-tcp-port>
-# {{PRODUCT_UPPER}}_AUTH_TCP_TLS    = true
-# {{PRODUCT_UPPER}}_AUTH_TCP_DOMAIN = <auth-tcp-host>
-GHCR_TOKEN     = [[GHCR_TOKEN]]
+{{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET = [[{{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET]]
+GHCR_TOKEN = [[GHCR_TOKEN]]
 """

@@ -28,13 +28,14 @@ services:
       # Export every span; the collector tail-samples (https://standards.thmsn.dev/d/tracing). Don't set
       # SAMPLE_RATE here: a ratio (even 1.0) is parent-based and honours sampled=0.
       OTEL_TRACES_SAMPLER: always_on
-      # Central auth: the API registers itself + grants on boot and validates JWTs
-      # via the SDK. AUTH_ADMIN_KEY is the TCP HMAC root (a Komodo secret Variable;
-      # must be non-empty) and stays bare — the SDK reads it from the environment.
-      # The transport settings are this service's OWN config fields, so they take
-      # this product's prefix ({{PRODUCT_UPPER}}_AUTH_TCP_ADDR, …), never the bare
-      # AUTH_TCP_* names, which libconfig silently ignores.
-      AUTH_ADMIN_KEY: "${AUTH_ADMIN_KEY}"
+      # Auth: SSO through Authelia (https://standards.thmsn.dev/d/auth-integration).
+      # The API validates access tokens locally against the issuer's JWKS and refuses
+      # to boot if it can't reach it. Issuer and audience default in code; set them
+      # here only to override. All auth vars carry this product's prefix.
+      {{PRODUCT_UPPER}}_AUTH_MODE: oidc
+      # The web client's Authelia secret (a Komodo secret Variable), for the
+      # server-side code exchange. Drop it if the product has no web client.
+      {{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET: "${{{PRODUCT_UPPER}}_OIDC_CLIENT_SECRET}"
     volumes:
       - {{PRODUCT}}-data:/data
     networks: [{{PRODUCT}}]

@@ -61,8 +61,11 @@ New Sync → repo + branch `main` + resource path `deploy/komodo/sync` + Managed
 
 - **Never in git.** Enter them as **secret Variables in the Komodo UI** (`Is Secret` ON);
   Komodo writes `.env` into the run directory at deploy time from the `environment` block.
-- Common ones: `AUTH_ADMIN_KEY` (central auth TCP HMAC root — a *shared* secret; reuse, do
-  not regenerate, or you rotate every app's key), `GHCR_TOKEN` (watchtower poll).
+- Common ones: `<PRODUCT>_OIDC_CLIENT_SECRET` (the web client's Authelia secret; its digest
+  lives in the Authelia config), a calling service's `client_credentials` secret, and
+  `GHCR_TOKEN` (watchtower poll). Legacy-SDK apps also carry `AUTH_ADMIN_KEY` (the old auth
+  service's shared TCP HMAC root; reuse it, never regenerate it, or you rotate every legacy
+  app's key).
 - `is_secret` only hides from UI/logs; values are stored at rest unencrypted, so the disk
   security of the Komodo volume is the real protection.
 

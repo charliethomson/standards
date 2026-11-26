@@ -25,8 +25,10 @@ per-app copy of shadcn — see [Shared component library](#shared-component-libr
 
 Generate from the committed OpenAPI spec ([contracts.md](contracts.md)): `openapi-typescript` →
 `schema.d.ts`, consumed by **`openapi-fetch`** (`createClient<paths>({ baseUrl })`). A middleware
-injects `Authorization: Bearer` on every request; asset/WS URLs thread the token as a query
-param ([security.md](security.md)). Prefer this typed pipeline over hand-rolled `fetch` or
+injects `Authorization: Bearer` on every request from the in-memory access token, and on a
+401 refreshes once through `/api/auth/refresh` (single-flight) before replaying; asset/WS URLs
+thread the token as a query param ([security.md](security.md),
+[auth-integration.md](auth-integration.md#web-the-server-side-exchange)). Prefer this typed pipeline over hand-rolled `fetch` or
 axios/orval.
 
 ## Real-time
@@ -179,8 +181,9 @@ domain logic packages. A single-surface app can stay flat (`src/api`, `src/store
 - **Windows:** a testable `<Product>Core` (Api/Realtime/State/Protocol/ViewModels) under a thin
   WinUI app.
 - Both center on a `ServerConfig { origin, token }` that derives the API base, asset URL (token
-  in query), and WebSocket URL, plus a bearer auth provider. Credentials in the platform
-  keychain ([security.md](security.md)).
+  in query), and WebSocket URL, plus a bearer auth provider that signs in through the issuer
+  named by `GET /api/auth/config` ([auth-integration.md](auth-integration.md#native-and-cli-clients)).
+  Credentials in the platform keychain ([security.md](security.md)).
 
 ## Checklist
 

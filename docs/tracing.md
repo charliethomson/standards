@@ -122,7 +122,7 @@ those failures in a real service.
   exports as INTERNAL and draws nothing.
   - A span wrapping several calls (a transaction, a retry loop) is INTERNAL; each call
     inside it is its own CLIENT span.
-  - If an SDK opens its own CLIENT span (an auth SDK's `auth.rpc.me`), your wrapper
+  - If an SDK opens its own CLIENT span (the legacy auth SDK's `auth.rpc.me`), your wrapper
     (`auth.me`) is INTERNAL. CLIENT under CLIENT draws an `unknown` node.
   - Calling another fleet service: `client_span!` + `inject_span` on the request, and the
     peer's `server_span!` becomes its child. `peer.service` is the peer's `service.name`.

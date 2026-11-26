@@ -269,7 +269,7 @@ volumes:
 
 ## Private dependencies
 
-Private crates (`auth-sdk`, the `lib*` family) are fetched over **SSH**, so every Rust step
+Private crates (the `lib*` family, `liboidc` among them, and the legacy `auth-sdk`) are fetched over **SSH**, so every Rust step
 needs the deploy key and libgit2 routed through the git CLI:
 
 ```yaml

@@ -30,7 +30,7 @@ dependency graph acyclic. Name crates `<product>-<layer>` (`someproduct-core`, `
   `#[oai(path="…", method="…", operation_id="…")]`. No manual routing.
 - Group routes with a `#[derive(poem_openapi::Tags)]` enum.
 - **Dependency injection** via the `Data<&AppState>` extractor. `AppState` holds the `Db`,
-  `Arc<Config>`, `Arc<Crypto>`, the auth gateway, the `WsHub`, and any caches/queues.
+  `Arc<Config>`, `Arc<Crypto>`, the token verifier ([auth-integration.md](auth-integration.md)), the `WsHub`, and any caches/queues.
 - Request/response DTOs derive `poem_openapi::Object`; response DTOs that also go over the
   WebSocket additionally derive `Serialize`.
 - Domain errors convert at the boundary with `.map_err(to_poem)` — see
@@ -39,13 +39,18 @@ dependency graph acyclic. Name crates `<product>-<layer>` (`someproduct-core`, `
 ### Standard mount map
 
 ```
-/api/v1/*      OpenAPI service (JWT-authed; grant-gated)
-/api/login     username/password → JWT (public)
-/openapi.json  emitted contract (public)
-/docs          Scalar interactive docs (public)
-/ws            WebSocket (JWT via header or ?token=)
-/health        unauthenticated liveness probe
+/api/v1/*        OpenAPI service (bearer access token; group/scope-gated)
+/api/auth/config issuer, audience, scopes, client ids (public, outside OpenAPI)
+/api/auth/*      web sign-in: login, callback, refresh, logout (cookie, outside OpenAPI)
+/openapi.json    emitted contract (public)
+/docs            Scalar interactive docs (public)
+/ws              WebSocket (access token via header or ?token=)
+/health          unauthenticated liveness probe
 ```
+
+There is no `/api/login`: people sign in at the identity provider. `/api/auth/*` exists only
+when the product has a web client ([auth-integration.md](auth-integration.md#web-the-server-side-exchange)).
+A repo still on the legacy auth SDK keeps its `/api/login` until it migrates.
 
 ## Composition & shutdown
 
@@ -76,6 +81,8 @@ for the cross-platform signal wait.
 - [ ] Workspace members are `core`, `db`, (`adapters`), `engine`, `api`; deps point inward only.
 - [ ] `core` performs no I/O.
 - [ ] HTTP via poem-openapi; one `…Api` struct per resource; DI via `Data<&AppState>`.
-- [ ] Standard mount map (`/api/v1`, `/api/login`, `/openapi.json`, `/docs`, `/ws`, `/health`).
+- [ ] Standard mount map (`/api/v1`, `/api/auth/config`, `/api/auth/*`, `/openapi.json`, `/docs`,
+      `/ws`, `/health`); no `/api/login` (sign-in is the IdP's, see
+      [auth-integration.md](auth-integration.md)).
 - [ ] Graceful shutdown with a 10s drain on Ctrl-C/SIGTERM.
 - [ ] Per-resource serial work uses a keyed queue; stateful components are actor loops.

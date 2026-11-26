@@ -59,8 +59,10 @@ https://standards.thmsn.dev/api/v1/templates. Rename workflows to the component-
 ## 4. Wire identity
 
 Set `product_name!("dev.thmsn.$PRODUCT.<component>")` in each binary's `main.rs`; Apple
-`bundleIdPrefix: dev.thmsn.$PRODUCT`; auth grants `dev.thmsn.$PRODUCT.{use,admin}` if it sits
-behind auth. See [identifiers](https://standards.thmsn.dev/d/identifiers).
+`bundleIdPrefix: dev.thmsn.$PRODUCT`; if it sits behind auth, audience `dev.thmsn.$PRODUCT`
+and groups `$PRODUCT`/`$PRODUCT-admin` per
+[auth-integration](https://standards.thmsn.dev/d/auth-integration). See
+[identifiers](https://standards.thmsn.dev/d/identifiers).
 
 ## 5. Report
 

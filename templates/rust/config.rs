@@ -10,13 +10,26 @@ use serde::{Deserialize, Serialize};
 
 // Defaults are hardcoded HERE, not in a committed TOML.
 const DEFAULT_BIND: &str = "127.0.0.1:8080"; // loopback locally; Docker sets {{PRODUCT_UPPER}}_BIND=0.0.0.0:8080
-// A NAME, not an IP: the TLS leg verifies the certificate's hostname.
-const DEFAULT_AUTH_TCP_ADDR: &str = "<auth-tcp-host>:<auth-tcp-port>"; // the central auth service's TCP endpoint
+// OIDC (https://standards.thmsn.dev/d/auth-integration). The issuer is compared exactly with
+// the token's `iss`; the audience is this product's app id.
+const DEFAULT_OIDC_ISSUER: &str = "https://sso.dev.thmsn.dev";
+const DEFAULT_OIDC_AUDIENCE: &str = "dev.thmsn.{{PRODUCT}}";
 
-// Fleet-shared, UNPREFIXED env vars every service reads. AUTH_TCP_* deliberately does NOT
-// belong here: those are this service's own fields and take the {{PRODUCT_UPPER}}_ prefix.
-// Listing them here fails silently — the bare names are ignored and the defaults apply.
-const SHARED_ENV: [&str; 4] = ["AUTH_ADMIN_KEY", "AUTH_MODE", "OTLP_ENDPOINT", "PRODUCTION"];
+// Fleet-shared, UNPREFIXED env vars every service reads. Auth config deliberately does NOT
+// belong here: {{PRODUCT_UPPER}}_AUTH_MODE and {{PRODUCT_UPPER}}_OIDC_* are this service's own
+// fields. Listing bare names here fails silently: they're ignored and the defaults apply.
+const SHARED_ENV: [&str; 2] = ["OTLP_ENDPOINT", "PRODUCTION"];
+
+/// Declared, never inferred. `Oidc` refuses to boot on a blank issuer/audience or an
+/// unreachable JWKS; `None` is loopback-only and loud; `Proxied` trusts one upstream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthMode {
+    #[default]
+    Oidc,
+    None,
+    Proxied,
+}
 
 // NOTE: do NOT `#[derive(Default)]` here. libconfig's lowest precedence layer is
 // `Serialized::defaults(Config::default())` — it serializes this `Default` impl, so a derived
@@ -28,11 +41,23 @@ pub struct Config {
     #[serde(default = "default_bind")]
     pub bind: String,
 
-    #[serde(default = "default_auth_tcp_addr")]
-    pub auth_tcp_addr: String,
+    #[serde(default)]
+    pub auth_mode: AuthMode,
 
-    // Required secret — provided via the shared env layer (Komodo writes it), never a file.
-    pub auth_admin_key: String,
+    #[serde(default = "default_oidc_issuer")]
+    pub oidc_issuer: String,
+
+    #[serde(default = "default_oidc_audience")]
+    pub oidc_audience: String,
+
+    // Client ids allowed on service routes ({{PRODUCT_UPPER}}_OIDC_SERVICE_CLIENTS). Empty = none.
+    #[serde(default)]
+    pub oidc_service_clients: Vec<String>,
+
+    // Web server-side exchange only: the `{{PRODUCT}}-web` client's secret. Komodo writes it;
+    // never a file. Required when the product serves a web client.
+    #[serde(default)]
+    pub oidc_client_secret: Option<String>,
 
     #[serde(default)]
     pub otlp_endpoint: Option<String>,
@@ -41,8 +66,11 @@ pub struct Config {
 fn default_bind() -> String {
     DEFAULT_BIND.to_owned()
 }
-fn default_auth_tcp_addr() -> String {
-    DEFAULT_AUTH_TCP_ADDR.to_owned()
+fn default_oidc_issuer() -> String {
+    DEFAULT_OIDC_ISSUER.to_owned()
+}
+fn default_oidc_audience() -> String {
+    DEFAULT_OIDC_AUDIENCE.to_owned()
 }
 
 // The real default layer. Keep every field in sync with the `#[serde(default = "...")]`
@@ -51,8 +79,11 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bind: default_bind(),
-            auth_tcp_addr: default_auth_tcp_addr(),
-            auth_admin_key: String::new(), // required; supplied by the shared env layer
+            auth_mode: AuthMode::default(),
+            oidc_issuer: default_oidc_issuer(),
+            oidc_audience: default_oidc_audience(),
+            oidc_service_clients: Vec::new(),
+            oidc_client_secret: None,
             otlp_endpoint: None,
         }
     }

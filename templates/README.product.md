@@ -61,7 +61,7 @@
 <!--
   Commands that work when pasted, in the order a newcomer runs them. Prerequisites first.
   Required env vars get a sentence saying WHY they're required — a server that refuses to
-  boot without AUTH_ADMIN_KEY looks broken until you know it's refusing rather than
+  boot without its OIDC issuer/audience looks broken until you know it's refusing rather than
   failing. Show the loopback opt-out and its constraints too.
 -->
 
