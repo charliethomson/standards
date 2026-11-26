@@ -65,8 +65,13 @@ actually building.
 - **registry** — the self-hosted app registry at **`apps.dev.thmsn.dev`** where client apps and
   CLIs publish. **`dev.thmsn.apps`** is its AltStore source identifier (never changes). See
   [registry-publishing.md](registry-publishing.md).
-- **agentutil** — manages the fleet of self-hosted GitHub Actions runners over SSH. See
+- **Woodpecker** — the self-hosted CI server in the homelab plus the agents it schedules
+  onto; **the CI standard**. A repo's pipelines live in `.woodpecker/` and pick an agent
+  with `labels:`. See [ci-cd.md](ci-cd.md) and
   [self-hosted-agents.md](self-hosted-agents.md).
+- **agentutil** — manages the fleet of self-hosted **GitHub Actions** runners over SSH.
+  Actions is legacy and agentutil was never extended to Woodpecker, so it sees only half
+  the CI fleet. See [self-hosted-agents.md](self-hosted-agents.md).
 - **Komodo / Periphery** — the GitOps deployment control plane (Komodo Core) and its
   per-host agents (Periphery) that reconcile docker-compose stacks from git.
 - **homelab** — the infra-as-code repo that deploys the whole fleet; the **`dev` box** is its

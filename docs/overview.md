@@ -10,9 +10,10 @@ Every standard here assumes the same context. It is deliberately narrow:
 - **Single developer, single user.** Optimise for one person moving fast, not for teams.
   Commit directly to `main`; no PR review gates, no release trains. See
   [`workflow.md`](workflow.md).
-- **Self-hosted everything.** CI runs on self-hosted agents (managed by agentutil),
-  deploys land on the homelab via Komodo, client apps ship through the self-hosted
-  `apps.dev.thmsn.dev` registry. There is no reliance on external SaaS for the core loop.
+- **Self-hosted everything.** CI runs on self-hosted Woodpecker agents, deploys land on
+  the homelab via Komodo, client apps ship through the self-hosted `apps.dev.thmsn.dev`
+  registry. There is no reliance on external SaaS for the core loop — the clause
+  [`ci-cd.md`](ci-cd.md) cites for making Woodpecker the standard and Actions legacy.
 - **Reverse-domain identity.** Everything namespaced under `dev.thmsn.*`.
 - **Versions are cheap and disposable.** Because there's one user and continuous deploy to
   `main`, versions exist for *debugging* ("which commit is this?"), not for release

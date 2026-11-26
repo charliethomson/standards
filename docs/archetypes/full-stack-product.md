@@ -29,7 +29,7 @@ This is the organizing principle. Each concern has exactly one home:
 ├── api/                    openapi.json (+ asyncapi) — generated, committed
 ├── branding/               code-as-truth asset generator (see branding.md)
 ├── deploy/                 Komodo sync TOML + compose + Caddyfile
-├── .github/workflows/      *.build (→ GHCR) + *.release (→ registry); see ci-cd.md naming
+├── .woodpecker/            *.build (→ GHCR) + *.release (→ registry); see ci-cd.md naming
 ├── .standards.conf         PRODUCT / ARCHETYPE identity, read by the standards cli
 ├── AGENTS.md               Standards: line (archetype, product) + repo overrides
 └── VERSIONING.md           from the VERSIONING.md template
@@ -43,8 +43,8 @@ This is the organizing principle. Each concern has exactly one home:
 | [Identifiers](../identifiers.md) | `dev.thmsn.<product>` root; per-platform bundle ids; auth grants `.{read,write,admin}`. |
 | [Build info](../build-info.md) | `libbuildinfo` in the server (and shipped binaries); exposed via `/version`. |
 | [Branding](../branding.md) | In-repo generator produces all icons/tokens for every platform. |
-| [CI/CD](../ci-cd.md) | Self-hosted runners; `*.build` → GHCR `:main`; `*.release` → registry. Codegen drift + coverage gates. |
-| [Self-hosted agents](../self-hosted-agents.md) | Linux/macOS runners via agentutil; dev Mac for Apple notarized builds. |
+| [CI/CD](../ci-cd.md) | Woodpecker pipelines in `.woodpecker/`; `*.build` → GHCR `:main`; `*.release` → registry. Codegen drift + coverage gates. |
+| [Self-hosted agents](../self-hosted-agents.md) | Linux agents (`platform: linux/amd64`); dev Mac (`os: macos`) for Apple notarized builds. |
 | [Deployment](../deployment.md) | Komodo GitOps + Watchtower + Caddy; hostname `<product>.dev.thmsn.dev`; secrets in Komodo UI. |
 | [Registry publishing](../registry-publishing.md) | Client apps (iOS/macOS/Windows) ship to `apps.dev.thmsn.dev`. |
 | [Testing](../testing.md) | >80% tarpaulin on the server; vitest + hermetic Playwright on web; thin/none on native UI. |
@@ -84,7 +84,8 @@ idempotently on startup. Grants are `dev.thmsn.<product>.{read,write,admin}`.
 - [ ] Native clients exist per target OS, designed for that OS (not ported wrappers).
 - [ ] Branding generator present and run; no hand-edited icon assets.
 - [ ] `deploy/` has Komodo sync TOML + compose + Caddyfile; secrets only in Komodo UI.
-- [ ] `*.build`/`*.release` workflows on self-hosted runners; version computed once.
+- [ ] `*.build`/`*.release` pipelines in `.woodpecker/`, on self-hosted agents; version
+      computed once.
 - [ ] Telemetry per [`../observability.md`](../observability.md) (`set_global()` before init,
       always-on) and tracing per [`../tracing.md`](../tracing.md): request span adopts a
       client's `traceparent` (continues a service's), every request leaves one `http

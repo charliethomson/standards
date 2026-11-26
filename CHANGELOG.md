@@ -14,6 +14,21 @@ First draft — nothing tagged yet; everything lives here until a `v0.1` cut.
 
 ### Fixed
 
+- **The summary layer still described GitHub Actions as the CI standard** (`AGENTS.md`,
+  `docs/overview.md`, `docs/glossary.md`, the three archetype docs,
+  `skills/thmsn-standards/SKILL.md`, `templates/VERSIONING.md`): the Woodpecker switch was
+  recorded properly in [`docs/ci-cd.md`](docs/ci-cd.md) and
+  [`docs/self-hosted-agents.md`](docs/self-hosted-agents.md), but every doc that *summarises*
+  them was left behind — and that is the layer an agent reads first. The archetype rows
+  contradicted the standard outright: `get_checklist` handed over `cli.release.yml` "on
+  self-hosted runners" and a `.github/workflows/` scaffold tree, while ci-cd.md says a new
+  repo never gets one. The audit skill's CI/CD probe would have flagged a correctly converted
+  repo and passed an unconverted one. Layout trees now show `.woodpecker/`, agents are
+  selected by `labels:` rather than attributed to agentutil, the glossary gains a
+  **Woodpecker** entry and scopes agentutil to the legacy Actions half of the fleet, and the
+  `VERSIONING.md` template leads with Woodpecker's `clone:` block instead of
+  `actions/checkout`.
+
 - **The index rendered a rule starting `>` as a blockquote** (`web/render.rs`): the testing
   standard's rule is `>80% on services ...`, and rendering a one-line table cell as a whole
   markdown document read the `>` as a blockquote marker and swallowed it. `inline` now

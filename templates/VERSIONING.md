@@ -52,7 +52,19 @@ MM="$(printf '%s' "${TAG#v}" | awk -F. '{ if ($1 != "" && $2 != "") print $1"."$
 RELEASE_VERSION="$MM.$COUNT"
 ```
 
-Checkout must fetch tags: `actions/checkout@v4` with `fetch-depth: 0` **and**
+The checkout must fetch full history **and** tags, or the derivation is wrong. In
+Woodpecker, configure the clone explicitly:
+
+```yaml
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      partial: false
+      tags: true
+```
+
+Legacy GitHub Actions: `actions/checkout@v4` with `fetch-depth: 0` **and**
 `fetch-tags: true`.
 
 Use `RELEASE_VERSION` for:

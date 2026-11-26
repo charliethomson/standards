@@ -46,8 +46,10 @@ Heuristics for the items that need more than a glance:
   static placeholders (not hand-bumped)? Is there a root `VERSIONING.md`?
 - **Identifiers** — grep for the product root `dev.thmsn.<PRODUCT>`; binaries set it via
   `product_name!`; components named `dev.thmsn.<PRODUCT>.<component>`; reverse-domain only.
-- **CI/CD** — workflows named component-first (`server.build.yml`, `*.release.yml`), `ci.yml`
-  is the gate; self-hosted runners; coverage + codegen-drift gates present.
+- **CI/CD** — pipelines in `.woodpecker/`, named component-first (`rust.ci.yml`,
+  `server.build.yml`, `*.release.yml`); `*.ci.yml` is the gate; self-hosted agents;
+  coverage + codegen-drift gates present. A repo still on `.github/workflows/` is
+  grandfathered and not a finding on its own; a **new** `.github/workflows/` is.
 - **Deployment** — `deploy/` has compose + internal Caddyfile + komodo sync; no secrets in git.
 - **Configuration** — config via `libconfig` (`Loader`/`config!{}`), not hand-rolled `std::env::var`.
 - **Testing** — services have `tarpaulin.toml` with `fail-under = 80`; UIs are not unit-tested;

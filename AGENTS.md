@@ -42,7 +42,8 @@ spelunking, write the route down there afterwards. See
 - **Workflow** — single developer, single user. Commit straight to `main`. No PR gates.
 - **Deployment** — Komodo GitOps + Watchtower + Caddy; client apps publish to the
   `apps.dev.thmsn.dev` registry.
-- **CI** — self-hosted runners (managed by agentutil) for Linux/macOS builds.
+- **CI** — Woodpecker pipelines in `.woodpecker/`, on self-hosted agents; GitHub
+  Actions is legacy. See [ci-cd](https://standards.thmsn.dev/d/ci-cd).
 - **Testing** — aim for >80% coverage on services; do not unit-test UIs. A test that only
   mirrors the implementation (mock everything, verify the calls) is deleted, not maintained.
   **Tests never make sound**: every audio sink no-ops under test, Playwright runs `--mute-audio`.

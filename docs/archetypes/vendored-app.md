@@ -34,7 +34,7 @@ vendored it — that's a product, not this archetype.
 ├── scripts/                  build-time adjustments applied to a checkout, never committed upstream
 │   ├── strip-*.sh            remove a capability we can't/won't provision (self-verifying)
 │   └── extract-app-icon.sh   render the registry icon from the built bundle
-├── .github/workflows/        <platform>.release.yml → build, sign, notarize, publish
+├── .woodpecker/              <platform>.release.yml → build, sign, notarize, publish
 ├── .standards.conf           PRODUCT = tooling slug only (NOT applied to the vendored app)
 └── AGENTS.md                 Standards: line, with the à-la-carte overrides spelled out below it
 ```
@@ -47,8 +47,8 @@ lives in `scripts/` applied at **build time** — the upstream checkout is never
 
 | Standard | How it applies here |
 |---|---|
-| [CI/CD](../ci-cd.md) | **The defining standard** — `<platform>.release.yml` builds/signs/notarizes on a self-hosted runner and publishes. Trigger is a bump of the `upstream/` submodule pointer (or manual dispatch). |
-| [Self-hosted agents](../self-hosted-agents.md) | The signing identity + registry access live on the self-hosted runner (e.g. the dev Mac for a notarized macOS build). |
+| [CI/CD](../ci-cd.md) | **The defining standard** — `.woodpecker/<platform>.release.yml` builds/signs/notarizes on a self-hosted agent and publishes. Trigger is a bump of the `upstream/` submodule pointer (or manual dispatch). |
+| [Self-hosted agents](../self-hosted-agents.md) | The signing identity + registry access live on the self-hosted agent (e.g. the dev Mac, `os: macos`, for a notarized macOS build). |
 | [Registry publishing](../registry-publishing.md) | **Also defining** — published to `apps.dev.thmsn.dev`, attributed to upstream (`developer`, `category: external`). |
 | [Versioning](../versioning.md) | **Adapted** — ship *upstream's own* version (read from its git tag), **not** our derived `MAJOR.MINOR.<count>`. We release what upstream tagged. |
 | [Build info](../build-info.md) | As needed to feed the release metadata (upstream commit/tag → registry version + build number). We don't inject `libbuildinfo` into code we don't own. |
@@ -92,7 +92,7 @@ Two rules keep this honest and keep upstream re-syncs cheap:
 - [ ] `upstream/` is a pinned third-party submodule; a release is a deliberate bump of its pointer.
 - [ ] Nothing in `upstream/` is edited in git — all divergence lives in `scripts/`, applied at build time.
 - [ ] Build-time scripts are self-verifying (fail loudly if upstream's layout changed).
-- [ ] Release workflow builds/signs/notarizes on a self-hosted runner and publishes to the registry.
+- [ ] Release pipeline builds/signs/notarizes on a self-hosted agent and publishes to the registry.
 - [ ] Published version is **upstream's** (from its tag), not the derived scheme; attributed to upstream, `category: external`.
 - [ ] No rebrand — the artifact keeps upstream's bundle id / name / icons; `dev.thmsn.<product>` is tooling-only.
 - [ ] `AGENTS.md` spells out the à-la-carte overrides (which standards apply, what's N/A, and that there's no rebrand).
